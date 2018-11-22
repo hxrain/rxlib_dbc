@@ -73,7 +73,7 @@ namespace rx_dbc_ora
             }
 
             m_query = rs;
-            conn_t &conn = reinterpret_cast<command_t*>(m_query)->m_Conn;
+            conn_t &conn = reinterpret_cast<stmt_t*>(m_query)->m_conn;
 
             m_fields_is_empty = (sb2*)conn.m_MemPool.alloc(sizeof(sb2)*fetch_size);
 
@@ -96,14 +96,14 @@ namespace rx_dbc_ora
         //µÃµ½´íÎó¾ä±ú
         OCIError *oci_err_handle() const
         {
-            conn_t &conn = reinterpret_cast<command_t*>(m_query)->m_Conn;
+            conn_t &conn = reinterpret_cast<stmt_t*>(m_query)->m_conn;
             return conn.m_ErrHandle;
         }
         //-------------------------------------------------
         void reset()
         {
             if (!m_query) return;
-            conn_t &conn = reinterpret_cast<command_t*>(m_query)->m_Conn;
+            conn_t &conn = reinterpret_cast<stmt_t*>(m_query)->m_conn;
             if (m_fields_is_empty)
             {
                 conn.m_MemPool.free(m_fields_is_empty);

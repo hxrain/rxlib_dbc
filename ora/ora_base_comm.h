@@ -10,19 +10,16 @@
 namespace rx_dbc_ora
 {
     //对于参数来说,允许缓存的字符串的最大长度
-    const ub2 MAX_OUTPUT_TEXT_BYTES = 1024 * 2;
+    const ub2 MAX_TEXT_BYTES = 1024 * 2;
 
-    //每次FEATCH获取的数据行的数量
+    //每次批量FEATCH获取的数据行的数量
     const ub2 FETCH_SIZE = 100;
 
     //字段名字最大长度
-    const ub2 FIELD_NAME_LENGTH = 32;
+    const ub2 FIELD_NAME_LENGTH = 60;
 
     //临时使用存放错误信息的缓冲区尺寸
     const ub2 ERROR_FORMAT_MAX_MSG_LEN = 1024;
-
-    //参数批量数据的最大数量
-    const int MAX_BULK_COUNT = 512;
 
     //SQL语句的长度限制
     const int MAX_SQL_LENGTH = 1024 * 32;
@@ -75,6 +72,7 @@ namespace rx_dbc_ora
         EC_ENV_CREATE_FAILED = 1000,
         EC_TIMEOUT,
         EC_NO_MEMORY,
+        EC_NO_BUFFER,
         EC_BAD_PARAM_TYPE,
         EC_POOL_NOT_SETUP,
         EC_BAD_INPUT_TYPE,

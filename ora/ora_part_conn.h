@@ -215,7 +215,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
     private:
-        friend class command_t;
+        friend class stmt_t;
         friend class sql_param_t;
         friend class query_t;
         friend class field_t;

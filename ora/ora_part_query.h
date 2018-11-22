@@ -6,7 +6,7 @@ namespace rx_dbc_ora
     //-----------------------------------------------------
     //从Command类集成,增加了记录行遍历获取的功能
     //-----------------------------------------------------
-    class query_t:protected command_t
+    class query_t:protected stmt_t
     {
         friend class field_t;
 
@@ -38,9 +38,9 @@ namespace rx_dbc_ora
         {
             //获取当前结果集的字段数量
             ub4			count;
-            sword result = OCIAttrGet(m_StmtHandle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_Conn.m_ErrHandle);
+            sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_ErrHandle);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_Conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__));
 
             //动态生成字段对象数组
             rx_assert(m_fields.capacity()==0);
@@ -58,22 +58,22 @@ namespace rx_dbc_ora
                 ub4			size = 0;
 
                 //从结果集中获取参数句柄
-                result = OCIParamGet (m_StmtHandle,OCI_HTYPE_STMT,m_Conn.m_ErrHandle,reinterpret_cast <void **> (&param_handle),i + 1);	// first is 1
+                result = OCIParamGet (m_stmt_handle,OCI_HTYPE_STMT,m_conn.m_ErrHandle,reinterpret_cast <void **> (&param_handle),i + 1);	// first is 1
 
                 if (result == OCI_SUCCESS)                          //根据参数句柄得到字段名字
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&param_name,&name_len,OCI_ATTR_NAME,m_Conn.m_ErrHandle);
+                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&param_name,&name_len,OCI_ATTR_NAME,m_conn.m_ErrHandle);
 
                 if (result == OCI_SUCCESS)                          //根据参数句柄得到ORACLE数据类型
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&oci_data_type,NULL,OCI_ATTR_DATA_TYPE,m_Conn.m_ErrHandle);
+                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&oci_data_type,NULL,OCI_ATTR_DATA_TYPE,m_conn.m_ErrHandle);
 
                 if (result == OCI_SUCCESS)                          //根据参数句柄得到该字段的数据最大尺寸
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&size,NULL,OCI_ATTR_DATA_SIZE,m_Conn.m_ErrHandle);
+                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&size,NULL,OCI_ATTR_DATA_SIZE,m_conn.m_ErrHandle);
 
                 if (param_handle)                                   //释放参数句柄
                     OCIDescriptorFree (param_handle,OCI_DTYPE_PARAM);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t (result, m_Conn.m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
                     
                 rx::st::strncpy(Tmp,(char*)param_name,name_len);    //转换字段名,将字段对象与其名字进行关联
                 Tmp[name_len]=0;
@@ -90,7 +90,7 @@ namespace rx_dbc_ora
             for (ub4 i = 0; i<m_fields.size(); i++)
             {
                 field_t& Field = m_fields[i];
-                result = OCIDefineByPos(m_StmtHandle, &(Field.m_field_handle), m_Conn.m_ErrHandle,
+                result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_ErrHandle,
                     position++,
                     Field.m_fields_databuff,
                     Field.m_max_data_size,			// fetch m_max_data_size for a single row (NOT for several)
@@ -101,7 +101,7 @@ namespace rx_dbc_ora
                     OCI_DEFAULT);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_Conn.m_ErrHandle, __FILE__, __LINE__, Field.m_FieldName.c_str()));
+                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__, Field.m_FieldName.c_str()));
             }
         }
 
@@ -111,42 +111,42 @@ namespace rx_dbc_ora
             sword	result;
             ub4		old_rows_count = m_fetched_count;
 
-            result = OCIStmtFetch(m_StmtHandle,m_Conn.m_ErrHandle,m_bat_fetch_count,OCI_FETCH_NEXT,OCI_DEFAULT);
+            result = OCIStmtFetch(m_stmt_handle,m_conn.m_ErrHandle,m_bat_fetch_count,OCI_FETCH_NEXT,OCI_DEFAULT);
             if (result == OCI_SUCCESS || result == OCI_NO_DATA || result == OCI_SUCCESS_WITH_INFO)
             {
-                result = OCIAttrGet (m_StmtHandle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_Conn.m_ErrHandle);
+                result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_ErrHandle);
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t (result, m_Conn.m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
                 
                 if (m_fetched_count - old_rows_count != (ub4)m_bat_fetch_count)
                     m_is_eof = true;
             }
             else
-                throw (rx_dbc_ora::error_info_t (result, m_Conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
         }
 
     public:
         //-------------------------------------------------
-        query_t(conn_t &Conn) :command_t(Conn) { m_clear(); }
+        query_t(conn_t &Conn) :stmt_t(Conn) { m_clear(); }
         ~query_t (){close();}
         //-------------------------------------------------
-        conn_t& conn(){return command_t::conn();}
-        PStr SQL(){return command_t::SQL();}
+        conn_t& conn(){return stmt_t::conn();}
+        PStr SQL(){return stmt_t::SQL();}
         //-------------------------------------------------
         //预解析一个SQL语句,得到必要的信息
-        void prepare(const char *SQL, int Len = -1) { command_t::prepare(SQL, Len); }
+        void prepare(const char *SQL, int Len = -1) { stmt_t::prepare(SQL, Len); }
         //-------------------------------------------------
         //预解析之后可以进行参数绑定
-        sql_param_t& bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_OUTPUT_TEXT_BYTES) { return command_t::bind(name,type, MaxStringSize); }
+        sql_param_t& bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES) { return stmt_t::bind(name,type, MaxStringSize); }
         //-------------------------------------------------
         //获取绑定的参数对象
-        sql_param_t& param(const char* Name) { return command_t::operator[](Name); }
+        sql_param_t& param(const char* Name) { return stmt_t::param(Name); }
         //-------------------------------------------------
         //执行解析后的SQL语句,并尝试得到结果(入口为每次获取的批量数量)
         void exec (ub2 fetch_size=FETCH_SIZE)
         {
             m_clear();
-            command_t::exec();
+            stmt_t::exec();
             try
             {
                 m_bat_fetch_count=fetch_size;
@@ -171,7 +171,7 @@ namespace rx_dbc_ora
         void close()
         {
             m_clear();
-            command_t::close();
+            stmt_t::close();
         }
         //-------------------------------------------------
         //判断当前行是否为结尾
@@ -206,6 +206,7 @@ namespace rx_dbc_ora
             return m_fields[Idx];
         }
         //-------------------------------------------------
+        //根据字段名查找或判断字段是否存在
         field_t* field(const char *name)
         {
             char Tmp[200];
@@ -215,7 +216,7 @@ namespace rx_dbc_ora
             return &m_fields[Idx];
         }
         //-------------------------------------------------
-        //根据字段名字查找字段对象获得访问
+        //根据字段名访问
         field_t& operator [] (const char *name)
         {
             char Tmp[200];
