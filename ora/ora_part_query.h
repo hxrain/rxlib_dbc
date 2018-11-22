@@ -146,7 +146,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //执行解析后的SQL语句,并尝试得到结果(入口为每次获取的批量数量)
         //执行后如果没有异常,就可以尝试访问结果集了
-        void exec(ub2 fetch_size=FETCH_SIZE)
+        void exec(ub2 fetch_size=BAT_FETCH_SIZE)
         {
             m_clear();
             stmt_t::exec();
@@ -155,7 +155,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //直接执行一条SQL语句,中间没有绑定参数的机会了
-        void exec(const char *SQL,int Len = -1,ub2 fetch_size=FETCH_SIZE)
+        void exec(const char *SQL,int Len = -1,ub2 fetch_size=BAT_FETCH_SIZE)
         {
             prepare(SQL,Len);
             exec(fetch_size);
@@ -195,10 +195,10 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //根据序号访问字段
-        field_t& operator [] (const ub4 Idx)
+        field_t& operator [] (const ub4 field_idx)
         {
-            rx_assert(Idx<m_fields.size());
-            return m_fields[Idx];
+            rx_assert(field_idx<m_fields.size());
+            return m_fields[field_idx];
         }
         //-------------------------------------------------
         //根据字段名查找或判断字段是否存在
@@ -206,9 +206,9 @@ namespace rx_dbc_ora
         {
             char Tmp[200];
             rx::st::strlwr(name,Tmp);
-            ub4 Idx=m_fields.index(Tmp);
-            if (Idx==(ub4)-1) return NULL;
-            return &m_fields[Idx];
+            ub4 field_idx = m_fields.index(Tmp);
+            if (field_idx == m_fields.capacity()) return NULL;
+            return &m_fields[field_idx];
         }
         //-------------------------------------------------
         //根据字段名访问
@@ -216,10 +216,10 @@ namespace rx_dbc_ora
         {
             char Tmp[200];
             rx::st::strlwr(name,Tmp);
-            ub4 Idx=m_fields.index(Tmp);
-            if (Idx==(ub4)-1)
+            ub4 field_idx = m_fields.index(Tmp);
+            if (field_idx == m_fields.capacity())
                 throw (rx_dbc_ora::error_info_t (EC_COLUMN_NOT_FOUND, __FILE__, __LINE__, name));
-            return m_fields[Idx];
+            return m_fields[field_idx];
         }
     };
 

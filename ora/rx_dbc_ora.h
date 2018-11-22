@@ -2,6 +2,7 @@
 #define	_RX_DBC_ORA_H_
 
 #include "sdk\oci.h"                    //引入OCI接口
+
 #include "rx_cc_macro.h"                //引入基础宏定义
 #include "rx_assert.h"                  //引入断言
 #include "rx_str_util.h"                //引入基础字符串功能

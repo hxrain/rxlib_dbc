@@ -126,31 +126,120 @@ namespace rx_dbc_ora
                 throw;
             }
         }
-    public:
+
         //-------------------------------------------------
-        sql_param_t(rx::mem_allotter_i &ma) :m_max_bulk_count(-1), m_bulks_datasize(ma), m_bulks_databuff(ma), m_bulks_is_empty(ma) {}
-        //-------------------------------------------------
-        ~sql_param_t() { clear(); }
-        //-------------------------------------------------
-        //让当前参数设置为空值
-        void set_null(ub4 Idx = 0) { rx_assert(Idx < m_max_bulk_count); m_bulks_is_empty.at(Idx) = -1; }
-        //-------------------------------------------------
-        //判断当前参数是否为空值
-        bool is_null(uint32_t Idx = 0) const { rx_assert(Idx < m_max_bulk_count); return (m_bulks_is_empty.at(Idx) == -1); }
-        //-------------------------------------------------
-        //给参数的指定数组批量元素赋值:字符串值
-        sql_param_t& operator()(PStr text, ub4 Idx = 0)
+        //绑定数字值
+        sql_param_t& set_long(int32_t value, ub4 bulk_idx, bool is_signed)
         {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_dbc_data_type == DT_NUMBER)
+            {
+                rx_assert(m_max_data_size == sizeof(OCINumber));
+                ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+                sword result = OCINumberFromInt(m_conn->m_ErrHandle, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, reinterpret_cast <OCINumber *> (DataBuf));
+                if (result != OCI_SUCCESS)
+                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
+                m_bulks_is_empty.at(bulk_idx) = 0;               //标记参数非空了
+                m_bulks_datasize.at(bulk_idx) = m_max_data_size; //记录数据的实际长度
+            }
+            else if (m_dbc_data_type == DT_TEXT)
+            {
+                char TmpBuf[50];
+                if (is_signed)
+                    sprintf(TmpBuf, "%d", value);
+                else
+                    sprintf(TmpBuf, "%u", value);
+                return set_string(TmpBuf, bulk_idx);
+            }
+            else
+                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
+            return (*this);
+        }
+        //-------------------------------------------------
+        //绑定大数字与浮点数
+        sql_param_t& set_double(double value, ub4 bulk_idx = 0)
+        {
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_dbc_data_type == DT_NUMBER)
+            {
+                rx_assert(m_max_data_size == sizeof(OCINumber));
+                ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+                sword result = OCINumberFromReal(m_conn->m_ErrHandle, &value, sizeof(double), reinterpret_cast <OCINumber *> (DataBuf));
+                if (result != OCI_SUCCESS)
+                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
+                m_bulks_is_empty.at(bulk_idx) = 0;                  //标记参数非空了
+                m_bulks_datasize.at(bulk_idx) = m_max_data_size;    //记录数据的实际长度
+            }
+            else if (m_dbc_data_type == DT_TEXT)
+            {
+                char TmpBuf[50];
+                sprintf(TmpBuf, "%f", value);
+                return set_string(TmpBuf, bulk_idx);
+            }
+            else
+                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
+            return (*this);
+        }
+        sql_param_t& set_real(long double value, ub4 bulk_idx = 0)
+        {
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_dbc_data_type == DT_NUMBER)
+            {
+                rx_assert(m_max_data_size == sizeof(OCINumber));
+                ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+                sword result = OCINumberFromReal(m_conn->m_ErrHandle, &value, sizeof(value), reinterpret_cast <OCINumber *> (DataBuf));
+                if (result != OCI_SUCCESS)
+                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
+                m_bulks_is_empty.at(bulk_idx) = 0;                  //标记参数非空了
+                m_bulks_datasize.at(bulk_idx) = m_max_data_size;    //记录数据的实际长度
+            }
+            else if (m_dbc_data_type == DT_TEXT)
+            {
+                char TmpBuf[50];
+                sprintf(TmpBuf, "%Lf", value);
+                return set_string(TmpBuf, bulk_idx);
+            }
+            else
+                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
+            return (*this);
+        }
+        //-------------------------------------------------
+        //绑定日期数据
+        sql_param_t& set_datetime(const datetime_t& d, ub4 bulk_idx = 0)
+        {
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_dbc_data_type == DT_DATE)
+            {
+                rx_assert(m_max_data_size == sizeof(OCIDate));
+                ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+                d.to(*reinterpret_cast <OCIDate*> (DataBuf));
+                m_bulks_is_empty.at(bulk_idx) = 0;               //标记参数非空了
+                m_bulks_datasize.at(bulk_idx) = m_max_data_size; //记录数据的实际长度
+            }
+            else if (m_dbc_data_type == DT_TEXT)
+            {
+                char TmpBuf[21];
+                d.to(TmpBuf);
+                return set_string(TmpBuf, bulk_idx);
+            }
+            else
+                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
+            return (*this);
+        }
+        //-------------------------------------------------
+        //绑定文本串
+        sql_param_t& set_string(PStr text, ub4 bulk_idx = 0)
+        {
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (is_empty(text))
             {//不管什么类型,空串都让其变为空值
-                m_bulks_is_empty.at(Idx) = -1;
+                m_bulks_is_empty.at(bulk_idx) = -1;
                 return *this;
             }
             else if (m_dbc_data_type == DT_TEXT)
             {//当前实际数据类型是文本串,赋值的也是文本,那么就进行拷贝赋值吧
                 ub2 DataLen = static_cast <ub2> (strlen(text));             //得到数据实际长度
-                ub1 *DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
+                ub1 *DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
                 if (DataLen > m_max_data_size)                              //输入数据太长了,进行截断吧
                 {
                     rx_alert("输入数据过大,请在绑定时调整缓冲区尺寸");
@@ -160,147 +249,115 @@ namespace rx_dbc_ora
                 memcpy(DataBuf, text, DataLen);             //将输入数据拷贝到此元素对应的空间
                 *((char *)DataBuf + DataLen++) = '\0';      //给该空间的串尾设置结束符
 
-                m_bulks_is_empty.at(Idx) = 0;               //标记参数非空了
-                m_bulks_datasize.at(Idx) = DataLen;         //记录该元素的实际长度    
+                m_bulks_is_empty.at(bulk_idx) = 0;               //标记参数非空了
+                m_bulks_datasize.at(bulk_idx) = DataLen;         //记录该元素的实际长度    
             }
             else if (m_dbc_data_type == DT_DATE)
             {//当前实际数据类型是日期,而给赋值的是文本串,那么就进行转换后处理吧;默认只处理"yyyy-mm-dd hh:mi:ss"的格式
                 datetime_t D;
                 struct tm ST;
 
-                if (!rx_iso_datetime(text, ST))              //转换日期格式
+                if (!rx_iso_datetime(text, ST))             //转换日期格式
                     throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
                 D.set(ST);
-                return operator()(D, Idx);                   //交给实际的功能函数
+                return set_datetime(D, bulk_idx);                //交给实际的功能函数
             }
             else if (m_dbc_data_type == DT_NUMBER)
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
                 double Value = rx::st::atof(text);
-                return operator()(Value, Idx);               //交给实际的功能函数
+                return set_double(Value, bulk_idx);              //交给实际的功能函数
             }
             else
                 throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
             return (*this);
         }
+    public:
         //-------------------------------------------------
-        //给参数设置字符串值
-        sql_param_t& operator = (PStr text) { return operator()(text); }
+        sql_param_t(rx::mem_allotter_i &ma) :m_max_bulk_count(-1), m_bulks_datasize(ma), m_bulks_databuff(ma), m_bulks_is_empty(ma) {}
+        //-------------------------------------------------
+        ~sql_param_t() { clear(); }
+        //-------------------------------------------------
+        //让当前参数设置为空值
+        void set_null(ub4 bulk_idx = 0) { rx_assert(bulk_idx < m_max_bulk_count); m_bulks_is_empty.at(bulk_idx) = -1; }
+        bool is_null(uint32_t bulk_idx = 0) const { rx_assert(bulk_idx < m_max_bulk_count); return (m_bulks_is_empty.at(bulk_idx) == -1); }
+        //-------------------------------------------------
+        //给参数的指定数组批量元素赋值:字符串值
+        sql_param_t& operator()(PStr text, ub4 bulk_idx = 0) { return set_string(text,bulk_idx); }
+        sql_param_t& operator = (PStr text) { return set_string(text, 0);}
         //-------------------------------------------------
         //设置参数中指定序号的批量元素为浮点数
-        sql_param_t& operator () (double value, ub4 Idx = 0)
-        {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_dbc_data_type == DT_NUMBER)
-            {
-                rx_assert(m_max_data_size == sizeof(OCINumber));
-                ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromReal(m_conn->m_ErrHandle, &value, sizeof(double), reinterpret_cast <OCINumber *> (DataBuf));
-                if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
-                m_bulks_is_empty.at(Idx) = 0;                  //标记参数非空了
-                m_bulks_datasize.at(Idx) = m_max_data_size;    //记录数据的实际长度
-            }
-            else if (m_dbc_data_type == DT_TEXT)
-            {
-                char TmpBuf[50];
-                sprintf(TmpBuf, "%.02f", value);
-                return operator()(TmpBuf, Idx);
-            }
-            else
-                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
-            return (*this);
-        }
+        sql_param_t& operator () (double value, ub4 bulk_idx = 0) { return set_double(value,bulk_idx); }
+        sql_param_t& operator = (double value) { return set_double(value,0); }
+        sql_param_t& operator () (long double value, ub4 bulk_idx = 0) { return set_real(value, bulk_idx); }
+        sql_param_t& operator = (long double value) { return set_real(value, 0); }
         //-------------------------------------------------
-        //设置参数为浮点数
-        sql_param_t& operator = (double value) { return operator()(value); }
+        //设置参数为大整数值(带符号)
+        sql_param_t& operator()(int64_t value, ub4 bulk_idx = 0) { return set_real((long double)value, bulk_idx); }
+        sql_param_t& operator = (int64_t value) { return set_real((long double)value, 0); }
         //-------------------------------------------------
-        //设置参数为整数值
-        sql_param_t& operator()(long value, ub4 Idx = 0)
-        {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_dbc_data_type == DT_NUMBER)
-            {
-                rx_assert(m_max_data_size == sizeof(OCINumber));
-                ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromInt(m_conn->m_ErrHandle, &value, sizeof(long), OCI_NUMBER_SIGNED, reinterpret_cast <OCINumber *> (DataBuf));
-                if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
-                m_bulks_is_empty.at(Idx) = 0;               //标记参数非空了
-                m_bulks_datasize.at(Idx) = m_max_data_size; //记录数据的实际长度
-            }
-            else if (m_dbc_data_type == DT_TEXT)
-            {
-                char TmpBuf[50];
-                sprintf(TmpBuf, "%d", value);
-                return operator()(TmpBuf, Idx);
-            }
-            else
-                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
-            return (*this);
-        }
+        //设置参数为整数值(带符号)
+        sql_param_t& operator()(int32_t value, ub4 bulk_idx = 0) { return set_long(value,bulk_idx,true); }
+        sql_param_t& operator = (int32_t value) { return set_long(value, 0, true); }
         //-------------------------------------------------
-        //设置参数为整型数
-        sql_param_t& operator = (long value) { return operator()(value); }
-        //-------------------------------------------------
-        sql_param_t& operator()(const datetime_t& d, ub4 Idx = 0)
-        {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_dbc_data_type == DT_DATE)
-            {
-                rx_assert(m_max_data_size == sizeof(OCIDate));
-                ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-                d.to(*reinterpret_cast <OCIDate*> (DataBuf));
-                m_bulks_is_empty.at(Idx) = 0;               //标记参数非空了
-                m_bulks_datasize.at(Idx) = m_max_data_size; //记录数据的实际长度
-            }
-            else if (m_dbc_data_type == DT_TEXT)
-            {
-                char TmpBuf[21];
-                d.to(TmpBuf);
-                return operator()(TmpBuf, Idx);
-            }
-            else
-                throw (rx_dbc_ora::error_info_t(EC_BAD_INPUT_TYPE, __FILE__, __LINE__));
-            return (*this);
-        }
+        //设置参数为整数值(无符号)
+        sql_param_t& operator()(uint32_t value, ub4 bulk_idx = 0) { return set_long(value, bulk_idx, false); }
+        sql_param_t& operator = (uint32_t value) { return set_long(value, 0, false); }
         //-------------------------------------------------
         //设置参数为日期时间值
-        sql_param_t& operator = (const datetime_t& d) { return operator()(d); }
+        sql_param_t& operator()(const datetime_t& d, ub4 bulk_idx = 0) { return set_datetime(d,bulk_idx); }
+        sql_param_t& operator = (const datetime_t& d) { return set_datetime(d, 0); }
 
         //-------------------------------------------------
         //从当前参数中得到字符串值
-        PStr as_string(ub4 Idx = 0, const char* ConvFmt = NULL) const
+        PStr as_string(ub4 bulk_idx = 0, const char* ConvFmt = NULL) const
         {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_bulks_is_empty.at(Idx) == -1) return NULL;
-            ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区            
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_bulks_is_empty.at(bulk_idx) == -1) return NULL;
+            ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区            
             return comm_as_string(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
         }
         //-------------------------------------------------
         //从当前参数中得到浮点数值
-        double as_double(ub4 Idx = 0) const
+        double as_double(ub4 bulk_idx = 0) const
         {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_bulks_is_empty.at(Idx) == -1) return 0;
-            ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-            return comm_as_double(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
+            ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+            return comm_as_double<double>(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+        }
+        long double as_real(ub4 bulk_idx = 0) const
+        {
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
+            ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+            return comm_as_double<long double>(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
+        //获取大整数
+        int64_t as_int(ub4 bulk_idx = 0) const { return int64_t(as_real(bulk_idx)); }
+        //-------------------------------------------------
         //从当前参数中得到整型数值
-        long as_long(ub4 Idx = 0) const
+        int32_t as_long(ub4 bulk_idx = 0) const
         {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_bulks_is_empty.at(Idx) == -1) return 0;
-            ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
+            ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
             return comm_as_long(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+        }
+        uint32_t as_ulong(ub4 bulk_idx = 0) const
+        {
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
+            ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
+            return comm_as_long(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type,false);
         }
         //-------------------------------------------------
         //从当前参数中得到时间数值
-        datetime_t as_datetime(ub4 Idx = 0) const
+        datetime_t as_datetime(ub4 bulk_idx = 0) const
         {
-            rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
-            if (m_bulks_is_empty.at(Idx) == -1) return datetime_t();
-            ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
+            rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            if (m_bulks_is_empty.at(bulk_idx) == -1) return datetime_t();
+            ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
             return comm_as_datetime(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
         }
     };

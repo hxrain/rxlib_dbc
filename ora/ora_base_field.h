@@ -29,7 +29,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size = FETCH_SIZE)
+        void bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size = BAT_FETCH_SIZE)
         {
             rx_assert(rs && !is_empty(name));
             reset();
@@ -40,9 +40,9 @@ namespace rx_dbc_ora
             // decide the format we want oci to return data in (m_oci_data_type member)
             switch (oci_data_type)
             {
+            case	SQLT_UIN:	// unsigned int
             case	SQLT_INT:	// integer
             case	SQLT_LNG:	// long
-            case	SQLT_UIN:	// unsigned int
 
             case	SQLT_NUM:	// numeric
             case	SQLT_FLT:	// float
@@ -153,15 +153,32 @@ namespace rx_dbc_ora
             ub2 row_no = rel_row_idx();
             if (m_fields_is_empty.at(row_no) == -1) return DefValue;
             ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
-            return comm_as_double(oci_err_handle(), DataBuf, m_dbc_data_type);
+            return comm_as_double<double>(oci_err_handle(), DataBuf, m_dbc_data_type);
+        }
+        long double as_real(long double DefValue = 0) const
+        {
+            ub2 row_no = rel_row_idx();
+            if (m_fields_is_empty.at(row_no) == -1) return DefValue;
+            ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
+            return comm_as_double<long double>(oci_err_handle(), DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
-        long as_long(long DefValue = 0) const
+        int64_t as_int(int64_t DefValue = 0) const { return int64_t(as_real((long double)DefValue)); }
+        //-------------------------------------------------
+        int32_t as_long(int32_t DefValue = 0) const
         {
             ub2 row_no = rel_row_idx();
             if (m_fields_is_empty.at(row_no) == -1) return DefValue;
             ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
             return comm_as_long(oci_err_handle(), DataBuf, m_dbc_data_type);
+        }
+        //-------------------------------------------------
+        uint32_t as_ulong(uint32_t DefValue = 0) const
+        {
+            ub2 row_no = rel_row_idx();
+            if (m_fields_is_empty.at(row_no) == -1) return DefValue;
+            ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
+            return comm_as_long(oci_err_handle(), DataBuf, m_dbc_data_type,false);
         }
         //-------------------------------------------------
         datetime_t as_datetime(void) const

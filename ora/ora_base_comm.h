@@ -13,22 +13,19 @@ namespace rx_dbc_ora
     const ub2 MAX_TEXT_BYTES = 1024 * 2;
 
     //每次批量FEATCH获取的数据行的数量
-    const ub2 FETCH_SIZE = 100;
+    const ub2 BAT_FETCH_SIZE = 100;
 
     //字段名字最大长度
     const ub2 FIELD_NAME_LENGTH = 60;
 
-    //临时使用存放错误信息的缓冲区尺寸
-    const ub2 ERROR_FORMAT_MAX_MSG_LEN = 1024;
-
     //SQL语句的长度限制
     const int MAX_SQL_LENGTH = 1024 * 32;
 
-    typedef const char *PStr;
+    typedef const char* PStr;
     const int CHAR_SIZE = sizeof(char);
 
     //-----------------------------------------------------
-    //OLIB可以处理的数据类型
+    //dbc_ora可以处理的数据类型
     enum data_type_t
     {
         DT_UNKNOWN,
@@ -41,10 +38,9 @@ namespace rx_dbc_ora
     //绑定参数时,名字前缀可以告知数据类型
     enum param_prex_type_t
     {
-        PP_NUMERIC = 'n',
-        PP_DATE = 'd',
-        PP_TEXT = 's',
-        PP_RESULT_SET = 'c'
+        PP_NUMERIC  = 'n',
+        PP_DATE     = 'd',
+        PP_TEXT     = 's',
     };
 
     //-----------------------------------------------------
@@ -57,64 +53,12 @@ namespace rx_dbc_ora
         ST_DELETE = OCI_STMT_DELETE,
         ST_INSERT = OCI_STMT_INSERT,
         ST_CREATE = OCI_STMT_CREATE,
-        ST_DROP = OCI_STMT_DROP,
-        ST_ALTER = OCI_STMT_ALTER,
-        ST_BEGIN = OCI_STMT_BEGIN,
+        ST_DROP   = OCI_STMT_DROP,
+        ST_ALTER  = OCI_STMT_ALTER,
+        ST_BEGIN  = OCI_STMT_BEGIN,
         ST_DECLARE = OCI_STMT_DECLARE
     };
 
-    //-----------------------------------------------------
-    //本库中抛出的异常错误码
-    enum error_code_t
-    {
-        EC_OCI_ERROR = -1,
-        EC_ENV_CREATE_FAILED = 1000,
-        EC_TIMEOUT,
-        EC_NO_MEMORY,
-        EC_NO_BUFFER,
-        EC_BAD_PARAM_TYPE,
-        EC_POOL_NOT_SETUP,
-        EC_BAD_INPUT_TYPE,
-        EC_BAD_OUTPUT_TYPE,
-        EC_BAD_TRANSFORM,
-        EC_BAD_PARAM_PREFIX,
-        EC_UNSUP_ORA_TYPE,
-        EC_PARAMETER_NOT_FOUND,
-        EC_COLUMN_NOT_FOUND,
-        EC_INTERNAL,
-        EC_PARAMNAME_DUP,                                   //绑定的参数名字重复
-        EC_PARAMNAME_TOO_MANY,                              //绑定的参数数量太多了,与实际初始化告知的数量不符
-        EC_METHOD_ORDER,                                    //方法调用的顺序错误
-        EC_METHOD_PARAM,                                    //方法调用时参数错误
-        EC_SQL_NOT_PARAM,                                   //SQL语句中没有:前缀的参数,但尝试绑定参数
-        EC_PARAM_BULKDATA_TOO_MANY                          //参数要绑定的批量数据太多了
-    };
-    inline const char* error_code_info(sword olib_err)
-    {
-        switch (olib_err)
-        {
-        case	EC_ENV_CREATE_FAILED:           return "(EC_ENV_CREATE_FAILED) Environment handle creation failed";
-        case	EC_TIMEOUT:                     return "(EC_TIMEOUT) Statement took too long to complete and has been aborted";
-        case	EC_NO_MEMORY:                   return "(EC_NO_MEMORY) Memory allocation request has failed";
-        case	EC_BAD_PARAM_TYPE:              return "(EC_BAD_PARAM_TYPE) Parameter type is incorrect";
-        case	EC_POOL_NOT_SETUP:              return "(EC_POOL_NOT_SETUP) Connection pool has not been setup yet";
-        case	EC_BAD_INPUT_TYPE:              return "(EC_BAD_INPUT_TYPE) Input data doesn't have expected type";
-        case	EC_BAD_OUTPUT_TYPE:             return "(EC_BAD_OUTPUT_TYPE) Cannot convert to requested type";
-        case	EC_BAD_TRANSFORM:               return "(EC_BAD_TRANSFORM) Requested transformation is not possible";
-        case	EC_BAD_PARAM_PREFIX:            return "(EC_BAD_PARAM_PREFIX) Parameter prefix is not known";
-        case	EC_INTERNAL:                    return "(EC_INTERNAL) Internal library error. Please, report to developers";
-        case	EC_UNSUP_ORA_TYPE:              return "(EC_UNSUP_ORA_TYPE) Unsupported Oracle type - cannot be converted to numeric, date or text";
-        case	EC_PARAMETER_NOT_FOUND:         return "(EC_PARAMETER_NOT_FOUND) Name not found in statement's parameters";
-        case	EC_COLUMN_NOT_FOUND:            return "(EC_COLUMN_NOT_FOUND) Result set doesn't contain field_t with such name";
-        case    EC_PARAMNAME_DUP:               return "(EC_PARAMNAME_DUP) binded param name is duplication";   //绑定的参数名字重复
-        case    EC_METHOD_ORDER:                return "(EC_METHOD_ORDER) func method called order error";      //方法调用的顺序错误
-        case    EC_METHOD_PARAM:                return "(EC_METHOD_PARAM) func method call param error";        //方法调用时参数错误
-        case    EC_PARAMNAME_TOO_MANY:          return "(EC_PARAMNAME_TOO_MANY) param count too many";          //待绑定的参数数量过多
-        case    EC_SQL_NOT_PARAM:               return "(EC_SQL_NOT_PARAM) SQL not parmas";                     //待绑定的参数数量过少
-        case    EC_PARAM_BULKDATA_TOO_MANY:     return "(EC_PARAM_BULKDATA_TOO_MANY) Param bind bulk data is too many";
-        default:                                return "unknown";
-        }
-    }
     //-----------------------------------------------------
     //错误类别
     enum error_class_t
@@ -133,6 +77,43 @@ namespace rx_dbc_ora
         default:return "unknown";
         }
     }
+    //-----------------------------------------------------
+    //DBC封装操作错误码
+    enum dbc_error_code_t
+    {
+        EC_ENV_CREATE_FAILED = 1000,                        //OCI环境创建错误
+        EC_NO_MEMORY,                                       //内存不足
+        EC_NO_BUFFER,                                       //缓冲区不足
+        EC_BAD_PARAM_TYPE,                                  //参数错误
+        EC_BAD_INPUT_TYPE,                                  //待绑定参数的数据类型错误
+        EC_BAD_OUTPUT_TYPE,                                 //不支持的输出数据类型
+        EC_BAD_PARAM_PREFIX,                                //参数自动绑定时,名字前缀不准确
+        EC_UNSUP_ORA_TYPE,                                  //未支持的数据类型
+        EC_PARAMETER_NOT_FOUND,                             //访问的参数对象不存在
+        EC_COLUMN_NOT_FOUND,                                //访问的列对象不存在
+        EC_METHOD_ORDER,                                    //方法调用的顺序错误
+        EC_SQL_NOT_PARAM,                                   //SQL语句中没有':'前缀的参数,但尝试绑定参数
+    };
+    inline const char* dbc_error_code_info(sword dbc_err)
+    {
+        switch (dbc_err)
+        {
+        case	EC_ENV_CREATE_FAILED:   return "(EC_ENV_CREATE_FAILED) Environment handle creation failed";
+        case	EC_NO_MEMORY:           return "(EC_NO_MEMORY) Memory allocation request has failed";
+        case	EC_NO_BUFFER:           return "(EC_NO_BUFFER) Memory buffer not enough";
+        case	EC_BAD_PARAM_TYPE:      return "(EC_BAD_PARAM_TYPE) Parameter type is incorrect";
+        case	EC_BAD_INPUT_TYPE:      return "(EC_BAD_INPUT_TYPE) Input data doesn't have expected type";
+        case	EC_BAD_OUTPUT_TYPE:     return "(EC_BAD_OUTPUT_TYPE) Cannot convert to requested type";
+        case	EC_BAD_PARAM_PREFIX:    return "(EC_BAD_PARAM_PREFIX) Parameter prefix is not known";
+        case	EC_UNSUP_ORA_TYPE:      return "(EC_UNSUP_ORA_TYPE) Unsupported Oracle type - cannot be converted to numeric, date or text";
+        case	EC_PARAMETER_NOT_FOUND: return "(EC_PARAMETER_NOT_FOUND) Name not found in statement's parameters";
+        case	EC_COLUMN_NOT_FOUND:    return "(EC_COLUMN_NOT_FOUND) Result set doesn't contain field_t with such name";
+        case    EC_METHOD_ORDER:        return "(EC_METHOD_ORDER) func method called order error";
+        case    EC_SQL_NOT_PARAM:       return "(EC_SQL_NOT_PARAM) SQL not parmas";
+        default:                        return "(unknown DBC Error)";
+        }
+    }
+
 
     //-----------------------------------------------------
     //月份枚举
@@ -159,8 +140,8 @@ namespace rx_dbc_ora
         static const ub4 MAX_BUF_SIZE = 1024 * 2;
     private:
         error_class_t	    m_Type;		                    // type
-        sword		        m_Code;			                // error code if library error or -1 if Oracle error
-        sb4			        m_OraCode;		                // Oracle's error code - ORA-xxxxx
+        sword		        m_dbcCode;  	                //DBC错误码
+        sb4			        m_OraCode;		                //Oracle错误码,ORA-xxxxx
         char	            m_Description[MAX_BUF_SIZE];	// error description as a text
         char	            m_Source[MAX_BUF_SIZE];			// source file, where error was thrown (optional)
         char                m_RetInfo[MAX_BUF_SIZE];        //返回完整消息时使用的缓冲串
@@ -182,17 +163,25 @@ namespace rx_dbc_ora
                 return;
             }
 
-            m_Code = ora_err;
+            m_dbcCode = ora_err;
             switch (ora_err)
             {
-            case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)"; break;
-            case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)"; get_details = true; break;
-            case	OCI_ERROR:                  desc = "(OCI_ERROR)"; get_details = true; break;
-            case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)"; get_details = true; break;
-            case	OCI_INVALID_HANDLE:         desc = "(OCI_INVALID_HANDLE)"; break;
-            case	OCI_NEED_DATA:              desc = "(OCI_NEED_DATA)"; break;
-            case	OCI_STILL_EXECUTING:        desc = "(OCI_STILL_EXECUTING)"; get_details = true; break;
-            case	OCI_CONTINUE:               desc = "(OCI_CONTINUE)"; break;
+            case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)"; 
+                break;
+            case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)"; 
+                get_details = true; break;
+            case	OCI_ERROR:                  desc = "(OCI_ERROR)"; 
+                get_details = true; break;
+            case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)"; 
+                get_details = true; break;
+            case	OCI_INVALID_HANDLE:         desc = "(OCI_INVALID_HANDLE)"; 
+                break;
+            case	OCI_NEED_DATA:              desc = "(OCI_NEED_DATA)"; 
+                break;
+            case	OCI_STILL_EXECUTING:        desc = "(OCI_STILL_EXECUTING)"; 
+                get_details = true; break;
+            case	OCI_CONTINUE:               desc = "(OCI_CONTINUE)"; 
+                break;
             default:                            desc = "unknown";
             }
 
@@ -210,17 +199,19 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //得到当前库内的详细错误信息
-        void make_dbc_error(sword olib_err)
+        void make_dbc_error(sword dbc_err)
         {
             rx::strcat_ct desc(m_Description, sizeof(m_Description));
-            m_Code = olib_err;
-            desc = error_code_info(olib_err);
+            m_dbcCode = dbc_err;
+            desc = dbc_error_code_info(dbc_err);
         }
 
         //-------------------------------------------------
         //将输入的可变参数对应的串连接到详细错误信息中
         void make_attached_msg(const char *format, va_list va)
         {
+            //临时使用存放错误信息的缓冲区尺寸
+            const ub2 ERROR_FORMAT_MAX_MSG_LEN = 1024;
             rx_assert(!is_empty(format) && va);
             char Tmp[ERROR_FORMAT_MAX_MSG_LEN];
             vsnprintf(Tmp, ERROR_FORMAT_MAX_MSG_LEN - 1, format, va);
@@ -382,9 +373,9 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为字符串:错误句柄;原始数据缓冲区;原始数据类型;临时字符串缓冲区;临时缓冲区尺寸;转换格式
-    inline PStr comm_as_string (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType,char *TmpBuf,int TmpBufSize,const char* ConvFmt=NULL)
+    inline PStr comm_as_string (OCIError *ErrHandle,ub1* DataBuf,data_type_t dbc_data_type,char *TmpBuf,int TmpBufSize,const char* ConvFmt=NULL)
     {
-        switch(OlibDataType)
+        switch(dbc_data_type)
         {
             case DT_TEXT:
                 return (reinterpret_cast <PStr> (DataBuf));
@@ -413,9 +404,9 @@ namespace rx_dbc_ora
     //-----------------------------------------------------
     //根据字段类型与字段数据缓冲区以及当前行号,进行正确的数据偏移调整
     //入口:行数据数组;数据类型;当前行偏移;字段数据最大尺寸
-    inline ub1* comm_field_data_offset(ub1* DataArrayBuf,data_type_t OlibDataType,int RowNo,int MaxFieldSize)
+    inline ub1* comm_field_data_offset(ub1* DataArrayBuf,data_type_t dbc_data_type,int RowNo,int MaxFieldSize)
     {
-        switch(OlibDataType)
+        switch(dbc_data_type)
         {
             case DT_TEXT:
                 return DataArrayBuf + RowNo*MaxFieldSize;
@@ -429,20 +420,21 @@ namespace rx_dbc_ora
     }
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为浮点数:错误句柄;原始数据缓冲区;原始数据类型;
-    inline double comm_as_double (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
+    template<class DT>
+    inline DT comm_as_double (OCIError *ErrHandle,ub1* DataBuf,data_type_t dbc_data_type)
     {
-        if (OlibDataType == DT_NUMBER)
+        if (dbc_data_type == DT_NUMBER)
         {
-            double	value;
-            sword result = ::OCINumberToReal (ErrHandle,reinterpret_cast <OCINumber *>(DataBuf),sizeof (double),&value);
+            DT	value;
+            sword result = ::OCINumberToReal (ErrHandle,reinterpret_cast <OCINumber *>(DataBuf),sizeof (DT),&value);
             if (result == OCI_SUCCESS)
                 return (value);
             else
                 throw (rx_dbc_ora::error_info_t (result, ErrHandle, __FILE__, __LINE__));
         }
-        else if (OlibDataType == DT_TEXT)
+        else if (dbc_data_type == DT_TEXT)
         {
-            return rx::st::atof((char*)DataBuf);
+            return (DT)rx::st::atod((char*)DataBuf);
         }
         else
             throw (rx_dbc_ora::error_info_t (EC_BAD_OUTPUT_TYPE, __FILE__, __LINE__));
@@ -450,18 +442,18 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
-    inline long comm_as_long (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
+    inline int32_t comm_as_long (OCIError *ErrHandle,ub1* DataBuf,data_type_t dbc_data_type,bool is_signed=true)
     {
-        if (OlibDataType == DT_NUMBER)
+        if (dbc_data_type == DT_NUMBER)
         {
-            long	value;
-            sword result = OCINumberToInt (ErrHandle,reinterpret_cast <OCINumber *> (DataBuf),sizeof (long),OCI_NUMBER_SIGNED,&value);
+            int32_t	value;
+            sword result = OCINumberToInt (ErrHandle,reinterpret_cast <OCINumber *> (DataBuf),sizeof (int32_t), is_signed?OCI_NUMBER_SIGNED: OCI_NUMBER_UNSIGNED,&value);
             if (result == OCI_SUCCESS)
                 return (value);
             else
                 throw (rx_dbc_ora::error_info_t (result, ErrHandle, __FILE__, __LINE__));
         }
-        else if (OlibDataType == DT_TEXT)
+        else if (dbc_data_type == DT_TEXT)
         {
             return rx::st::atoi((char*)DataBuf);
         }
@@ -471,9 +463,9 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为日期:错误句柄;原始数据缓冲区;原始数据类型;
-    inline datetime_t comm_as_datetime (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
+    inline datetime_t comm_as_datetime (OCIError *ErrHandle,ub1* DataBuf,data_type_t dbc_data_type)
     {
-        if (OlibDataType == DT_DATE)
+        if (dbc_data_type == DT_DATE)
             return (datetime_t (*(reinterpret_cast <OCIDate *> (DataBuf))));
         else
             throw (rx_dbc_ora::error_info_t (EC_BAD_OUTPUT_TYPE, __FILE__, __LINE__));
