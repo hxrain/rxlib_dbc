@@ -8,8 +8,11 @@ namespace rx_dbc_ora
     class field_t
     {
         friend class query_t;
-
-        String		    m_FieldName;		                // 字段名字
+        typedef rx::array_t<ub2> array_datasize_t;
+        typedef rx::array_t<ub1> array_databuff_t;
+        typedef rx::array_t<sb2> array_dataempty_t;
+        typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> field_name_t;
+        field_name_t    m_FieldName;		                // 字段名字
         data_type_t	    m_dbc_data_type;		            // 期待的数据类型
         ub2				m_oci_data_type;		            // Oracle实际数据类型,二者用于自动转换
         int				m_max_data_size;			        // 每个字段数据最大尺寸
@@ -17,9 +20,9 @@ namespace rx_dbc_ora
         static const int m_TmpStrBufSize = 64;
         char            m_TmpStrBuf[m_TmpStrBufSize];       // 临时存放转换数字到字符串的缓冲区
 
-        sb2				*m_fields_is_empty;	                // 标记该字段的值是否为空的状态数组: 0 - ok; -1 - null
-        ub2				*m_fields_datasize;		            // 文本字段没行的长度数组
-        ub1			    *m_fields_databuff;	                // 记录该字段的每行的实际数据的数组
+        array_datasize_t m_fields_datasize;		            // 文本字段没行的长度数组
+        array_databuff_t m_fields_databuff;	                // 记录该字段的每行的实际数据的数组
+        array_dataempty_t m_fields_is_empty;	            // 标记该字段的值是否为空的状态数组: 0 - ok; -1 - null
 
         OCIDefine		*m_field_handle;	                // 字段定义句柄
         query_t		    *m_query;	                        // 该字段的实际拥有者Query对象指针
@@ -31,7 +34,7 @@ namespace rx_dbc_ora
             rx_assert(rs && !is_empty(name));
             reset();
 
-            m_FieldName = name;
+            m_FieldName.set(name);
             m_oci_data_type = oci_data_type;
 
             // decide the format we want oci to return data in (m_oci_data_type member)
@@ -73,23 +76,25 @@ namespace rx_dbc_ora
             }
 
             m_query = rs;
-            conn_t &conn = reinterpret_cast<stmt_t*>(m_query)->m_conn;
 
-            m_fields_is_empty = (sb2*)conn.m_MemPool.alloc(sizeof(sb2)*fetch_size);
-
+            //只有文本串才需要字段长度数组
             if (m_dbc_data_type == DT_TEXT)
-                m_fields_datasize = (ub2*)conn.m_MemPool.alloc(sizeof(ub2)*fetch_size);
-            else
-                m_fields_datasize = NULL;
-
-            m_fields_databuff = (ub1*)conn.m_MemPool.alloc(sizeof(ub1)*m_max_data_size * fetch_size);
-
-            m_field_handle = NULL;
-
-            if (!m_fields_is_empty || !m_fields_databuff)
             {
+                if (!m_fields_datasize.make(fetch_size))
+                {
+                    reset();
+                    throw (rx_dbc_ora::error_info_t(EC_NO_MEMORY, __FILE__, __LINE__, name));
+                }
+            }
+
+            //生成字段数据缓冲区
+            m_fields_databuff.make(m_max_data_size * fetch_size);
+            //生成字段是否为空的数组
+            m_fields_is_empty.make(fetch_size);
+            if (!m_fields_is_empty.array() || !m_fields_databuff.array())
+            {//判断是否内存不足
                 reset();
-                throw (rx_dbc_ora::error_info_t(EC_NO_MEMORY, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t(EC_NO_MEMORY, __FILE__, __LINE__, name));
             }
         }
         //-------------------------------------------------
@@ -103,22 +108,9 @@ namespace rx_dbc_ora
         void reset()
         {
             if (!m_query) return;
-            conn_t &conn = reinterpret_cast<stmt_t*>(m_query)->m_conn;
-            if (m_fields_is_empty)
-            {
-                conn.m_MemPool.free(m_fields_is_empty);
-                m_fields_is_empty = NULL;
-            }
-            if (m_fields_datasize)
-            {
-                conn.m_MemPool.free(m_fields_datasize);
-                m_fields_datasize = NULL;
-            }
-            if (m_fields_databuff)
-            {
-                conn.m_MemPool.free(m_fields_databuff);
-                m_fields_databuff = NULL;
-            }
+            m_fields_datasize.clear();
+            m_fields_databuff.clear();
+            m_fields_is_empty.clear();
             m_field_handle = NULL;
             m_query = NULL;
         }
@@ -130,14 +122,11 @@ namespace rx_dbc_ora
         field_t& operator = (const field_t&);
 
     public:
-        field_t()
+        field_t(rx::mem_allotter_i &ma):m_fields_datasize(ma), m_fields_databuff(ma), m_fields_is_empty(ma)
         {
             m_dbc_data_type = DT_UNKNOWN;
             m_oci_data_type = 0;
             m_max_data_size = 0;
-            m_fields_is_empty = NULL;
-            m_fields_datasize = NULL;
-            m_fields_databuff = NULL;
             m_field_handle = NULL;
             m_query = NULL;
         }
@@ -149,42 +138,40 @@ namespace rx_dbc_ora
         int max_data_size() { return m_max_data_size; }
         ub2 oci_data_type() { return m_oci_data_type; }
         //-------------------------------------------------
-        bool is_null(void) const { return (m_fields_is_empty[rel_row_idx()] == -1); }
+        bool is_null(void) const { return (m_fields_is_empty.at(rel_row_idx()) == -1); }
         //-------------------------------------------------
         PStr as_string(const char* ConvFmt = NULL) const
         {
             ub2 row_no = rel_row_idx();
-            if (m_fields_is_empty[row_no] == -1) return NULL;
-            ub1 *DataBuf = CommFieldRowDataOffset(m_fields_databuff, m_dbc_data_type, row_no, m_max_data_size);
-            return CommAsString(oci_err_handle(), DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
+            if (m_fields_is_empty.at(row_no) == -1) return NULL;
+            ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
+            return comm_as_string(oci_err_handle(), DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
         }
         //-------------------------------------------------
         double as_double(double DefValue = 0) const
         {
             ub2 row_no = rel_row_idx();
-            if (m_fields_is_empty[row_no] == -1) return DefValue;
-            ub1 *DataBuf = CommFieldRowDataOffset(m_fields_databuff, m_dbc_data_type, row_no, m_max_data_size);
-            return CommAsDouble(oci_err_handle(), DataBuf, m_dbc_data_type);
+            if (m_fields_is_empty.at(row_no) == -1) return DefValue;
+            ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
+            return comm_as_double(oci_err_handle(), DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
         long as_long(long DefValue = 0) const
         {
             ub2 row_no = rel_row_idx();
-            if (m_fields_is_empty[row_no] == -1) return DefValue;
-            ub1 *DataBuf = CommFieldRowDataOffset(m_fields_databuff, m_dbc_data_type, row_no, m_max_data_size);
-            return CommAsLong(oci_err_handle(), DataBuf, m_dbc_data_type);
+            if (m_fields_is_empty.at(row_no) == -1) return DefValue;
+            ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
+            return comm_as_long(oci_err_handle(), DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
         datetime_t as_datetime(void) const
         {
             ub2 row_no = rel_row_idx();
-            if (m_fields_is_empty[row_no] == -1) return datetime_t();
-            ub1 *DataBuf = CommFieldRowDataOffset(m_fields_databuff, m_dbc_data_type, row_no, m_max_data_size);
-            return CommAsDateTime(oci_err_handle(), DataBuf, m_dbc_data_type);
+            if (m_fields_is_empty.at(row_no) == -1) return datetime_t();
+            ub1 *DataBuf = comm_field_data_offset(m_fields_databuff.array(), m_dbc_data_type, row_no, m_max_data_size);
+            return comm_as_datetime(oci_err_handle(), DataBuf, m_dbc_data_type);
         }
     };
-
-
 }
 
 #endif

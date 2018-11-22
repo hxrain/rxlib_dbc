@@ -1,9 +1,7 @@
 #ifndef	_RX_DBC_ORA_H_
 #define	_RX_DBC_ORA_H_
 
-#include "sdk\oci.h"            //引入OCI接口
-#include <string>
-
+#include "sdk\oci.h"                    //引入OCI接口
 #include "rx_cc_macro.h"                //引入基础宏定义
 #include "rx_assert.h"                  //引入断言
 #include "rx_str_util.h"                //引入基础字符串功能
@@ -16,7 +14,7 @@
 #include "ora_part_conn.h"              //实现数据库连接
 
 #include "ora_base_param.h"             //实现语句段绑定参数
-#include "ora_part_cmd.h"               //实现SQL语句段
+#include "ora_part_stmt.h"              //实现SQL语句段
 
 #include "ora_base_field.h"             //实现记录字段操作对象
 #include "ora_part_query.h"             //实现记录查询访问对象

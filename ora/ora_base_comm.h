@@ -24,7 +24,6 @@ namespace rx_dbc_ora
     //SQL语句的长度限制
     const int MAX_SQL_LENGTH = 1024 * 32;
 
-    typedef std::string String;
     typedef const char *PStr;
     const int CHAR_SIZE = sizeof(char);
 
@@ -146,11 +145,11 @@ namespace rx_dbc_ora
     //Oracle连接参数
     typedef struct conn_param_t
     {
-        String     DBHost;                               //数据库服务器所在地址
-        uint32_t   DBPort;
-        String     ServiceName;                          //数据库实例名
-        String     UserName;                             //数据库用户名
-        String     Password;                             //数据库口令
+        char        DBHost[64];                             //数据库服务器所在地址
+        uint32_t    DBPort;
+        char        ServiceName[1024];                      //数据库实例名
+        char        UserName[64];                           //数据库用户名
+        char        Password[64];                           //数据库口令
     }conn_param_t;
 
     //-----------------------------------------------------
@@ -271,10 +270,10 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //构造函数,记录库内部错误
-        error_info_t(sword olib_err, const char *source_name = NULL, long line_number = -1, const char *format = NULL, ...)
+        error_info_t(sword dbc_err, const char *source_name = NULL, long line_number = -1, const char *format = NULL, ...)
         {
             // sets-up code and m_Description
-            make_dbc_error(olib_err);
+            make_dbc_error(dbc_err);
 
             // concat user-specified details
             if (format)
@@ -383,7 +382,7 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为字符串:错误句柄;原始数据缓冲区;原始数据类型;临时字符串缓冲区;临时缓冲区尺寸;转换格式
-    inline PStr CommAsString (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType,char *TmpBuf,int TmpBufSize,const char* ConvFmt=NULL)
+    inline PStr comm_as_string (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType,char *TmpBuf,int TmpBufSize,const char* ConvFmt=NULL)
     {
         switch(OlibDataType)
         {
@@ -414,7 +413,7 @@ namespace rx_dbc_ora
     //-----------------------------------------------------
     //根据字段类型与字段数据缓冲区以及当前行号,进行正确的数据偏移调整
     //入口:行数据数组;数据类型;当前行偏移;字段数据最大尺寸
-    inline ub1* CommFieldRowDataOffset(ub1* DataArrayBuf,data_type_t OlibDataType,int RowNo,int MaxFieldSize)
+    inline ub1* comm_field_data_offset(ub1* DataArrayBuf,data_type_t OlibDataType,int RowNo,int MaxFieldSize)
     {
         switch(OlibDataType)
         {
@@ -430,7 +429,7 @@ namespace rx_dbc_ora
     }
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为浮点数:错误句柄;原始数据缓冲区;原始数据类型;
-    inline double CommAsDouble (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
+    inline double comm_as_double (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
     {
         if (OlibDataType == DT_NUMBER)
         {
@@ -451,7 +450,7 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
-    inline long CommAsLong (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
+    inline long comm_as_long (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
     {
         if (OlibDataType == DT_NUMBER)
         {
@@ -472,7 +471,7 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //统一功能函数:将指定的原始类型的数据转换为日期:错误句柄;原始数据缓冲区;原始数据类型;
-    inline datetime_t CommAsDateTime (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
+    inline datetime_t comm_as_datetime (OCIError *ErrHandle,ub1* DataBuf,data_type_t OlibDataType)
     {
         if (OlibDataType == DT_DATE)
             return (datetime_t (*(reinterpret_cast <OCIDate *> (DataBuf))));

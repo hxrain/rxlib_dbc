@@ -274,7 +274,7 @@ namespace rx_dbc_ora
             rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(Idx) == -1) return NULL;
             ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区            
-            return CommAsString(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
+            return comm_as_string(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
         }
         //-------------------------------------------------
         //从当前参数中得到浮点数值
@@ -283,7 +283,7 @@ namespace rx_dbc_ora
             rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(Idx) == -1) return 0;
             ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-            return CommAsDouble(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_double(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
         //从当前参数中得到整型数值
@@ -292,7 +292,7 @@ namespace rx_dbc_ora
             rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(Idx) == -1) return 0;
             ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-            return CommAsLong(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_long(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
         //从当前参数中得到时间数值
@@ -301,7 +301,7 @@ namespace rx_dbc_ora
             rx_assert_msg(Idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(Idx) == -1) return datetime_t();
             ub1* DataBuf = &m_bulks_databuff.at(Idx*m_max_data_size);   //得到可用缓冲区
-            return CommAsDateTime(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_datetime(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
         }
     };
 }

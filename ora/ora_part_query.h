@@ -4,7 +4,7 @@
 namespace rx_dbc_ora
 {
     //-----------------------------------------------------
-    //从Command类集成,增加了记录行遍历获取的功能
+    //从stmt_t类集成,增加了结果集遍历获取的能力
     //-----------------------------------------------------
     class query_t:protected stmt_t
     {
@@ -34,8 +34,9 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //得到字段列表的描述信息
-        void m_make_fields (void)
+        void m_make_fields (ub2 fetch_size)
         {
+            m_bat_fetch_count = fetch_size;
             //获取当前结果集的字段数量
             ub4			count;
             sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_ErrHandle);
@@ -44,7 +45,7 @@ namespace rx_dbc_ora
 
             //动态生成字段对象数组
             rx_assert(m_fields.capacity()==0);
-            if (!m_fields.make(count))
+            if (!m_fields.make_ex(count))
                 throw (rx_dbc_ora::error_info_t (EC_NO_MEMORY, __FILE__, __LINE__));
 
             //循环获取字段属性信息
@@ -86,18 +87,18 @@ namespace rx_dbc_ora
             }
 
             //循环进行字段值缓冲区的绑定
-            ub4		position = 1;
+            ub4 position = 1;
             for (ub4 i = 0; i<m_fields.size(); i++)
             {
                 field_t& Field = m_fields[i];
                 result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_ErrHandle,
                     position++,
-                    Field.m_fields_databuff,
-                    Field.m_max_data_size,			// fetch m_max_data_size for a single row (NOT for several)
+                    Field.m_fields_databuff.array(),
+                    Field.m_max_data_size,			    // fetch m_max_data_size for a single row (NOT for several)
                     Field.m_oci_data_type,
-                    Field.m_fields_is_empty,
-                    Field.m_fields_datasize,	// will be NULL for non-text columns
-                    NULL,				// ptr to array of field_t-level return codes
+                    Field.m_fields_is_empty.array(),
+                    Field.m_fields_datasize.array(),	// will be NULL for non-text columns
+                    NULL,				                // ptr to array of field_t-level return codes
                     OCI_DEFAULT);
 
                 if (result != OCI_SUCCESS)
@@ -106,6 +107,7 @@ namespace rx_dbc_ora
         }
 
         //-------------------------------------------------
+        //批量提取记录,等待访问
         void m_bat_fetch (void)
         {
             sword	result;
@@ -127,7 +129,7 @@ namespace rx_dbc_ora
 
     public:
         //-------------------------------------------------
-        query_t(conn_t &Conn) :stmt_t(Conn) { m_clear(); }
+        query_t(conn_t &Conn) :m_fields(Conn.m_MemPool),stmt_t(Conn) { m_clear(); }
         ~query_t (){close();}
         //-------------------------------------------------
         conn_t& conn(){return stmt_t::conn();}
@@ -143,25 +145,17 @@ namespace rx_dbc_ora
         sql_param_t& param(const char* Name) { return stmt_t::param(Name); }
         //-------------------------------------------------
         //执行解析后的SQL语句,并尝试得到结果(入口为每次获取的批量数量)
-        void exec (ub2 fetch_size=FETCH_SIZE)
+        //执行后如果没有异常,就可以尝试访问结果集了
+        void exec(ub2 fetch_size=FETCH_SIZE)
         {
             m_clear();
             stmt_t::exec();
-            try
-            {
-                m_bat_fetch_count=fetch_size;
-                m_make_fields();
-            }
-            catch (...)
-            {
-                m_clear ();
-                throw;
-            }
+            m_make_fields(fetch_size);
             m_bat_fetch();
         }
         //-------------------------------------------------
         //直接执行一条SQL语句,中间没有绑定参数的机会了
-        void exec (const char *SQL,int Len = -1,ub2 fetch_size=FETCH_SIZE)
+        void exec(const char *SQL,int Len = -1,ub2 fetch_size=FETCH_SIZE)
         {
             prepare(SQL,Len);
             exec(fetch_size);
@@ -174,10 +168,11 @@ namespace rx_dbc_ora
             stmt_t::close();
         }
         //-------------------------------------------------
-        //判断当前行是否为结尾
-        bool is_eof(void) const { return (m_cur_row_idx >= m_fetched_count && m_is_eof); }
+        //判断当前行是否结果集结束(exec/eof/next构成了结果集遍历原语)
+        bool eof(void) const { return (m_cur_row_idx >= m_fetched_count && m_is_eof); }
         //-------------------------------------------------
         //跳转到下一行,返回值为false说明到结尾了
+        //返回值:是否还有记录
         bool next(void)
         {
             m_cur_row_idx++;
