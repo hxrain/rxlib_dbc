@@ -1,12 +1,6 @@
 #ifndef _RX_DBC_ORA_COMM_H_
 #define _RX_DBC_ORA_COMM_H_
 
-//定义中文环境字符集ID
-#define OCI_ZHS16GBK_CHARSET_ID 852
-#define OCI_ZHS16GBK_CHARSET "zhs16gbk"
-#define OCI_LANGUAGE_CHINA "SIMPLIFIED CHINESE"
-#define OCI_DEF_DATE_FORMAT "yyyy-mm-dd hh24:mi:ss"
-
 namespace rx_dbc_ora
 {
     //对于参数来说,允许缓存的字符串的最大长度
@@ -123,14 +117,44 @@ namespace rx_dbc_ora
     };
 
     //-----------------------------------------------------
+    //OCI连接的环境选项
+    typedef struct env_option_t
+    {
+        ub2   charset_id;
+        const char *charset;
+        const char *language;
+        const char *date_format;
+
+        env_option_t()
+        {//默认为中文环境
+            charset_id = 852;
+            charset = "zhs16gbk";
+            language = "SIMPLIFIED CHINESE";
+            date_format = "yyyy-mm-dd hh24:mi:ss";
+        }
+    }env_option_t;
+
+    //-----------------------------------------------------
     //Oracle连接参数
     typedef struct conn_param_t
     {
-        char        DBHost[64];                             //数据库服务器所在地址
-        uint32_t    DBPort;
-        char        ServiceName[1024];                      //数据库实例名
-        char        UserName[64];                           //数据库用户名
-        char        Password[64];                           //数据库口令
+        char        host[64];                               //数据库服务器所在地址
+        char        user[64];                               //数据库用户名
+        char        pwd[64];                                //数据库口令
+        char        db[64];                                 //数据库实例名
+        uint32_t    port;                                   //数据库端口
+        uint32_t    conn_timeout;                           //连接超时时间
+        uint32_t    tran_timeout;                           //数据传输超时
+        conn_param_t() 
+        { 
+            host[0] = 0; 
+            db[0] = 0;
+            user[0] = 0;
+            pwd[0] = 0;
+            port = 1521;
+            conn_timeout = 3;
+            tran_timeout = 5;
+        }
     }conn_param_t;
 
     //-----------------------------------------------------
@@ -139,23 +163,24 @@ namespace rx_dbc_ora
     {
         static const ub4 MAX_BUF_SIZE = 1024 * 2;
     private:
-        error_class_t	    m_Type;		                    // type
-        sword		        m_dbcCode;  	                //DBC错误码
-        sb4			        m_OraCode;		                //Oracle错误码,ORA-xxxxx
-        char	            m_Description[MAX_BUF_SIZE];	// error description as a text
-        char	            m_Source[MAX_BUF_SIZE];			// source file, where error was thrown (optional)
-        char                m_RetInfo[MAX_BUF_SIZE];        //返回完整消息时使用的缓冲串
-        char                m_BindHost[MAX_PATH];           //绑定过的主机名
-        char                m_BindServiceName[MAX_PATH];    //绑定过的主机Oracle实例名字
-        char                m_BindUserName[MAX_PATH];       //绑定过的用户名
-        long		        m_LineNo;		                // line number, where error was thrown (optional)
+        error_class_t	    m_err_type;		                //error type
+        sword		        m_dbc_ec;  	                    //DBC错误码
+        sb4			        m_ora_ec;		                //Oracle错误码,ORA-xxxxx
+        char	            m_err_desc[MAX_BUF_SIZE];	    //错误内容
+        char	            m_src_file[MAX_BUF_SIZE];	    // source file, where error was thrown (optional)
+        char                m_out_buff[MAX_BUF_SIZE];       //返回完整消息时使用的缓冲串
+
+        char                m_bind_host[MAX_PATH];          //绑定过的主机名
+        char                m_bind_db[MAX_PATH];            //绑定过的主机Oracle实例名字
+        char                m_bind_user[MAX_PATH];          //绑定过的用户名
+        long		        m_src_file_lineno;		        // line number, where error was thrown (optional)
 
         //--------------------------------------------------
         //得到Oracle的错误详细信息
         void make_oci_error_info(sword ora_err, OCIError *error_handle, OCIEnv *env_handle)
         {
-            bool	get_details = false;
-            rx::strcat_ct desc(m_Description, sizeof(m_Description));
+            bool get_details = false;
+            rx::strcat_ct desc(m_err_desc, sizeof(m_err_desc));
 
             if (error_handle == NULL && env_handle == NULL)
             {
@@ -163,7 +188,7 @@ namespace rx_dbc_ora
                 return;
             }
 
-            m_dbcCode = ora_err;
+            m_dbc_ec = ora_err;
             switch (ora_err)
             {
             case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)"; 
@@ -185,14 +210,14 @@ namespace rx_dbc_ora
             default:                            desc = "unknown";
             }
 
-            // get detailed error m_Description
+            // get detailed error m_err_desc
             if (get_details)
             {
                 char Tmp[MAX_BUF_SIZE];
                 if (error_handle)
-                    OCIErrorGet(error_handle, 1, NULL, &m_OraCode, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ERROR);
+                    OCIErrorGet(error_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ERROR);
                 else
-                    OCIErrorGet(env_handle, 1, NULL, &m_OraCode, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ENV);
+                    OCIErrorGet(env_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ENV);
                 desc << ' ' << Tmp;
             }
         }
@@ -201,8 +226,8 @@ namespace rx_dbc_ora
         //得到当前库内的详细错误信息
         void make_dbc_error(sword dbc_err)
         {
-            rx::strcat_ct desc(m_Description, sizeof(m_Description));
-            m_dbcCode = dbc_err;
+            rx::strcat_ct desc(m_err_desc, sizeof(m_err_desc));
+            m_dbc_ec = dbc_err;
             desc = dbc_error_code_info(dbc_err);
         }
 
@@ -215,7 +240,7 @@ namespace rx_dbc_ora
             rx_assert(!is_empty(format) && va);
             char Tmp[ERROR_FORMAT_MAX_MSG_LEN];
             vsnprintf(Tmp, ERROR_FORMAT_MAX_MSG_LEN - 1, format, va);
-            rx::strcat_ct desc(m_Description, sizeof(m_Description), rx::st::strlen(m_Description));
+            rx::strcat_ct desc(m_err_desc, sizeof(m_err_desc), rx::st::strlen(m_err_desc));
             desc << ": " << Tmp;
         }
         //-------------------------------------------------
@@ -235,10 +260,10 @@ namespace rx_dbc_ora
                 va_end(va);
             }
 
-            m_Type = ET_ORACLE;
-            rx::st::strcpy(m_Source, sizeof(m_Source), source_name);
-            m_LineNo = line_number;
-            m_BindHost[0] = 0;
+            m_err_type = ET_ORACLE;
+            rx::st::strcpy(m_src_file, sizeof(m_src_file), source_name);
+            m_src_file_lineno = line_number;
+            m_bind_host[0] = 0;
         }
         //-------------------------------------------------
         //构造函数,通过环境句柄得到Oracle的详细错误信息
@@ -254,16 +279,16 @@ namespace rx_dbc_ora
                 va_end(va);
             }
 
-            m_Type = ET_ORACLE;
-            rx::st::strcpy(m_Source, sizeof(m_Source), source_name);
-            m_LineNo = line_number;
-            m_BindHost[0] = 0;
+            m_err_type = ET_ORACLE;
+            rx::st::strcpy(m_src_file, sizeof(m_src_file), source_name);
+            m_src_file_lineno = line_number;
+            m_bind_host[0] = 0;
         }
         //-------------------------------------------------
         //构造函数,记录库内部错误
         error_info_t(sword dbc_err, const char *source_name = NULL, long line_number = -1, const char *format = NULL, ...)
         {
-            // sets-up code and m_Description
+            // sets-up code and m_err_desc
             make_dbc_error(dbc_err);
 
             // concat user-specified details
@@ -275,34 +300,38 @@ namespace rx_dbc_ora
                 va_end(va);
             }
 
-            m_Type = ET_DBC;
-            m_OraCode = 0;
-            rx::st::strcpy(m_Source, sizeof(m_Source), source_name);
-            m_LineNo = line_number;
-            m_BindHost[0] = 0;
+            m_err_type = ET_DBC;
+            m_ora_ec = 0;
+            rx::st::strcpy(m_src_file, sizeof(m_src_file), source_name);
+            m_src_file_lineno = line_number;
+            m_bind_host[0] = 0;
         }
         //-------------------------------------------------
         //绑定发生错误的数据库连接信息
-        void bind(const char* Host, const char* ServiceName, const char* UserName)
+        void bind(const char* Host, const char* db, const char* user)
         {
-            rx::st::strcpy(m_BindHost, MAX_PATH, Host);
-            rx::st::strcpy(m_BindServiceName, MAX_PATH, ServiceName);
-            rx::st::strcpy(m_BindUserName, MAX_PATH, UserName);
+            rx::st::strcpy(m_bind_host, MAX_PATH, Host);
+            rx::st::strcpy(m_bind_db, MAX_PATH, db);
+            rx::st::strcpy(m_bind_user, MAX_PATH, user);
         }
         //-------------------------------------------------
         //得到错误的详细信息
         const char* c_str(void)
         {
-            rx::st::replace(m_Description, '\n', ' ');
-            if (!m_BindHost[0])
-                sprintf(m_RetInfo, "errClass[%s],errInfo{%s}", error_class_name(m_Type), m_Description);
+            rx::st::replace(m_err_desc, '\n', ' ');
+            if (!m_bind_host[0])
+                sprintf(m_out_buff, "errClass[%s]::{%s}", error_class_name(m_err_type), m_err_desc);
             else
-                sprintf(m_RetInfo, "errClass[%s],DBHost[%s],DBServiceName[%s],DBUser[%s],errInfo{%s}", error_class_name(m_Type), m_BindHost, m_BindServiceName, m_BindUserName, m_Description);
-            return m_RetInfo;
+                sprintf(m_out_buff, "errClass[%s],host[%s],db[%s],user[%s]::{%s}", error_class_name(m_err_type), m_bind_host, m_bind_db, m_bind_user, m_err_desc);
+            return m_out_buff;
         }
         //-------------------------------------------------
         //得到错误代码
-        ub4 oci_error_code() { return m_OraCode; }
+        ub4 oci_error_code() { return m_ora_ec; }
+        //判断错误是否为用户名口令错误
+        bool is_bad_user_pwd() { return m_ora_ec == 1017; }
+        //判断是否为连接错误
+        bool is_conn_timeout() { return m_ora_ec == 12170; }
     };
 
     //-----------------------------------------------------

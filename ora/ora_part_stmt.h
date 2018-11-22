@@ -75,17 +75,21 @@ namespace rx_dbc_ora
         const char* SQL(){return m_SQL.c_str();}
         //-------------------------------------------------
         //预解析一个SQL语句,得到必要的信息,之后可以进行参数绑定了
-        void prepare(const char *SQL,int Len = -1)
+        void prepare(const char *SQL,va_list arg)
         {
-            rx_assert (!is_empty(SQL));
-            if (Len == -1) Len = rx::st::strlen(SQL);
-            if (m_SQL.set(SQL,Len)!=Len)
+            rx_assert(!is_empty(SQL));
+            if (!m_SQL.fmt(SQL, arg))
                 throw (rx_dbc_ora::error_info_t(EC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
             m_prepare();
         }
-        void prepare(const char *SQL,va_list arg)
+        void prepare(const char *SQL, ...)
         {
-
+            rx_assert(!is_empty(SQL));
+            va_list	arg;
+            va_start(arg, SQL);
+            if (!m_SQL.fmt(SQL, arg))
+                throw (rx_dbc_ora::error_info_t(EC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
+            m_prepare();
         }
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理

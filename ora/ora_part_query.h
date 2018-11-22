@@ -136,7 +136,12 @@ namespace rx_dbc_ora
         PStr SQL(){return stmt_t::SQL();}
         //-------------------------------------------------
         //预解析一个SQL语句,得到必要的信息
-        void prepare(const char *SQL, int Len = -1) { stmt_t::prepare(SQL, Len); }
+        void prepare(const char *SQL,...) 
+        { 
+            va_list	arg;
+            va_start(arg, SQL);
+            stmt_t::prepare(SQL,arg); 
+        }
         //-------------------------------------------------
         //预解析之后可以进行参数绑定
         sql_param_t& bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES) { return stmt_t::bind(name,type, MaxStringSize); }
@@ -155,9 +160,9 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //直接执行一条SQL语句,中间没有绑定参数的机会了
-        void exec(const char *SQL,int Len = -1,ub2 fetch_size=BAT_FETCH_SIZE)
+        void exec(const char *SQL,ub2 fetch_size=BAT_FETCH_SIZE)
         {
-            prepare(SQL,Len);
+            prepare(SQL);
             exec(fetch_size);
         }
         //-------------------------------------------------

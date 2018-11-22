@@ -28,7 +28,7 @@ namespace rx_dbc_ora
         }
     public:
         //-------------------------------------------------
-        conn_t(rx::mem_allotter_i& ma):m_MemPool(ma)
+        conn_t(rx::mem_allotter_i& ma = rx_global_mem_allotter()):m_MemPool(ma)
         {
             m_EnvHandle = NULL;
             m_ErrHandle = NULL;
@@ -45,8 +45,14 @@ namespace rx_dbc_ora
         bool is_valid(){return m_IsOpened;}
         //-------------------------------------------------
         //连接到Oracle服务器
-        void open (const char *service_name,const char *login,const char *password,unsigned long env_mode = OCI_OBJECT|OCI_THREADED,
-            ub2 charsetId=OCI_ZHS16GBK_CHARSET_ID,ub2 ncharsetId=OCI_ZHS16GBK_CHARSET_ID,const char* LanguageName=OCI_LANGUAGE_CHINA,const char* DateFmt=OCI_DEF_DATE_FORMAT)
+        void open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
+        {
+            char dst_str[1024];
+            sprintf(dst_str, "(DESCRIPTION=(CONNECT_TIMEOUT=%d)(TRANSPORT_CONNECT_TIMEOUT=%d)(ADDRESS=(PROTOCOL=tcp) (HOST=%s) (PORT=%d))(CONNECT_DATA=(SERVICE_NAME=%s)))",dst.conn_timeout,dst.tran_timeout,dst.host, dst.port, dst.db);
+            open(dst_str,dst.user,dst.pwd,op,env_mode);
+        }
+        //-------------------------------------------------
+        void open (const char *service_name,const char *login,const char *password,const env_option_t &op = env_option_t(),unsigned long env_mode = OCI_OBJECT|OCI_THREADED)
         {
             if (is_empty(service_name) || is_empty(login) || is_empty(password))
                 throw (rx_dbc_ora::error_info_t (EC_BAD_PARAM_TYPE, __FILE__, __LINE__));
@@ -54,7 +60,7 @@ namespace rx_dbc_ora
             if (m_IsOpened) return;
             close();
             //初始化OCI环境,得到环境句柄
-            sword result = OCIEnvNlsCreate (&m_EnvHandle,env_mode,NULL,DBG_Malloc_Func,DBG_Realloc_Func,DBG_Free_Func,0,NULL,charsetId,ncharsetId);
+            sword result = OCIEnvNlsCreate (&m_EnvHandle,env_mode,NULL,DBG_Malloc_Func,DBG_Realloc_Func,DBG_Free_Func,0,NULL,op.charset_id, op.charset_id);
             if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (EC_ENV_CREATE_FAILED, __FILE__, __LINE__));
 
             //分配得到服务器句柄
@@ -64,13 +70,13 @@ namespace rx_dbc_ora
             result = OCIHandleAlloc (m_EnvHandle,(void **) &m_ErrHandle,OCI_HTYPE_ERROR,0,NULL);
             if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_EnvHandle, __FILE__, __LINE__));
 
-            //服务器句柄绑定数据库实例描述
+            //服务器句柄绑定数据库实例描述,!!连接到服务器!!
             result = OCIServerAttach (m_ServerHandle,m_ErrHandle,(text *) service_name,(ub4)strlen (service_name),OCI_DEFAULT);
             if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_ErrHandle, __FILE__, __LINE__));
 
             //分配得到服务句柄
             result = OCIHandleAlloc (m_EnvHandle,(void **) &m_SvcHandle,OCI_HTYPE_SVCCTX,0,NULL);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_EnvHandle, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_ErrHandle, __FILE__, __LINE__));
 
             //绑定服务器句柄到服务句柄
             result = OCIAttrSet (m_SvcHandle,OCI_HTYPE_SVCCTX,m_ServerHandle,sizeof (OCIServer *),OCI_ATTR_SERVER,m_ErrHandle);
@@ -78,33 +84,34 @@ namespace rx_dbc_ora
 
             //分配得到用户会话句柄
             result = OCIHandleAlloc (m_EnvHandle,(void **) &m_SessionHandle,OCI_HTYPE_SESSION,0,NULL);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_EnvHandle, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_ErrHandle, __FILE__, __LINE__));
 
             //绑定用户名与口令到用户会话句柄
             result = OCIAttrSet (m_SessionHandle,OCI_HTYPE_SESSION,(text *) login,(ub4)strlen (login),OCI_ATTR_USERNAME,m_ErrHandle);
+            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_ErrHandle, __FILE__, __LINE__));
 
-            if (result == OCI_SUCCESS)
-                result = OCIAttrSet (m_SessionHandle,OCI_HTYPE_SESSION,(text *) password,(ub4)strlen (password),OCI_ATTR_PASSWORD,m_ErrHandle);
+            result = OCIAttrSet (m_SessionHandle,OCI_HTYPE_SESSION,(text *) password,(ub4)strlen (password),OCI_ATTR_PASSWORD,m_ErrHandle);
+            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_ErrHandle, __FILE__, __LINE__));
 
-            //在服务句柄上启动当前会话,进行登录连接
-            if (result == OCI_SUCCESS)
-                result = OCISessionBegin(m_SvcHandle,m_ErrHandle,m_SessionHandle,OCI_CRED_RDBMS,OCI_DEFAULT);
+            //在服务句柄上启动当前会话,!!进行登录认证!!
+            result = OCISessionBegin(m_SvcHandle,m_ErrHandle,m_SessionHandle,OCI_CRED_RDBMS,OCI_DEFAULT);
+            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_ErrHandle, __FILE__, __LINE__));
 
             //绑定用户会话句柄到服务环境句柄上
-            if (result == OCI_SUCCESS)
-                result = OCIAttrSet (m_SvcHandle,OCI_HTYPE_SVCCTX,m_SessionHandle,sizeof (OCISession *),OCI_ATTR_SESSION,m_ErrHandle);
+            result = OCIAttrSet (m_SvcHandle,OCI_HTYPE_SVCCTX,m_SessionHandle,sizeof (OCISession *),OCI_ATTR_SESSION,m_ErrHandle);
+            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_ErrHandle, __FILE__, __LINE__));
 
-            if (!is_empty(LanguageName))
+            if (!is_empty(op.language))
             {
                 char SQL[128];
-                sprintf(SQL,"ALTER SESSION SET NLS_LANGUAGE='%s'",LanguageName);
+                sprintf(SQL,"ALTER SESSION SET NLS_LANGUAGE='%s'", op.language);
                 exec(SQL);
             }
 
-            if (!is_empty(DateFmt))
+            if (!is_empty(op.date_format))
             {
                 char SQL[128];
-                sprintf(SQL,"ALTER SESSION SET NLS_DATE_FORMAT='%s'",DateFmt);
+                sprintf(SQL,"ALTER SESSION SET NLS_DATE_FORMAT='%s'", op.date_format);
                 exec(SQL);
             }
             m_IsOpened = true;
@@ -124,7 +131,8 @@ namespace rx_dbc_ora
             if (result != OCI_SUCCESS) ++ec;
 
             //将错误句柄从服务器句柄上剥离
-            result = OCIServerDetach (m_ServerHandle,m_ErrHandle,OCI_DEFAULT);
+            if (m_ServerHandle&&m_ErrHandle)
+                result = OCIServerDetach (m_ServerHandle,m_ErrHandle,OCI_DEFAULT);
             if (result != OCI_SUCCESS) ++ec;
 
             if (m_SvcHandle != NULL)                        //释放服务环境句柄
