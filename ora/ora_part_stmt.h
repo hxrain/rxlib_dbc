@@ -19,6 +19,7 @@ namespace rx_dbc_ora
         sql_stmt_t	                        m_sql_type;     //该语句对象当前SQL语句的类型
         rx::tiny_string_t<char,MAX_SQL_LENGTH>  m_SQL;      //预解析时记录的待执行的SQL语句
         ub2                                 m_max_bulk_count; //参数批量数据提交的最大数
+        ub2                                 m_cur_bulk_idx; //当前操作的块深度索引
         bool			                    m_executed;     //标记当前语句是否已经被正确执行过了
         //-------------------------------------------------
         //释放全部的参数
@@ -26,6 +27,7 @@ namespace rx_dbc_ora
         {
             m_params.clear();
             m_max_bulk_count=1;
+            m_cur_bulk_idx = 0;
         }
         //预解析一个SQL语句,得到必要的信息,之后可以进行参数绑定了
         void m_prepare()
@@ -65,6 +67,7 @@ namespace rx_dbc_ora
             m_executed = false;
             m_sql_type = ST_UNKNOWN;
             m_max_bulk_count=1;
+            m_cur_bulk_idx = 0;
         }
         //-------------------------------------------------
         conn_t& conn()const { return m_conn; }
@@ -187,6 +190,31 @@ namespace rx_dbc_ora
             return Ret;
         }
         //-------------------------------------------------
+        //对参数的块深度进行访问
+        ub2 bulks() { return m_max_bulk_count; }
+        //设置所有参数的当前块访问深度
+        stmt_t& bulk_use(ub2 idx)
+        {
+            if (idx>=m_max_bulk_count)
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
+            m_cur_bulk_idx = idx;
+            for (ub4 i = 0; i < m_params.size(); ++i)
+                m_params[i].bulk_use(m_cur_bulk_idx);
+            return *this;
+        }
+        //对指定参数的绑定与当前深度的数据赋值同时进行,便于应用层操作
+        /*比如可以进行如下模式的绑定赋值
+            for(ub2 bi=0;bi<stmt.bulks();++bi)
+                stmt.bulk_use(bi)(":nParam1",dat1[bi])(":nParam1",dat2[bi]);
+        */
+        template<class DT>
+        stmt_t& operator()(const char* name, const DT& data, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        {
+            sql_param_t &param = bind(name, type, MaxStringSize);
+            param = data;
+            return *this;
+        }
+        //-------------------------------------------------
         //绑定过的参数数量
         ub4 params() { return m_params.size(); }
         //获取绑定的参数对象
@@ -204,7 +232,7 @@ namespace rx_dbc_ora
         sql_param_t& param(ub4 Idx)
         {
             if (Idx>=m_params.size())
-                throw (error_info_t (DBEC_PARAM_NOT_FOUND, __FILE__, __LINE__));
+                throw (error_info_t (DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
             return m_params[Idx];
         }
         //-------------------------------------------------

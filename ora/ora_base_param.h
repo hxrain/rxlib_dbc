@@ -276,21 +276,20 @@ namespace rx_dbc_ora
         OCIError* oci_err_handle() const { return m_conn->m_handle_err; }
         //得到当前的访问行号
         ub2 bulk_row_idx() const { return m_bulk_idx; }
-    public:
-        //-------------------------------------------------
-        sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { clear(); }
-        //-------------------------------------------------
-        ~sql_param_t() { clear(); }
         //-------------------------------------------------
         //设置块访问序号
-        void bulk_use(ub2 idx) 
+        void bulk_use(ub2 idx)
         {
-            if (idx>= m_max_bulk_count) 
-                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
+            if (idx >= m_max_bulk_count)
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
             m_bulk_idx = idx;
         }
         //获取可访问块数量
         ub2 bulk_count() { return m_max_bulk_count; }
+    public:
+        //-------------------------------------------------
+        sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { clear(); }
+        ~sql_param_t() { clear(); }
         //-------------------------------------------------
         //让当前参数设置为空值
         void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_count); m_col_dataempty.at(bulk_row_idx()) = -1; }

@@ -185,6 +185,8 @@ namespace rx_dbc_ora
         field_t& field(const ub4 field_idx)
         {
             rx_assert(field_idx<m_fields.size());
+            if (field_idx >= m_fields.capacity())
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
             return m_fields[field_idx];
         }
         //-------------------------------------------------

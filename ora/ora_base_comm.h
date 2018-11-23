@@ -90,6 +90,7 @@ namespace rx_dbc_ora
         DBEC_ENV_FAIL = 1000,                               //OCI环境创建错误
         DBEC_NO_MEMORY,                                     //内存不足
         DBEC_NO_BUFFER,                                     //缓冲区不足
+        DBEC_IDX_OVERSTEP,                                  //下标越界
         DBEC_BAD_PARAM,                                     //参数错误
         DBEC_BAD_INPUT,                                     //待绑定参数的数据类型错误
         DBEC_BAD_OUTPUT,                                    //不支持的输出数据类型
@@ -107,6 +108,7 @@ namespace rx_dbc_ora
         case	DBEC_ENV_FAIL:          return "(DBEC_ENV_FAIL):environment handle creation failed";
         case	DBEC_NO_MEMORY:         return "(DBEC_NO_MEMORY):memory allocation request has failed";
         case	DBEC_NO_BUFFER:         return "(DBEC_NO_BUFFER):memory buffer not enough";
+        case	DBEC_IDX_OVERSTEP:      return "(DBEC_IDX_OVERSTEP):index access overstep the boundary";
         case	DBEC_BAD_PARAM:         return "(DBEC_BAD_PARAM):func param is incorrect";
         case	DBEC_BAD_INPUT:         return "(DBEC_BAD_INPUT):input bind data doesn't have expected type";
         case	DBEC_BAD_OUTPUT:        return "(DBEC_BAD_OUTPUT):output convert type incorrect";
