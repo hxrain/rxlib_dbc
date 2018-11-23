@@ -39,7 +39,7 @@ namespace rx_dbc_ora
             {//分配SQL语句执行句柄,初始执行或在close之后执行
                 result = OCIHandleAlloc(m_conn.m_handle_env, (void **)&m_stmt_handle, OCI_HTYPE_STMT, 0, NULL);
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
             }
 
             result = OCIStmtPrepare(m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(),m_SQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
@@ -54,7 +54,7 @@ namespace rx_dbc_ora
             if (result != OCI_SUCCESS)
             {
                 close();
-                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__,m_SQL.c_str()));
             }
         }
     public:
@@ -79,7 +79,7 @@ namespace rx_dbc_ora
         {
             rx_assert(!is_empty(SQL));
             if (!m_SQL.fmt(SQL, arg))
-                throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
+                throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, SQL));
             m_prepare();
         }
         void prepare(const char *SQL, ...)
@@ -88,12 +88,12 @@ namespace rx_dbc_ora
             va_list	arg;
             va_start(arg, SQL);
             if (!m_SQL.fmt(SQL, arg))
-                throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
+                throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, SQL));
             m_prepare();
         }
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
-        //入口:当前实际绑定参数的批量数.
+        //入口:当前实际绑定参数的批量深度.
         void exec (ub2 BulkCount=0)
         {
             if (m_sql_type == ST_UNKNOWN) 
@@ -109,7 +109,7 @@ namespace rx_dbc_ora
                          m_conn.m_handle_svc,
                          m_stmt_handle,
                          m_conn.m_handle_err,
-                         BulkCount,	// number of iterations
+                         BulkCount,	            //批量绑定的深度,没有绑定时,select要求为0,其他为1
                          0,		// starting index from which the data in an array bind is relevant
                          NULL,	// input snapshot descriptor
                          NULL,	// output snapshot descriptor
@@ -118,13 +118,13 @@ namespace rx_dbc_ora
             if (result == OCI_SUCCESS)
                 m_executed = true;
             else
-                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__,m_SQL.c_str()));
         }
         //-------------------------------------------------
         //预解析与执行同时进行,中间没有绑定参数的机会了,适合不绑定参数的语句
-        void exec (const char *SQL,int Len = -1)
+        void exec (const char *SQL)
         {
-            prepare(SQL,Len);
+            prepare(SQL);
             exec ();
         }
         //-------------------------------------------------
@@ -136,7 +136,7 @@ namespace rx_dbc_ora
             ub4 RC=0;
             sword result=OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT,&RC, 0, OCI_ATTR_ROW_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
-                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
             return RC;
         }
         //-------------------------------------------------
@@ -150,7 +150,7 @@ namespace rx_dbc_ora
             {//尝试根据SQL中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ParamCount = rx::st::count(m_SQL.c_str(), ':');
                 if (ParamCount&&!m_params.make_ex(ParamCount))
-                    throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__));
+                    throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
             }
 
             m_max_bulk_count=MaxBulkCount;
@@ -169,10 +169,10 @@ namespace rx_dbc_ora
             {//之前没有初始化过,那么现在就根据SQL中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ub4 PC=rx::st::count(m_SQL.c_str(),':');
                 if (PC==0)
-                    throw (error_info_t (DBEC_NOT_PARAM, __FILE__, __LINE__));
+                    throw (error_info_t (DBEC_NOT_PARAM, __FILE__, __LINE__), m_SQL.c_str());
                     
                 if (!m_params.make_ex(PC))
-                    throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__));
+                    throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__), m_SQL.c_str());
             }
 
             ub4 ParamIdx = m_params.index(Tmp);
@@ -186,6 +186,9 @@ namespace rx_dbc_ora
             Ret.bind(m_conn,m_stmt_handle,name,type,MaxStringSize,m_max_bulk_count);  //对参数对象进行必要的初始化
             return Ret;
         }
+        //-------------------------------------------------
+        //绑定过的参数数量
+        ub4 params() { return m_params.size(); }
         //获取绑定的参数对象
         sql_param_t& param(const char* name) 
         { 
@@ -197,14 +200,8 @@ namespace rx_dbc_ora
             return m_params[Idx];
         }
         //-------------------------------------------------
-        //绑定过的参数数量
-        ub4 params() { return m_params.size(); }
-        //-------------------------------------------------
-        //根据名字得到参数对象
-        sql_param_t& operator [] (const char *name) { return param(name); }
-        //-------------------------------------------------
         //根据索引访问参数对象,索引从0开始
-        sql_param_t& operator [] (ub4 Idx)
+        sql_param_t& param(ub4 Idx)
         {
             if (Idx>=m_params.size())
                 throw (error_info_t (DBEC_PARAM_NOT_FOUND, __FILE__, __LINE__));

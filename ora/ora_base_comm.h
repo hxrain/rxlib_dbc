@@ -208,7 +208,7 @@ namespace rx_dbc_ora
                 break;
             case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)"; 
                 get_details = true; break;
-            case	OCI_ERROR:                  desc = "(OCI_ERROR)"; 
+            case	OCI_ERROR:                  desc = ""; 
                 get_details = true; break;
             case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)"; 
                 get_details = true; break;
@@ -231,7 +231,7 @@ namespace rx_dbc_ora
                     OCIErrorGet(error_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ERROR);
                 else
                     OCIErrorGet(env_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ENV);
-                desc << ' ' << Tmp;
+                desc << '<' << Tmp << '>';
             }
         }
 
@@ -259,7 +259,7 @@ namespace rx_dbc_ora
                 char Tmp[ERROR_FORMAT_MAX_MSG_LEN];
                 vsnprintf(Tmp, ERROR_FORMAT_MAX_MSG_LEN - 1, format, va);
                 rx::strcat_ct desc(m_err_desc, sizeof(m_err_desc), rx::st::strlen(m_err_desc));
-                desc << ": " << Tmp;
+                desc << " @ <" << Tmp <<'>';
             }
             if (!is_empty(source_name))
             {
@@ -307,14 +307,15 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //绑定发生错误的数据库连接信息后再获取完整的错误输出
-        const char* c_str(const char* Host, const char* db, const char* user)
+        const char* c_str(const char* Host, const char* sid, const char* user)
         {
             rx::st::strcpy(m_bind_host, MAX_PATH, Host);
-            rx::st::strcpy(m_bind_sid, MAX_PATH, db);
+            rx::st::strcpy(m_bind_sid, MAX_PATH, sid);
             rx::st::strcpy(m_bind_user, MAX_PATH, user);
             m_out_buff[0];
             return c_str();
         }
+        const char* c_str(const conn_param_t &cp) { return c_str(cp.host,cp.sid,cp.user); }
         //-------------------------------------------------
         //得到错误的详细信息
         const char* c_str(void)
@@ -323,9 +324,9 @@ namespace rx_dbc_ora
             {
                 rx::st::replace(m_err_desc, '\n', ' ');
                 if (!m_bind_host[0])
-                    snprintf(m_out_buff, sizeof(m_out_buff), "errClass[%s]::{%s}", error_class_name(m_err_type), m_err_desc);
+                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::%s", error_class_name(m_err_type), m_err_desc);
                 else
-                    snprintf(m_out_buff, sizeof(m_out_buff), "errClass[%s],host[%s],db[%s],user[%s]::{%s}", error_class_name(m_err_type), m_bind_host, m_bind_sid, m_bind_user, m_err_desc);
+                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::host[%s],db[%s],user[%s]::%s", error_class_name(m_err_type), m_bind_host, m_bind_sid, m_bind_user, m_err_desc);
             }
             return m_out_buff;
         }
@@ -574,9 +575,9 @@ namespace rx_dbc_ora
         //子类需要覆盖实现的具体功能函数接口
         //-------------------------------------------------
         //得到错误句柄
-        OCIError* oci_err_handle() const { return NULL; }
+        virtual OCIError* oci_err_handle() const = 0;
         //得到当前的访问行号
-        ub2 bulk_row_idx() const { return (ub2)-1; }
+        virtual ub2 bulk_row_idx() const = 0;
     public:
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
