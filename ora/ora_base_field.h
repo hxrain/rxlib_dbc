@@ -102,7 +102,7 @@ namespace rx_dbc_ora
         OCIError *oci_err_handle() const
         {
             conn_t &conn = reinterpret_cast<stmt_t*>(m_query)->m_conn;
-            return conn.m_ErrHandle;
+            return conn.m_handle_err;
         }
         //-------------------------------------------------
         void reset()

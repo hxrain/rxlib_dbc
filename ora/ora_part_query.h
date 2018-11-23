@@ -39,9 +39,9 @@ namespace rx_dbc_ora
             m_bat_fetch_count = fetch_size;
             //获取当前结果集的字段数量
             ub4			count;
-            sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_ErrHandle);
+            sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
 
             //动态生成字段对象数组
             rx_assert(m_fields.capacity()==0);
@@ -59,22 +59,22 @@ namespace rx_dbc_ora
                 ub4			size = 0;
 
                 //从结果集中获取参数句柄
-                result = OCIParamGet (m_stmt_handle,OCI_HTYPE_STMT,m_conn.m_ErrHandle,reinterpret_cast <void **> (&param_handle),i + 1);	// first is 1
+                result = OCIParamGet (m_stmt_handle,OCI_HTYPE_STMT,m_conn.m_handle_err,reinterpret_cast <void **> (&param_handle),i + 1);	// first is 1
 
                 if (result == OCI_SUCCESS)                          //根据参数句柄得到字段名字
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&param_name,&name_len,OCI_ATTR_NAME,m_conn.m_ErrHandle);
+                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&param_name,&name_len,OCI_ATTR_NAME,m_conn.m_handle_err);
 
                 if (result == OCI_SUCCESS)                          //根据参数句柄得到ORACLE数据类型
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&oci_data_type,NULL,OCI_ATTR_DATA_TYPE,m_conn.m_ErrHandle);
+                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&oci_data_type,NULL,OCI_ATTR_DATA_TYPE,m_conn.m_handle_err);
 
                 if (result == OCI_SUCCESS)                          //根据参数句柄得到该字段的数据最大尺寸
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&size,NULL,OCI_ATTR_DATA_SIZE,m_conn.m_ErrHandle);
+                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&size,NULL,OCI_ATTR_DATA_SIZE,m_conn.m_handle_err);
 
                 if (param_handle)                                   //释放参数句柄
                     OCIDescriptorFree (param_handle,OCI_DTYPE_PARAM);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
                     
                 rx::st::strncpy(Tmp,(char*)param_name,name_len);    //转换字段名,将字段对象与其名字进行关联
                 Tmp[name_len]=0;
@@ -91,7 +91,7 @@ namespace rx_dbc_ora
             for (ub4 i = 0; i<m_fields.size(); i++)
             {
                 field_t& Field = m_fields[i];
-                result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_ErrHandle,
+                result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_handle_err,
                     position++,
                     Field.m_fields_databuff.array(),
                     Field.m_max_data_size,			    // fetch m_max_data_size for a single row (NOT for several)
@@ -102,7 +102,7 @@ namespace rx_dbc_ora
                     OCI_DEFAULT);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__, Field.m_FieldName.c_str()));
+                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, Field.m_FieldName.c_str()));
             }
         }
 
@@ -113,23 +113,23 @@ namespace rx_dbc_ora
             sword	result;
             ub4		old_rows_count = m_fetched_count;
 
-            result = OCIStmtFetch(m_stmt_handle,m_conn.m_ErrHandle,m_bat_fetch_count,OCI_FETCH_NEXT,OCI_DEFAULT);
+            result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_bat_fetch_count,OCI_FETCH_NEXT,OCI_DEFAULT);
             if (result == OCI_SUCCESS || result == OCI_NO_DATA || result == OCI_SUCCESS_WITH_INFO)
             {
-                result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_ErrHandle);
+                result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
                 
                 if (m_fetched_count - old_rows_count != (ub4)m_bat_fetch_count)
                     m_is_eof = true;
             }
             else
-                throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
         }
 
     public:
         //-------------------------------------------------
-        query_t(conn_t &Conn) :m_fields(Conn.m_MemPool),stmt_t(Conn) { m_clear(); }
+        query_t(conn_t &Conn) :m_fields(Conn.m_mem),stmt_t(Conn) { m_clear(); }
         ~query_t (){close();}
         //-------------------------------------------------
         conn_t& conn(){return stmt_t::conn();}

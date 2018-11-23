@@ -141,14 +141,14 @@ namespace rx_dbc_ora
         char        host[64];                               //数据库服务器所在地址
         char        user[64];                               //数据库用户名
         char        pwd[64];                                //数据库口令
-        char        db[64];                                 //数据库实例名
+        char        sid[64];                                //数据库实例名
         uint32_t    port;                                   //数据库端口
         uint32_t    conn_timeout;                           //连接超时时间
         uint32_t    tran_timeout;                           //数据传输超时
         conn_param_t() 
         { 
             host[0] = 0; 
-            db[0] = 0;
+            sid[0] = 0;
             user[0] = 0;
             pwd[0] = 0;
             port = 1521;
@@ -167,12 +167,12 @@ namespace rx_dbc_ora
         sword		        m_dbc_ec;  	                    //DBC错误码
         sb4			        m_ora_ec;		                //Oracle错误码,ORA-xxxxx
         char	            m_err_desc[MAX_BUF_SIZE];	    //错误内容
-        char	            m_src_file[MAX_BUF_SIZE];	    // source file, where error was thrown (optional)
         char                m_out_buff[MAX_BUF_SIZE];       //返回完整消息时使用的缓冲串
 
-        char                m_bind_host[MAX_PATH];          //绑定过的主机名
-        char                m_bind_db[MAX_PATH];            //绑定过的主机Oracle实例名字
-        char                m_bind_user[MAX_PATH];          //绑定过的用户名
+        char                m_bind_host[64];                //绑定过的主机名
+        char                m_bind_sid[64];                 //绑定过的主机Oracle实例名字
+        char                m_bind_user[64];                //绑定过的用户名
+        char	            m_src_file[256];	            // source file, where error was thrown (optional)
         long		        m_src_file_lineno;		        // line number, where error was thrown (optional)
 
         //--------------------------------------------------
@@ -311,7 +311,7 @@ namespace rx_dbc_ora
         void bind(const char* Host, const char* db, const char* user)
         {
             rx::st::strcpy(m_bind_host, MAX_PATH, Host);
-            rx::st::strcpy(m_bind_db, MAX_PATH, db);
+            rx::st::strcpy(m_bind_sid, MAX_PATH, db);
             rx::st::strcpy(m_bind_user, MAX_PATH, user);
         }
         //-------------------------------------------------
@@ -322,7 +322,7 @@ namespace rx_dbc_ora
             if (!m_bind_host[0])
                 sprintf(m_out_buff, "errClass[%s]::{%s}", error_class_name(m_err_type), m_err_desc);
             else
-                sprintf(m_out_buff, "errClass[%s],host[%s],db[%s],user[%s]::{%s}", error_class_name(m_err_type), m_bind_host, m_bind_db, m_bind_user, m_err_desc);
+                sprintf(m_out_buff, "errClass[%s],host[%s],db[%s],user[%s]::{%s}", error_class_name(m_err_type), m_bind_host, m_bind_sid, m_bind_user, m_err_desc);
             return m_out_buff;
         }
         //-------------------------------------------------

@@ -37,29 +37,29 @@ namespace rx_dbc_ora
 
             if (m_stmt_handle == NULL)
             {//分配SQL语句执行句柄,初始执行或在close之后执行
-                result = OCIHandleAlloc(m_conn.m_EnvHandle, (void **)&m_stmt_handle, OCI_HTYPE_STMT, 0, NULL);
+                result = OCIHandleAlloc(m_conn.m_handle_env, (void **)&m_stmt_handle, OCI_HTYPE_STMT, 0, NULL);
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
             }
 
-            result = OCIStmtPrepare(m_stmt_handle, m_conn.m_ErrHandle, (text *)m_SQL.c_str(),m_SQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
+            result = OCIStmtPrepare(m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(),m_SQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 
             if (result == OCI_SUCCESS)
             {
                 ub2	stmt_type = 0;                          //得到SQL语句的类型
-                result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &stmt_type, NULL, OCI_ATTR_STMT_TYPE, m_conn.m_ErrHandle);
+                result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &stmt_type, NULL, OCI_ATTR_STMT_TYPE, m_conn.m_handle_err);
                 m_sql_type = (sql_stmt_t)stmt_type;        //stmt_type为0说明语句是错误的
             }
 
             if (result != OCI_SUCCESS)
             {
                 close();
-                throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
             }
         }
     public:
         //-------------------------------------------------
-        stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_MemPool)
+        stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_mem)
         {
             m_stmt_handle = NULL;
             m_executed = false;
@@ -106,9 +106,9 @@ namespace rx_dbc_ora
                 BulkCount = 0;
 
             sword result = OCIStmtExecute (
-                         m_conn.m_SvcHandle,
+                         m_conn.m_handle_svc,
                          m_stmt_handle,
-                         m_conn.m_ErrHandle,
+                         m_conn.m_handle_err,
                          BulkCount,	// number of iterations
                          0,		// starting index from which the data in an array bind is relevant
                          NULL,	// input snapshot descriptor
@@ -118,7 +118,7 @@ namespace rx_dbc_ora
             if (result == OCI_SUCCESS)
                 m_executed = true;
             else
-                throw (rx_dbc_ora::error_info_t (result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
         }
         //-------------------------------------------------
         //预解析与执行同时进行,中间没有绑定参数的机会了,适合不绑定参数的语句
@@ -134,9 +134,9 @@ namespace rx_dbc_ora
             if (!m_executed)
                 throw (rx_dbc_ora::error_info_t(EC_METHOD_ORDER, __FILE__, __LINE__, "SQL Is Not Executed!"));
             ub4 RC=0;
-            sword result=OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT,&RC, 0, OCI_ATTR_ROW_COUNT, m_conn.m_ErrHandle);
+            sword result=OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT,&RC, 0, OCI_ATTR_ROW_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_conn.m_ErrHandle, __FILE__, __LINE__));
+                throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
             return RC;
         }
         //-------------------------------------------------
@@ -225,11 +225,13 @@ namespace rx_dbc_ora
 
     //-----------------------------------------------------
     //让数据库连接对象可以直接执行SQL语句的方法,用到了HOStmt对象,所以需要放在HOStmt定义的后面
-    inline void conn_t::exec (const char *sql_block,int sql_len)
+    inline void conn_t::exec (const char *sql,...)
     {
-        rx_assert (!is_empty(sql_block));
+        rx_assert(!is_empty(sql));
+        va_list	arg;
+        va_start(arg, sql);
         stmt_t st (*this);
-        st.prepare(sql_block,sql_len);
+        st.prepare(sql,arg);
         st.exec ();
     }
 

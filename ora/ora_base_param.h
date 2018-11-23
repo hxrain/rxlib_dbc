@@ -109,7 +109,7 @@ namespace rx_dbc_ora
                 //OCI绑定句柄,无需释放
                 OCIBind	*bind_handle=NULL;                     
 
-                sword result = OCIBindByName(StmtHandle, &bind_handle, conn.m_ErrHandle, (text *)name, (ub4)rx::st::strlen(name),
+                sword result = OCIBindByName(StmtHandle, &bind_handle, conn.m_handle_err, (text *)name, (ub4)rx::st::strlen(name),
                     m_bulks_databuff.array(), m_max_data_size,
                     m_oci_data_type, m_bulks_is_empty.array(), m_bulks_datasize.array(),
                     NULL,	// pointer conn array of field_t-level return codes
@@ -118,7 +118,7 @@ namespace rx_dbc_ora
                     OCI_DEFAULT);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, conn.m_ErrHandle, __FILE__, __LINE__, name));
+                    throw (rx_dbc_ora::error_info_t(result, conn.m_handle_err, __FILE__, __LINE__, name));
             }
             catch (...)
             {
@@ -136,9 +136,9 @@ namespace rx_dbc_ora
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromInt(m_conn->m_ErrHandle, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, reinterpret_cast <OCINumber *> (DataBuf));
+                sword result = OCINumberFromInt(m_conn->m_handle_err, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, reinterpret_cast <OCINumber *> (DataBuf));
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__));
                 m_bulks_is_empty.at(bulk_idx) = 0;               //标记参数非空了
                 m_bulks_datasize.at(bulk_idx) = m_max_data_size; //记录数据的实际长度
             }
@@ -164,9 +164,9 @@ namespace rx_dbc_ora
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromReal(m_conn->m_ErrHandle, &value, sizeof(double), reinterpret_cast <OCINumber *> (DataBuf));
+                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(double), reinterpret_cast <OCINumber *> (DataBuf));
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__));
                 m_bulks_is_empty.at(bulk_idx) = 0;                  //标记参数非空了
                 m_bulks_datasize.at(bulk_idx) = m_max_data_size;    //记录数据的实际长度
             }
@@ -187,9 +187,9 @@ namespace rx_dbc_ora
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromReal(m_conn->m_ErrHandle, &value, sizeof(value), reinterpret_cast <OCINumber *> (DataBuf));
+                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), reinterpret_cast <OCINumber *> (DataBuf));
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_ErrHandle, __FILE__, __LINE__));
+                    throw (rx_dbc_ora::error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__));
                 m_bulks_is_empty.at(bulk_idx) = 0;                  //标记参数非空了
                 m_bulks_datasize.at(bulk_idx) = m_max_data_size;    //记录数据的实际长度
             }
@@ -314,7 +314,7 @@ namespace rx_dbc_ora
             rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(bulk_idx) == -1) return NULL;
             ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区            
-            return comm_as_string(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
+            return comm_as_string(m_conn->m_handle_err, DataBuf, m_dbc_data_type, (char*)m_TmpStrBuf, m_TmpStrBufSize, ConvFmt);
         }
         //-------------------------------------------------
         //从当前参数中得到浮点数值
@@ -323,14 +323,14 @@ namespace rx_dbc_ora
             rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
             ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-            return comm_as_double<double>(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_double<double>(m_conn->m_handle_err, DataBuf, m_dbc_data_type);
         }
         long double as_real(ub4 bulk_idx = 0) const
         {
             rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
             ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-            return comm_as_double<long double>(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_double<long double>(m_conn->m_handle_err, DataBuf, m_dbc_data_type);
         }
         //-------------------------------------------------
         //获取大整数
@@ -342,14 +342,14 @@ namespace rx_dbc_ora
             rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
             ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-            return comm_as_long(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_long(m_conn->m_handle_err, DataBuf, m_dbc_data_type);
         }
         uint32_t as_ulong(ub4 bulk_idx = 0) const
         {
             rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(bulk_idx) == -1) return 0;
             ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-            return comm_as_long(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type,false);
+            return comm_as_long(m_conn->m_handle_err, DataBuf, m_dbc_data_type,false);
         }
         //-------------------------------------------------
         //从当前参数中得到时间数值
@@ -358,7 +358,7 @@ namespace rx_dbc_ora
             rx_assert_msg(bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (m_bulks_is_empty.at(bulk_idx) == -1) return datetime_t();
             ub1* DataBuf = &m_bulks_databuff.at(bulk_idx*m_max_data_size);   //得到可用缓冲区
-            return comm_as_datetime(m_conn->m_ErrHandle, DataBuf, m_dbc_data_type);
+            return comm_as_datetime(m_conn->m_handle_err, DataBuf, m_dbc_data_type);
         }
     };
 }
