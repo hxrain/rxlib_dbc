@@ -41,12 +41,12 @@ namespace rx_dbc_ora
             ub4			count;
             sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
 
             //动态生成字段对象数组
             rx_assert(m_fields.capacity()==0);
             if (!m_fields.make_ex(count))
-                throw (rx_dbc_ora::error_info_t (EC_NO_MEMORY, __FILE__, __LINE__));
+                throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__));
 
             //循环获取字段属性信息
             char Tmp[200];
@@ -74,7 +74,7 @@ namespace rx_dbc_ora
                     OCIDescriptorFree (param_handle,OCI_DTYPE_PARAM);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
                     
                 rx::st::strncpy(Tmp,(char*)param_name,name_len);    //转换字段名,将字段对象与其名字进行关联
                 Tmp[name_len]=0;
@@ -93,16 +93,16 @@ namespace rx_dbc_ora
                 field_t& Field = m_fields[i];
                 result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_handle_err,
                     position++,
-                    Field.m_fields_databuff.array(),
+                    Field.m_col_databuff.array(),
                     Field.m_max_data_size,			    // fetch m_max_data_size for a single row (NOT for several)
                     Field.m_oci_data_type,
-                    Field.m_fields_is_empty.array(),
-                    Field.m_fields_datasize.array(),	// will be NULL for non-text columns
+                    Field.m_col_dataempty.array(),
+                    Field.m_col_datasize.array(),	// will be NULL for non-text columns
                     NULL,				                // ptr to array of field_t-level return codes
                     OCI_DEFAULT);
 
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, Field.m_FieldName.c_str()));
+                    throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, Field.m_name.c_str()));
             }
         }
 
@@ -118,13 +118,13 @@ namespace rx_dbc_ora
             {
                 result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
                 
                 if (m_fetched_count - old_rows_count != (ub4)m_bat_fetch_count)
                     m_is_eof = true;
             }
             else
-                throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
         }
 
     public:
@@ -223,14 +223,14 @@ namespace rx_dbc_ora
             rx::st::strlwr(name,Tmp);
             ub4 field_idx = m_fields.index(Tmp);
             if (field_idx == m_fields.capacity())
-                throw (rx_dbc_ora::error_info_t (EC_COLUMN_NOT_FOUND, __FILE__, __LINE__, name));
+                throw (error_info_t (DBEC_FIELD_NOT_FOUND, __FILE__, __LINE__, name));
             return m_fields[field_idx];
         }
     };
 
     //-----------------------------------------------------
     //由于field_t需要访问query_t中的信息,所以将其放在这里
-    inline ub2 field_t::rel_row_idx()const
+    inline ub2 field_t::bulk_row_idx()const
     {
         rx_assert (m_query!=NULL);
         return static_cast <ub2> (m_query->m_cur_row_idx % m_query->m_bat_fetch_count);

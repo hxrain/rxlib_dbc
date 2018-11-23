@@ -58,51 +58,51 @@ namespace rx_dbc_ora
         void open (const char *dblink,const char *login,const char *password,const env_option_t &op = env_option_t(),unsigned long env_mode = OCI_OBJECT|OCI_THREADED)
         {
             if (is_empty(dblink) || is_empty(login) || is_empty(password))
-                throw (rx_dbc_ora::error_info_t (EC_BAD_PARAM_TYPE, __FILE__, __LINE__));
+                throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
                 
             if (m_opened) return;
             close();
             //初始化OCI环境,得到环境句柄
-            sword result = OCIEnvNlsCreate (&m_handle_env,env_mode,NULL,DBG_Malloc_Func,DBG_Realloc_Func,DBG_Free_Func,0,NULL,op.charset_id, op.charset_id);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (EC_ENV_CREATE_FAILED, __FILE__, __LINE__));
+            sword result = OCIEnvNlsCreate (&m_handle_env,env_mode,NULL,DBC_ORA_Malloc,DBC_ORA_Realloc,DBC_ORA_Free,0,NULL,op.charset_id, op.charset_id);
+            if (result!=OCI_SUCCESS) throw (error_info_t (DBEC_ENV_FAIL, __FILE__, __LINE__));
 
             //分配得到服务器句柄
             OCIHandleAlloc (m_handle_env,(void **) &m_handle_svr,OCI_HTYPE_SERVER,0,NULL);
 
             //分配得到错误句柄
             result = OCIHandleAlloc (m_handle_env,(void **) &m_handle_err,OCI_HTYPE_ERROR,0,NULL);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_handle_env, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_env, __FILE__, __LINE__));
 
             //!!连接到服务器!!
             result = OCIServerAttach (m_handle_svr,m_handle_err,(text *) dblink,(ub4)strlen (dblink),OCI_DEFAULT);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_handle_err, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
             //分配得到服务句柄
             result = OCIHandleAlloc (m_handle_env,(void **) &m_handle_svc,OCI_HTYPE_SVCCTX,0,NULL);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_handle_err, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
             //绑定服务器句柄到服务句柄
             result = OCIAttrSet (m_handle_svc,OCI_HTYPE_SVCCTX,m_handle_svr,sizeof (OCIServer *),OCI_ATTR_SERVER,m_handle_err);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_handle_err, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
             //分配得到用户会话句柄
             result = OCIHandleAlloc (m_handle_env,(void **) &m_handle_session,OCI_HTYPE_SESSION,0,NULL);
-            if (result!=OCI_SUCCESS) throw (rx_dbc_ora::error_info_t (result, m_handle_err, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
             //绑定用户名与口令到用户会话句柄
             result = OCIAttrSet (m_handle_session,OCI_HTYPE_SESSION,(text *) login,(ub4)strlen (login),OCI_ATTR_USERNAME,m_handle_err);
-            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_handle_err, __FILE__, __LINE__));
+            if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
             result = OCIAttrSet (m_handle_session,OCI_HTYPE_SESSION,(text *) password,(ub4)strlen (password),OCI_ATTR_PASSWORD,m_handle_err);
-            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_handle_err, __FILE__, __LINE__));
+            if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
             //!!进行登录认证!!
             result = OCISessionBegin(m_handle_svc,m_handle_err,m_handle_session,OCI_CRED_RDBMS,OCI_DEFAULT);
-            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_handle_err, __FILE__, __LINE__));
+            if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
             //绑定用户会话句柄到服务环境句柄上
             result = OCIAttrSet (m_handle_svc,OCI_HTYPE_SVCCTX,m_handle_session,sizeof (OCISession *),OCI_ATTR_SESSION,m_handle_err);
-            if (result != OCI_SUCCESS) throw (rx_dbc_ora::error_info_t(result, m_handle_err, __FILE__, __LINE__));
+            if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
             if (!is_empty(op.language))
             {
@@ -180,11 +180,11 @@ namespace rx_dbc_ora
             rx_assert(m_opened);
             sword result=m_trans_alloc();
             if (result!=OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t (result, m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
             result=OCITransStart(m_handle_svc,m_handle_err,0,OCI_TRANS_NEW);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
         }
         //-------------------------------------------------
         //提交当前事务
@@ -193,7 +193,7 @@ namespace rx_dbc_ora
             rx_assert(m_opened);
             sword result=OCITransCommit(m_handle_svc,m_handle_err,OCI_DEFAULT);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
             m_trans_free();                                 //提交成功,释放事务句柄,否则回滚时释放
         }
         //-------------------------------------------------

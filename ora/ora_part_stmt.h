@@ -39,7 +39,7 @@ namespace rx_dbc_ora
             {//分配SQL语句执行句柄,初始执行或在close之后执行
                 result = OCIHandleAlloc(m_conn.m_handle_env, (void **)&m_stmt_handle, OCI_HTYPE_STMT, 0, NULL);
                 if (result != OCI_SUCCESS)
-                    throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
             }
 
             result = OCIStmtPrepare(m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(),m_SQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
@@ -54,7 +54,7 @@ namespace rx_dbc_ora
             if (result != OCI_SUCCESS)
             {
                 close();
-                throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
             }
         }
     public:
@@ -79,7 +79,7 @@ namespace rx_dbc_ora
         {
             rx_assert(!is_empty(SQL));
             if (!m_SQL.fmt(SQL, arg))
-                throw (rx_dbc_ora::error_info_t(EC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
+                throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
             m_prepare();
         }
         void prepare(const char *SQL, ...)
@@ -88,7 +88,7 @@ namespace rx_dbc_ora
             va_list	arg;
             va_start(arg, SQL);
             if (!m_SQL.fmt(SQL, arg))
-                throw (rx_dbc_ora::error_info_t(EC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
+                throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, "SQL buffer is not enough!"));
             m_prepare();
         }
         //-------------------------------------------------
@@ -97,7 +97,7 @@ namespace rx_dbc_ora
         void exec (ub2 BulkCount=0)
         {
             if (m_sql_type == ST_UNKNOWN) 
-                throw (rx_dbc_ora::error_info_t(EC_METHOD_ORDER, __FILE__, __LINE__, "SQL Is Not Prepared!"));
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "SQL Is Not Prepared!"));
 
             rx_assert(BulkCount<=m_max_bulk_count);
             if (BulkCount==0) BulkCount=m_max_bulk_count;
@@ -118,7 +118,7 @@ namespace rx_dbc_ora
             if (result == OCI_SUCCESS)
                 m_executed = true;
             else
-                throw (rx_dbc_ora::error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__));
         }
         //-------------------------------------------------
         //预解析与执行同时进行,中间没有绑定参数的机会了,适合不绑定参数的语句
@@ -132,11 +132,11 @@ namespace rx_dbc_ora
         ub4 rows()
         {
             if (!m_executed)
-                throw (rx_dbc_ora::error_info_t(EC_METHOD_ORDER, __FILE__, __LINE__, "SQL Is Not Executed!"));
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "SQL Is Not Executed!"));
             ub4 RC=0;
             sword result=OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT,&RC, 0, OCI_ATTR_ROW_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
-                throw (rx_dbc_ora::error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
+                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__));
             return RC;
         }
         //-------------------------------------------------
@@ -150,7 +150,7 @@ namespace rx_dbc_ora
             {//尝试根据SQL中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ParamCount = rx::st::count(m_SQL.c_str(), ':');
                 if (ParamCount&&!m_params.make_ex(ParamCount))
-                    throw (rx_dbc_ora::error_info_t(EC_NO_MEMORY, __FILE__, __LINE__));
+                    throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__));
             }
 
             m_max_bulk_count=MaxBulkCount;
@@ -169,10 +169,10 @@ namespace rx_dbc_ora
             {//之前没有初始化过,那么现在就根据SQL中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ub4 PC=rx::st::count(m_SQL.c_str(),':');
                 if (PC==0)
-                    throw (rx_dbc_ora::error_info_t (EC_SQL_NOT_PARAM, __FILE__, __LINE__));
+                    throw (error_info_t (DBEC_NOT_PARAM, __FILE__, __LINE__));
                     
                 if (!m_params.make_ex(PC))
-                    throw (rx_dbc_ora::error_info_t (EC_NO_MEMORY, __FILE__, __LINE__));
+                    throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__));
             }
 
             ub4 ParamIdx = m_params.index(Tmp);
@@ -193,7 +193,7 @@ namespace rx_dbc_ora
             rx::st::strlwr(name, Tmp);
             ub4 Idx = m_params.index(Tmp);
             if (Idx == m_params.capacity())
-                throw (rx_dbc_ora::error_info_t(EC_PARAMETER_NOT_FOUND, __FILE__, __LINE__, name));
+                throw (error_info_t(DBEC_PARAM_NOT_FOUND, __FILE__, __LINE__, name));
             return m_params[Idx];
         }
         //-------------------------------------------------
@@ -207,7 +207,7 @@ namespace rx_dbc_ora
         sql_param_t& operator [] (ub4 Idx)
         {
             if (Idx>=m_params.size())
-                throw (rx_dbc_ora::error_info_t (EC_PARAMETER_NOT_FOUND, __FILE__, __LINE__));
+                throw (error_info_t (DBEC_PARAM_NOT_FOUND, __FILE__, __LINE__));
             return m_params[Idx];
         }
         //-------------------------------------------------
