@@ -1,9 +1,10 @@
 #ifndef _RX_DBC_ORA_COMM_H_
 #define _RX_DBC_ORA_COMM_H_
 
+    #define DBC_CC_DEBUG 1
     //-----------------------------------------------------
     //在调试状态下,用外部的内存管理函数替代OCI内部的内存管理函数,方便外面进行资源泄露的诊断
-    #if defined(DBC_CC_DEBUG)
+    #if DBC_CC_DEBUG
         inline dvoid *DBC_ORA_Malloc (dvoid * ctxp, size_t size) { return (malloc (size)); }
         inline dvoid *DBC_ORA_Realloc (dvoid * ctxp, dvoid *ptr, size_t size){ return (realloc (ptr, size)); }
         inline void   DBC_ORA_Free (dvoid * ctxp, dvoid *ptr){ free (ptr); }
@@ -24,33 +25,24 @@ namespace rx_dbc_ora
     //字段名字最大长度
     const ub2 FIELD_NAME_LENGTH = 60;
 
-    //SQL语句的长度限制
-    const int MAX_SQL_LENGTH = 1024 * 32;
+    //sql语句的长度限制
+    const int MAX_SQL_LENGTH = 1024 * 8;
 
     typedef const char* PStr;
     const int CHAR_SIZE = sizeof(char);
 
     //-----------------------------------------------------
-    //dbc_ora可以处理的数据类型
+    //dbc_ora可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
     enum data_type_t
     {
         DT_UNKNOWN,
-        DT_NUMBER,
-        DT_DATE,
-        DT_TEXT
+        DT_NUMBER   = 'n',
+        DT_DATE     = 'd',
+        DT_TEXT     = 's'
     };
 
     //-----------------------------------------------------
-    //绑定参数时,名字前缀可以告知数据类型
-    enum param_prex_type_t
-    {
-        PP_NUMERIC  = 'n',
-        PP_DATE     = 'd',
-        PP_TEXT     = 's',
-    };
-
-    //-----------------------------------------------------
-    //SQL语句类型
+    //sql语句类型
     enum sql_stmt_t
     {
         ST_UNKNOWN,
@@ -99,7 +91,7 @@ namespace rx_dbc_ora
         DBEC_PARAM_NOT_FOUND,                               //访问的参数对象不存在
         DBEC_FIELD_NOT_FOUND,                               //访问的列对象不存在
         DBEC_METHOD_CALL,                                   //方法调用的顺序错误
-        DBEC_NOT_PARAM,                                     //SQL语句中没有':'前缀的参数,但尝试绑定参数
+        DBEC_NOT_PARAM,                                     //sql语句中没有':'前缀的参数,但尝试绑定参数
     };
     inline const char* dbc_error_code_info(sword dbc_err)
     {
@@ -117,7 +109,7 @@ namespace rx_dbc_ora
         case	DBEC_PARAM_NOT_FOUND:   return "(DBEC_PARAM_NOT_FOUND):name not found in statement's parameters";
         case	DBEC_FIELD_NOT_FOUND:   return "(DBEC_FIELD_NOT_FOUND):resultset doesn't contain field_t with such name";
         case    DBEC_METHOD_CALL:       return "(DBEC_METHOD_CALL):func method called order error";
-        case    DBEC_NOT_PARAM:         return "(DBEC_NOT_PARAM):SQL not parmas";
+        case    DBEC_NOT_PARAM:         return "(DBEC_NOT_PARAM):sql not parmas";
         default:                        return "(unknown DBC Error)";
         }
     }
@@ -261,7 +253,7 @@ namespace rx_dbc_ora
                 char Tmp[ERROR_FORMAT_MAX_MSG_LEN];
                 vsnprintf(Tmp, ERROR_FORMAT_MAX_MSG_LEN - 1, format, va);
                 rx::strcat_ct desc(m_err_desc, sizeof(m_err_desc), rx::st::strlen(m_err_desc));
-                desc << " @ <" << Tmp <<'>';
+                desc << " @ < " << Tmp <<" >";
             }
             if (!is_empty(source_name))
             {
@@ -341,6 +333,8 @@ namespace rx_dbc_ora
         bool is_bad_user_pwd() { return m_ora_ec == 1017; }
         //判断是否为连接错误
         bool is_conn_timeout() { return m_ora_ec == 12170; }
+        //密码即将过期
+        bool is_pwd_will_expire() { return m_ora_ec == 28002; }
     };
 
     //-----------------------------------------------------
@@ -446,7 +440,7 @@ namespace rx_dbc_ora
             if (make_datasize_array && !m_col_datasize.make(bulk_row_count))
             {
                 reset();
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, name));
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
 
             //生成字段数据缓冲区
@@ -456,7 +450,7 @@ namespace rx_dbc_ora
             if (!m_col_dataempty.array() || !m_col_databuff.array())
             {//判断是否内存不足
                 reset();
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, name));
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -483,7 +477,7 @@ namespace rx_dbc_ora
             case DT_DATE:
                 return (ub1*)(reinterpret_cast <OCIDate *> (m_col_databuff.array()) + RowNo);
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -504,7 +498,7 @@ namespace rx_dbc_ora
                 if (result == OCI_SUCCESS)
                     return (m_working_buff);
                 else
-                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__));
+                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
             case DT_DATE:
             {
@@ -513,7 +507,7 @@ namespace rx_dbc_ora
                 return m_working_buff;
             }
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -532,10 +526,10 @@ namespace rx_dbc_ora
                 if (result == OCI_SUCCESS)
                     return (value);
                 else
-                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__));
+                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -553,10 +547,10 @@ namespace rx_dbc_ora
                 if (result == OCI_SUCCESS)
                     return (value);
                 else
-                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__));
+                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__,"col(%s)",m_name.c_str()));
             }
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -566,7 +560,7 @@ namespace rx_dbc_ora
             if (m_dbc_data_type == DT_DATE)
                 return (datetime_t(*(reinterpret_cast <OCIDate *> (data_buff))));
             else
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
         }
         //-------------------------------------------------
         //不可直接使用本功能类,必须被继承

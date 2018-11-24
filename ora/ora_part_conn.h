@@ -48,19 +48,21 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         bool is_valid(){return m_opened;}
         //-------------------------------------------------
-        //连接到Oracle服务器
-        void open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
+        //连接到Oracle服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
+        //返回值:是否出现了可控问题(比如密码即将过期的提示)
+        sword open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
         {
             char dblink[1024];
             sprintf(dblink, "(DESCRIPTION=(CONNECT_TIMEOUT=%d)(TRANSPORT_CONNECT_TIMEOUT=%d)(ADDRESS=(PROTOCOL=tcp) (HOST=%s) (PORT=%d))(CONNECT_DATA=(SERVICE_NAME=%s)))",dst.conn_timeout,dst.tran_timeout,dst.host, dst.port, dst.sid);
-            open(dblink,dst.user,dst.pwd,op,env_mode);
+            return open(dblink,dst.user,dst.pwd,op,env_mode);
         }
-        void open (const char *dblink,const char *login,const char *password,const env_option_t &op = env_option_t(),unsigned long env_mode = OCI_OBJECT|OCI_THREADED)
+        sword open (const char *dblink,const char *login,const char *password,const env_option_t &op = env_option_t(),unsigned long env_mode = OCI_OBJECT|OCI_THREADED)
         {
             if (is_empty(dblink) || is_empty(login) || is_empty(password))
                 throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
                 
-            if (m_opened) return;
+            if (m_opened) return 0;
+            sword ec = 0;
             close();
             //初始化OCI环境,得到环境句柄
             sword result = OCIEnvNlsCreate (&m_handle_env,env_mode,NULL,DBC_ORA_Malloc,DBC_ORA_Realloc,DBC_ORA_Free,0,NULL,op.charset_id, op.charset_id);
@@ -98,29 +100,31 @@ namespace rx_dbc_ora
 
             //!!进行登录认证!!
             result = OCISessionBegin(m_handle_svc,m_handle_err,m_handle_session,OCI_CRED_RDBMS,OCI_DEFAULT);
-            if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
+            if (result == OCI_SUCCESS_WITH_INFO)
+            {
+                char tmp[128];
+                get_last_error(ec, tmp, sizeof(tmp));
+                ec = ec;
+            }
+            else if(result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
             //绑定用户会话句柄到服务环境句柄上
             result = OCIAttrSet (m_handle_svc,OCI_HTYPE_SVCCTX,m_handle_session,sizeof (OCISession *),OCI_ATTR_SESSION,m_handle_err);
             if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
+            //尝试设置会话本地语言
             if (!is_empty(op.language))
-            {
-                char SQL[128];
-                sprintf(SQL,"ALTER SESSION SET NLS_LANGUAGE='%s'", op.language);
-                exec(SQL);
-            }
+                exec("ALTER SESSION SET NLS_LANGUAGE='%s'", op.language);
 
+            //尝试设置会话的本地日期格式
             if (!is_empty(op.date_format))
-            {
-                char SQL[128];
-                sprintf(SQL,"ALTER SESSION SET NLS_DATE_FORMAT='%s'", op.date_format);
-                exec(SQL);
-            }
+                exec("ALTER SESSION SET NLS_DATE_FORMAT='%s'", op.date_format);
+
             m_opened = true;
+            return ec;
         }
         //-------------------------------------------------
-        //关闭当前的连接
+        //关闭当前的连接,不会抛出异常
         bool close (void)
         {
             sword	result = OCI_SUCCESS;
@@ -167,7 +171,7 @@ namespace rx_dbc_ora
             return ec == 0;
         }
         //-------------------------------------------------
-        //执行一条没有结果返回(非SELECT)的SQL语句
+        //执行一条没有结果返回(非SELECT)的sql语句
         //内部实现是建立了临时的OiCommand对象,对于频繁执行的动作不建议使用此函数
         void exec(const char *sql,...);
         //-------------------------------------------------

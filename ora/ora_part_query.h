@@ -6,7 +6,7 @@ namespace rx_dbc_ora
     //-----------------------------------------------------
     //从stmt_t类集成,增加了结果集遍历获取的能力
     //-----------------------------------------------------
-    class query_t:protected stmt_t
+    class query_t:public stmt_t
     {
         friend class field_t;
 
@@ -34,14 +34,17 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //得到字段列表的描述信息
-        void m_make_fields (ub2 fetch_size)
+        ub4 m_make_fields (ub2 fetch_size)
         {
             m_bat_fetch_count = fetch_size;
             //获取当前结果集的字段数量
-            ub4			count;
+            ub4			count=0;
             sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
                 throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
+
+            if (count == 0)
+                return 0;
 
             //动态生成字段对象数组
             rx_assert(m_fields.capacity()==0);
@@ -104,6 +107,7 @@ namespace rx_dbc_ora
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, Field.m_name.c_str()));
             }
+            return count;
         }
 
         //-------------------------------------------------
@@ -131,20 +135,20 @@ namespace rx_dbc_ora
         query_t(conn_t &Conn) :m_fields(Conn.m_mem),stmt_t(Conn) { m_clear(); }
         ~query_t (){close();}
         //-------------------------------------------------
-        //执行解析后的SQL语句,并尝试得到结果(入口为每次获取的批量数量)
+        //执行解析后的sql语句,并尝试得到结果(入口为每次获取的批量数量)
         //执行后如果没有异常,就可以尝试访问结果集了
         void exec(ub2 fetch_size=BAT_FETCH_SIZE,ub2 BulkCount=0)
         {
             m_clear();
             stmt_t::exec(BulkCount);
-            m_make_fields(fetch_size);
-            m_bat_fetch();
+            if (m_make_fields(fetch_size))
+                m_bat_fetch();
         }
         //-------------------------------------------------
-        //直接执行一条SQL语句,中间没有绑定参数的机会了
-        void exec(const char *SQL,ub2 fetch_size=BAT_FETCH_SIZE)
+        //直接执行一条sql语句,中间没有绑定参数的机会了
+        void exec(const char *sql,ub2 fetch_size=BAT_FETCH_SIZE)
         {
-            prepare(SQL);
+            prepare(sql);
             exec(fetch_size, 0);
         }
         //-------------------------------------------------

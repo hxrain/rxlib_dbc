@@ -28,7 +28,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //进行数据类型确认并进行数据初始化
-        void m_init_data_type(const char *param_name, data_type_t type, int StringMaxSize, ub4 BulkCount)
+        void m_init_data_type(const char *param_name,ub4 name_size, data_type_t type, int StringMaxSize, ub4 BulkCount)
         {
             rx_assert(!is_empty(param_name));
             rx_assert(m_max_bulk_count == (ub4)0);
@@ -44,19 +44,19 @@ namespace rx_dbc_ora
                 NamePreDateTypeChar = param_name[1];          //以':'为前导的参数命名才进行前缀类型解析
 
             //根据外面告知的绑定数据类型,进行内部数据类型转换
-            if (type == DT_NUMBER || (type == DT_UNKNOWN && NamePreDateTypeChar == PP_NUMERIC))
+            if (type == DT_NUMBER || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_NUMBER))
             {
                 dbc_data_type = DT_NUMBER;
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
             }
-            else if (type == DT_DATE || (type == DT_UNKNOWN && NamePreDateTypeChar == PP_DATE))
+            else if (type == DT_DATE || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_DATE))
             {
                 dbc_data_type = DT_DATE;
                 oci_data_type = SQLT_ODT;
                 max_data_size = sizeof(OCIDate);
             }
-            else if (type == DT_TEXT || (type == DT_UNKNOWN && NamePreDateTypeChar == PP_TEXT))
+            else if (type == DT_TEXT || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_TEXT))
             {
                 dbc_data_type = DT_TEXT;
                 oci_data_type = SQLT_STR;
@@ -64,11 +64,11 @@ namespace rx_dbc_ora
             }
             else
                 //该类型当前还不能处理
-                throw (error_info_t(DBEC_BAD_TYPEPREFIX, __FILE__, __LINE__, param_name));
+                throw (error_info_t(DBEC_BAD_TYPEPREFIX, __FILE__, __LINE__, "param(%s)",param_name));
 
 
             //分配参数数据内存,并初始清零
-            col_base_t::make(param_name, strlen(param_name), oci_data_type, dbc_data_type, max_data_size, BulkCount, true);
+            col_base_t::make(param_name, name_size, oci_data_type, dbc_data_type, max_data_size, BulkCount, true);
 
             for (ub4 i = 0; i < BulkCount; i++)
             {
@@ -86,23 +86,23 @@ namespace rx_dbc_ora
             try
             {
                 m_conn = &conn;
-
+                ub4 name_size = (ub4)rx::st::strlen(name);
                 //可以根据参数名前缀额外处理参数数据类型,如果没有明确设置参数类型的话
-                m_init_data_type(name, type, StringMaxSize, BulkCount);
+                m_init_data_type(name, name_size,type, StringMaxSize, BulkCount);
 
                 //OCI绑定句柄,无需释放
                 OCIBind	*bind_handle=NULL;                     
 
-                sword result = OCIBindByName(StmtHandle, &bind_handle, conn.m_handle_err, (text *)name, (ub4)rx::st::strlen(name),
+                sword result = OCIBindByName(StmtHandle, &bind_handle, conn.m_handle_err, (text *)name, name_size,
                     m_col_databuff.array(), m_max_data_size,
                     m_oci_data_type, m_col_dataempty.array(), m_col_datasize.array(),
                     NULL,	// pointer conn array of field_t-level return codes
                     0,		// maximum possible number of elements of type m_nType
-                    NULL,	// a pointer conn the actual number of elements (PL/SQL binds)
+                    NULL,	// a pointer conn the actual number of elements (PL/sql binds)
                     OCI_DEFAULT);
 
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t(result, conn.m_handle_err, __FILE__, __LINE__, name));
+                    throw (error_info_t(result, conn.m_handle_err, __FILE__, __LINE__,"param(%s)", name));
             }
             catch (...)
             {
@@ -123,7 +123,7 @@ namespace rx_dbc_ora
                 ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
                 sword result = OCINumberFromInt(m_conn->m_handle_err, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, reinterpret_cast <OCINumber *> (data_buff));
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)",m_name.c_str()));
                 m_col_dataempty.at(m_bulk_idx) = 0;              //标记参数非空了
                 m_col_datasize.at(m_bulk_idx) = m_max_data_size; //记录数据的实际长度
                 return (*this);
@@ -138,7 +138,7 @@ namespace rx_dbc_ora
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -154,7 +154,7 @@ namespace rx_dbc_ora
                 ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
                 sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(double), reinterpret_cast <OCINumber *> (data_buff));
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
                 m_col_dataempty.at(m_bulk_idx) = 0;                 //标记参数非空了
                 m_col_datasize.at(m_bulk_idx) = m_max_data_size;    //记录数据的实际长度
                 return (*this);
@@ -166,7 +166,7 @@ namespace rx_dbc_ora
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         sql_param_t& set_real(long double value)
@@ -180,7 +180,7 @@ namespace rx_dbc_ora
                 ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);
                 sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), reinterpret_cast <OCINumber *> (data_buff));
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__));
+                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
                 m_col_dataempty.at(m_bulk_idx) = 0;                 //标记参数非空了
                 m_col_datasize.at(m_bulk_idx) = m_max_data_size;    //记录数据的实际长度
                 return (*this);
@@ -192,7 +192,7 @@ namespace rx_dbc_ora
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
             
         }
@@ -219,7 +219,7 @@ namespace rx_dbc_ora
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -258,7 +258,7 @@ namespace rx_dbc_ora
                 struct tm ST;
 
                 if (!rx_iso_datetime(text, ST))             //转换日期格式
-                    throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__));
+                    throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
                 D.set(ST);
                 return set_datetime(D);                     //交给实际的功能函数
             }
@@ -268,7 +268,7 @@ namespace rx_dbc_ora
                 return set_double(Value);                   //交给实际的功能函数
             }
             default:
-                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -278,14 +278,14 @@ namespace rx_dbc_ora
         ub2 bulk_row_idx() const { return m_bulk_idx; }
         //-------------------------------------------------
         //设置块访问序号
-        void bulk_use(ub2 idx)
+        void bulk(ub2 idx)
         {
             if (idx >= m_max_bulk_count)
-                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             m_bulk_idx = idx;
         }
-        //获取可访问块数量
-        ub2 bulk_count() { return m_max_bulk_count; }
+        //获取最大块深度
+        ub2 bulks() { return m_max_bulk_count; }
     public:
         //-------------------------------------------------
         sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { clear(); }
