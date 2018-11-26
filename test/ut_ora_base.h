@@ -8,6 +8,7 @@
 using namespace rx_dbc_ora;
 
 //---------------------------------------------------------
+//测试使用的对象容器
 typedef struct ut_ora
 {
     conn_param_t conn_param;
@@ -39,7 +40,7 @@ inline bool ut_ora_base_conn(rx_tdd_t &rt, ut_ora &dbc)
 }
 
 //---------------------------------------------------------
-//数据库查询
+//简单查询
 inline bool ut_ora_base_query_1(rx_tdd_t &rt, ut_ora &dbc)
 {
     try {
@@ -85,7 +86,7 @@ inline bool ut_ora_base_query_2(rx_tdd_t &rt, ut_ora &dbc)
     }
 }
 //---------------------------------------------------------
-//绑定参数插入
+//绑定参数插入(使用query_t)
 inline bool ut_ora_base_insert_1(rx_tdd_t &rt, ut_ora &dbc)
 {
     char cur_time_str[20];
@@ -97,6 +98,7 @@ inline bool ut_ora_base_insert_1(rx_tdd_t &rt, ut_ora &dbc)
         q(":nID", 2)(":nINT", -155905152)(":nUINT",(uint32_t)2155905152)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         q.exec();
         dbc.conn.trans_commit();
+        rt.tdd_assert(q.rows() == 1);
         return true;
     }
     catch (error_info_t &e)
@@ -106,6 +108,8 @@ inline bool ut_ora_base_insert_1(rx_tdd_t &rt, ut_ora &dbc)
         return false;
     }
 }
+//---------------------------------------------------------
+//参数绑定插入示例(使用stmt_t)
 inline bool ut_ora_base_insert_2(rx_tdd_t &rt, ut_ora &dbc)
 {
     char cur_time_str[20];
@@ -120,6 +124,7 @@ inline bool ut_ora_base_insert_2(rx_tdd_t &rt, ut_ora &dbc)
         q.exec();
         //提交
         dbc.conn.trans_commit();
+        rt.tdd_assert(q.rows() == 1);
         return true;
     }
     catch (error_info_t &e)
@@ -129,6 +134,7 @@ inline bool ut_ora_base_insert_2(rx_tdd_t &rt, ut_ora &dbc)
         return false;
     }
 }
+//---------------------------------------------------------
 //批量插入示例
 inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
 {
@@ -165,8 +171,40 @@ inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
     }
 }
 //---------------------------------------------------------
+//sql绑定参数解析示例
+inline void ut_ora_base_sql_parse_1(rx_tdd_t &rt)
+{
+    sql_param_parse_t sp;
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);
+    rt.tdd_assert(sp.count == 2);
+    rt.tdd_assert(strncmp(sp.segs[0].name, ":nID", sp.segs[0].name_len) == 0);
+    rt.tdd_assert(sp.segs[0].name_len == 4);
+    rt.tdd_assert(strncmp(sp.segs[1].name, ":nUINT", sp.segs[1].name_len) == 0);
+    rt.tdd_assert(sp.segs[1].name_len == 6);
+
+    rt.tdd_assert(sp.ora_sql("select id,:se'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") != NULL);
+
+    rt.tdd_assert(sp.ora_sql("select id,'b':se,':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and (UINT=:nUINT)") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b' :se,':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and (UINT=:nUINT)") == NULL);
+    rt.tdd_assert(sp.count == 3);
+
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);
+    rt.tdd_assert(sp.count == 3);
+
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se"",\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT") == NULL);
+    rt.tdd_assert(sp.count == 3);
+
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se\"\",\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") != NULL);
+
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT:se from tmp_dbc where id=:nID and UINT=:nUINT;") != NULL);
+
+    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT:se from tmp_dbc where id=:nID and UINT=: nUINT;") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT :se from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);   //解析通过,但不符合sql语法
+}
+//---------------------------------------------------------
 rx_tdd(ut_dtl_array)
 {
+    ut_ora_base_sql_parse_1(*this);
     ut_ora ora;
     if (ut_ora_base_conn(*this, ora))
     {
