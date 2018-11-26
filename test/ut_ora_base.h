@@ -2,7 +2,7 @@
 #define _UT_RX_DBC_ORA_BASE_H_
 
 #include "rx_tdd.h"
-#include "../ora/rx_dbc_ora.h"
+#include "../rx_dbc_ora.h"
 #include "rx_datetime_ex.h"
 
 using namespace rx_dbc_ora;
