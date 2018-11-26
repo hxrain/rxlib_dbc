@@ -49,7 +49,7 @@ namespace rx_dbc_ora
 
             if (result != OCI_SUCCESS)
             {
-                close();
+                close(true);
                 throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__,m_SQL.c_str()));
             }
         }

@@ -23,13 +23,13 @@ namespace rx_dbc_ora
         query_t& operator = (const query_t&);
         //-------------------------------------------------
         //清理本子类中使用的状态与相关资源
-        void m_clear (void)
+        void m_clear (bool reset_only=false)
         {
             m_bat_fetch_count = 0;
             m_fetched_count = 0;
             m_cur_row_idx = 0;
             m_is_eof = false;
-            m_fields.clear();
+            m_fields.clear(reset_only);
         }
 
         //-------------------------------------------------
@@ -47,8 +47,10 @@ namespace rx_dbc_ora
                 return 0;
 
             //动态生成字段对象数组
-            rx_assert(m_fields.capacity()==0);
-            if (!m_fields.make_ex(count))
+            rx_assert(m_fields.size()==0);
+            if (count <= m_fields.capacity())
+                m_fields.clear(true);                       //字段对象足够的时候,复位即可
+            else if (!m_fields.make_ex(count))              //否则重新分配字段数组
                 throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
 
             //循环获取字段属性信息
@@ -139,7 +141,7 @@ namespace rx_dbc_ora
         //执行后如果没有异常,就可以尝试访问结果集了
         void exec(ub2 fetch_size=BAT_FETCH_SIZE,ub2 BulkCount=0)
         {
-            m_clear();
+            m_clear(true);
             stmt_t::exec(BulkCount);
             if (m_make_fields(fetch_size))
                 m_bat_fetch();
