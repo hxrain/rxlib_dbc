@@ -25,6 +25,21 @@ namespace rx_dbc_ora
             m_max_bulk_count = 0;
             m_bulk_idx = 0;
         }
+        //-------------------------------------------------
+        //设置批量块指定深度的数据尺寸
+        void m_set_data_size(ub2 size, ub2 idx=0)
+        {
+            if (!size)
+            {
+                m_col_dataempty.at<sb2>(idx) = -1;
+                m_col_datasize.at<ub2>(idx) = 0;
+            }
+            else
+            {
+                m_col_dataempty.at<sb2>(idx) = 0;
+                m_col_datasize.at<ub2>(idx) = size;
+            }
+        }
 
         //-------------------------------------------------
         //进行数据类型确认并进行数据初始化
@@ -71,10 +86,7 @@ namespace rx_dbc_ora
             col_base_t::make(param_name, name_size, oci_data_type, dbc_data_type, max_data_size, BulkCount, true);
 
             for (ub4 i = 0; i < BulkCount; i++)
-            {
-                m_col_dataempty.at(i) = -1;
-                m_col_datasize.at(i) = 0;
-            }
+                m_set_data_size(0,i);
         }
 
         //-------------------------------------------------
@@ -94,8 +106,8 @@ namespace rx_dbc_ora
                 OCIBind	*bind_handle=NULL;                     
 
                 sword result = OCIBindByName(StmtHandle, &bind_handle, conn.m_handle_err, (text *)name, name_size,
-                    m_col_databuff.array(), m_max_data_size,
-                    m_oci_data_type, m_col_dataempty.array(), m_col_datasize.array(),
+                    m_col_databuff.ptr(), m_max_data_size,
+                    m_oci_data_type, m_col_dataempty.ptr<sb2>(), m_col_datasize.ptr<ub2>(),
                     NULL,	// pointer conn array of field_t-level return codes
                     0,		// maximum possible number of elements of type m_nType
                     NULL,	// a pointer conn the actual number of elements (PL/sql binds)
@@ -120,12 +132,11 @@ namespace rx_dbc_ora
             case DT_NUMBER:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
-                ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromInt(m_conn->m_handle_err, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, reinterpret_cast <OCINumber *> (data_buff));
+                OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);   //得到可用缓冲区
+                sword result = OCINumberFromInt(m_conn->m_handle_err, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED,data_buff);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)",m_name.c_str()));
-                m_col_dataempty.at(m_bulk_idx) = 0;              //标记参数非空了
-                m_col_datasize.at(m_bulk_idx) = m_max_data_size; //记录数据的实际长度
+                m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
             case DT_TEXT:
@@ -151,12 +162,11 @@ namespace rx_dbc_ora
             case DT_NUMBER:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
-                ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
-                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(double), reinterpret_cast <OCINumber *> (data_buff));
+                OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
+                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(double), data_buff);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
-                m_col_dataempty.at(m_bulk_idx) = 0;                 //标记参数非空了
-                m_col_datasize.at(m_bulk_idx) = m_max_data_size;    //记录数据的实际长度
+                m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
             case DT_TEXT:
@@ -177,12 +187,11 @@ namespace rx_dbc_ora
             case DT_NUMBER:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
-                ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);
-                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), reinterpret_cast <OCINumber *> (data_buff));
+                OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
+                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), data_buff);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
-                m_col_dataempty.at(m_bulk_idx) = 0;                 //标记参数非空了
-                m_col_datasize.at(m_bulk_idx) = m_max_data_size;    //记录数据的实际长度
+                m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
             case DT_TEXT:
@@ -206,10 +215,8 @@ namespace rx_dbc_ora
             case DT_DATE:
             {
                 rx_assert(m_max_data_size == sizeof(OCIDate));
-                ub1* data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);
-                d.to(*reinterpret_cast <OCIDate*> (data_buff));
-                m_col_dataempty.at(m_bulk_idx) = 0;                 //标记参数非空了
-                m_col_datasize.at(m_bulk_idx) = m_max_data_size;    //记录数据的实际长度
+                d.to(m_col_databuff.at<OCIDate>(m_bulk_idx));
+                m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
             case DT_TEXT:
@@ -229,7 +236,7 @@ namespace rx_dbc_ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (is_empty(text))
             {//不管什么类型,空串都让其变为空值
-                m_col_dataempty.at(m_bulk_idx) = -1;
+                m_set_data_size(0, m_bulk_idx);   //记录数据的实际长度
                 return *this;
             }
 
@@ -238,7 +245,7 @@ namespace rx_dbc_ora
             case DT_TEXT:
             {//当前实际数据类型是文本串,赋值的也是文本,那么就进行拷贝赋值吧
                 ub2 data_len = ub2(strlen(text));           //得到数据实际长度
-                ub1 *data_buff = &m_col_databuff.at(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
+                ub1 *data_buff = m_col_databuff.ptr(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
                 if (data_len > m_max_data_size)             //输入数据太长了,进行截断吧
                 {
                     rx_alert("输入数据过大,请在绑定时调整缓冲区尺寸");
@@ -248,8 +255,7 @@ namespace rx_dbc_ora
                 memcpy(data_buff, text, data_len);          //将输入数据拷贝到此元素对应的空间
                 *((char *)data_buff + data_len++) = '\0';   //给该空间的串尾设置结束符
 
-                m_col_dataempty.at(m_bulk_idx) = 0;         //标记参数非空了
-                m_col_datasize.at(m_bulk_idx) = data_len;   //记录该元素的实际长度  
+                m_set_data_size(data_len, m_bulk_idx);      //记录数据的实际长度
                 return (*this);
             }
             case DT_DATE:
@@ -292,8 +298,8 @@ namespace rx_dbc_ora
         ~sql_param_t() { clear(); }
         //-------------------------------------------------
         //让当前参数设置为空值
-        void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_count); m_col_dataempty.at(bulk_row_idx()) = -1; }
-        bool is_null() const { rx_assert(bulk_row_idx() < m_max_bulk_count); return (m_col_dataempty.at(bulk_row_idx()) == -1); }
+        void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_count); m_set_data_size(0, bulk_row_idx()); }
+        bool is_null() const { rx_assert(bulk_row_idx() < m_max_bulk_count); return col_base_t::m_is_null(bulk_row_idx()); }
         //-------------------------------------------------
         //给参数的指定数组批量元素赋值:字符串值
         sql_param_t& operator = (PStr text) { return set_string(text);}

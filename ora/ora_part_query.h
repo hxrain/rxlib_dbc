@@ -96,11 +96,11 @@ namespace rx_dbc_ora
                 field_t& Field = m_fields[i];
                 result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_handle_err,
                     position++,
-                    Field.m_col_databuff.array(),
+                    Field.m_col_databuff.ptr(),
                     Field.m_max_data_size,			    // fetch m_max_data_size for a single row (NOT for several)
                     Field.m_oci_data_type,
-                    Field.m_col_dataempty.array(),
-                    Field.m_col_datasize.array(),	// will be NULL for non-text columns
+                    Field.m_col_dataempty.ptr(),
+                    Field.m_col_datasize.ptr<ub2>(),	// will be NULL for non-text columns
                     NULL,				                // ptr to array of field_t-level return codes
                     OCI_DEFAULT);
 

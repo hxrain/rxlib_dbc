@@ -408,9 +408,9 @@ namespace rx_dbc_ora
     class col_base_t
     {
     protected:
-        typedef rx::array_t<ub2> array_datasize_t;
-        typedef rx::array_t<ub1> array_databuff_t;
-        typedef rx::array_t<sb2> array_dataempty_t;
+        typedef rx::buff_t array_datasize_t;                //ub2
+        typedef rx::buff_t array_databuff_t;                //ub1
+        typedef rx::buff_t array_dataempty_t;               //sb2
         typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
 
         col_name_t          m_name;		                    // 对象名字
@@ -437,7 +437,7 @@ namespace rx_dbc_ora
             m_dbc_data_type = dbc_data_type;
             m_max_data_size = max_data_size;
 
-            if (make_datasize_array && !m_col_datasize.make(bulk_row_count))
+            if (make_datasize_array && !m_col_datasize.make<ub2>(bulk_row_count))
             {
                 reset();
                 throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
@@ -446,8 +446,8 @@ namespace rx_dbc_ora
             //生成字段数据缓冲区
             m_col_databuff.make(m_max_data_size * bulk_row_count);
             //生成字段是否为空的数组
-            m_col_dataempty.make(bulk_row_count);
-            if (!m_col_dataempty.array() || !m_col_databuff.array())
+            m_col_dataempty.make<sb2>(bulk_row_count);
+            if (!m_col_dataempty.capacity() || !m_col_databuff.capacity())
             {//判断是否内存不足
                 reset();
                 throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
@@ -471,11 +471,11 @@ namespace rx_dbc_ora
             switch (m_dbc_data_type)
             {
             case DT_TEXT:
-                return m_col_databuff.array() + RowNo*m_max_data_size;
+                return m_col_databuff.ptr(RowNo*m_max_data_size);
             case DT_NUMBER:
-                return (ub1*)(reinterpret_cast <OCINumber *> (m_col_databuff.array()) + RowNo);
+                return (ub1*)m_col_databuff.ptr<OCINumber>(RowNo);
             case DT_DATE:
-                return (ub1*)(reinterpret_cast <OCIDate *> (m_col_databuff.array()) + RowNo);
+                return (ub1*)m_col_databuff.ptr<OCIDate>(RowNo);
             default:
                 throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
@@ -566,6 +566,7 @@ namespace rx_dbc_ora
         //不可直接使用本功能类,必须被继承
         col_base_t(rx::mem_allotter_i &ma) :m_col_datasize(ma), m_col_databuff(ma), m_col_dataempty(ma) { reset(); }
         virtual ~col_base_t() { reset(); }
+        bool m_is_null(ub2 idx) const { return (m_col_dataempty.at<sb2>(idx) == -1); }
     protected:
         //-------------------------------------------------
         //子类需要覆盖实现的具体功能函数接口
@@ -581,49 +582,56 @@ namespace rx_dbc_ora
         int max_data_size() { return m_max_data_size; }
         ub2 oci_data_type() { return m_oci_data_type; }
         //-------------------------------------------------
-        bool is_null(void) const { return (m_col_dataempty.at(bulk_row_idx()) == -1); }
+        bool is_null(void) const { return m_is_null(bulk_row_idx()); }
         //-------------------------------------------------
+        //尝试获取内部数据为字符串
         PStr as_string(const char* ConvFmt = NULL) const
         {
             ub2 idx = bulk_row_idx();
-            if (m_col_dataempty.at(idx) == -1) return NULL;
+            if (m_is_null(idx)) return NULL;
             return comm_as_string(get_data_buff(idx), ConvFmt);
         }
         //-------------------------------------------------
+        //尝试获取内部数据为浮点数
         double as_double(double DefValue = 0) const
         {
             ub2 idx = bulk_row_idx();
-            if (m_col_dataempty.at(idx) == -1) return DefValue;
+            if (m_is_null(idx)) return DefValue;
             return comm_as_double<double>(get_data_buff(idx));
         }
         //-------------------------------------------------
+        //尝试获取内部数据为高精度浮点数
         long double as_real(long double DefValue = 0) const
         {
             ub2 idx = bulk_row_idx();
-            if (m_col_dataempty.at(idx) == -1) return DefValue;
+            if (m_is_null(idx)) return DefValue;
             return comm_as_double<long double>(get_data_buff(idx));
         }
         //-------------------------------------------------
+        //尝试获取内部数据为超大整数
         int64_t as_bigint(int64_t DefValue = 0) const { return int64_t(as_real((long double)DefValue)); }
         //-------------------------------------------------
+        //尝试获取内部数据为带符号整数
         int32_t as_long(int32_t DefValue = 0) const
         {
             ub2 idx = bulk_row_idx();
-            if (m_col_dataempty.at(idx) == -1) return DefValue;
+            if (m_is_null(idx)) return DefValue;
             return comm_as_long(get_data_buff(idx));
         }
         //-------------------------------------------------
+        //尝试获取内部数据为无符号整数
         uint32_t as_ulong(uint32_t DefValue = 0) const
         {
             ub2 idx = bulk_row_idx();
-            if (m_col_dataempty.at(idx) == -1) return DefValue;
+            if (m_is_null(idx)) return DefValue;
             return comm_as_long(get_data_buff(idx), false);
         }
         //-------------------------------------------------
+        //尝试获取内部数据为日期时间
         datetime_t as_datetime(void) const
         {
             ub2 idx = bulk_row_idx();
-            if (m_col_dataempty.at(idx) == -1) return datetime_t();
+            if (m_is_null(idx)) return datetime_t();
             return comm_as_datetime(get_data_buff(idx));
         }
     };

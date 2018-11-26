@@ -21,21 +21,15 @@ namespace rx_dbc_ora
         ub2                                 m_max_bulk_count; //参数批量数据提交的最大数
         ub2                                 m_cur_bulk_idx; //当前操作的块深度索引
         bool			                    m_executed;     //标记当前语句是否已经被正确执行过了
+
         //-------------------------------------------------
-        //释放全部的参数
-        void m_bind_reset()
-        {
-            m_params.clear();
-            m_max_bulk_count=1;
-            m_cur_bulk_idx = 0;
-        }
         //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定了
         void m_prepare()
         {
             rx_assert(m_SQL.size()!=0);
             sword result;
             m_executed = false;
-            close();                                 		//语句可能都变了,原有内容都放弃
+            close(true);                                    //语句可能都变了,复位后重来
 
             if (m_stmt_handle == NULL)
             {//分配sql语句执行句柄,初始执行或在close之后执行
@@ -62,17 +56,21 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //绑定参数初始化:批量数据数的最大数量(在exec的时候可以告知实际数量);参数的数量(如果不告知,则自动根据sql语句分析获取);
         //如果要使用Bulk模式批量插入,那么必须先调用此函数,告知每个Bulk的最大元素数量
-        void m_bulk_begin(ub2 MaxBulkCount, ub2 ParamCount = 0)
+        void m_param_make(ub2 MaxBulkCount, ub2 ParamCount = 0)
         {
-            m_bind_reset();
+            rx_assert(MaxBulkCount != 0);
 
-            if (ParamCount == 0)
-            {//尝试根据sql中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
+            if (ParamCount == 0)    //尝试根据sql中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ParamCount = rx::st::count(m_SQL.c_str(), ':');
-                if (ParamCount && !m_params.make_ex(ParamCount))
+
+            if (ParamCount)         //生成绑定参数对象的数组
+            {
+                if (ParamCount <= m_params.capacity())
+                    m_params.clear(true);                       //容量还够,只需复位即可
+                else if (!m_params.make_ex(ParamCount))         //容量不够重新分配
                     throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
             }
-
+            m_cur_bulk_idx = 0;
             m_max_bulk_count = MaxBulkCount;
         }
         //-------------------------------------------------
@@ -87,21 +85,16 @@ namespace rx_dbc_ora
             char Tmp[200];
             rx::st::strlwr(name, Tmp);
 
-            if (!m_params.capacity())
-            {//如果之前没有初始化过,那么现在就根据sql中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
-                ub4 PC = rx::st::count(m_SQL.c_str(), ':');
-                if (PC == 0)
-                    throw (error_info_t(DBEC_NOT_PARAM, __FILE__, __LINE__), m_SQL.c_str());
+            if (m_params.size() == 0)
+                m_param_make(m_max_bulk_count);             //尝试分配参数块资源
 
-                if (!m_params.make_ex(PC))
-                    throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__), m_SQL.c_str());
-            }
+            rx_assert(m_params.capacity() != 0);
 
             ub4 ParamIdx = m_params.index(Tmp);
             if (ParamIdx != m_params.capacity())
                 return m_params[ParamIdx];                  //参数名字重复的时候,直接返回
 
-                                                            //现在进行新名字的绑定
+            //现在进行新名字的绑定
             ParamIdx = m_params.size();
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
             sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
@@ -139,13 +132,14 @@ namespace rx_dbc_ora
             prepare(sql,arg);
         }
         //批量深度大于1的预解析操作
-        void prepare(ub2 MaxBulkCount,const char *sql, ...)
-        {
+        stmt_t& prepare(ub2 MaxBulkCount,const char *sql, ...)
+         {
             rx_assert(!is_empty(sql));
             va_list	arg;
             va_start(arg, sql);
             prepare(sql, arg);
-            m_bulk_begin(MaxBulkCount);
+            m_param_make(MaxBulkCount);
+            return *this;
         }
         //-------------------------------------------------
         //获取解析后的sql语句类型
@@ -252,9 +246,12 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //释放语句句柄,清理绑定的参数
-        void close (void)
+        void close (bool reset_only=false)
         {
-            m_bind_reset();
+            m_params.clear(reset_only);
+            m_max_bulk_count = 1;
+            m_cur_bulk_idx = 0;
+
             if (m_stmt_handle)
             {
                 OCIHandleFree(m_stmt_handle,OCI_HTYPE_STMT); //释放sql语句句柄

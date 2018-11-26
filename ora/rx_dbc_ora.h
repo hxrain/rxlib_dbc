@@ -10,7 +10,8 @@
 #include "rx_str_util.h"                //引入基础字符串功能
 #include "rx_str_tiny.h"
 #include "rx_mem_alloc_cntr.h"          //引入内存分配容器
-#include "rx_datetime.h"                //引入日期时间
+#include "rx_datetime.h"                //引入日期时间功能
+#include "rx_dtl_buff.h"                //引入缓冲区功能
 #include "rx_dtl_array_ex.h"            //引入别名数组
 
 #include "ora_base_comm.h"              //实现一些通用功能
