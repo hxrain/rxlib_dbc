@@ -132,11 +132,19 @@ namespace rx_dbc_ora
         const char *language;
         const char *date_format;
 
-        env_option_t()
-        {//默认为中文环境
+        env_option_t() { use_english(); }
+        void use_chinese()
+        {//中文环境
             charset_id = 852;
             charset = "zhs16gbk";
             language = "SIMPLIFIED CHINESE";
+            date_format = "yyyy-mm-dd hh24:mi:ss";
+        }
+        void use_english()
+        {//英文环境
+            charset_id = 871;
+            charset = "UTF8";
+            language = "AMERICAN";
             date_format = "yyyy-mm-dd hh24:mi:ss";
         }
     }env_option_t;
