@@ -80,7 +80,7 @@ namespace rx_dbc_ora
 
                 if (result != OCI_SUCCESS)
                     throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
-                    
+
                 rx::st::strncpy(Tmp,(char*)param_name,name_len);    //转换字段名,将字段对象与其名字进行关联
                 Tmp[name_len]=0;
 
@@ -125,7 +125,7 @@ namespace rx_dbc_ora
                 result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
-                
+
                 if (m_fetched_count - old_rows_count != (ub4)m_bat_fetch_count)
                     m_is_eof = true;
             }
@@ -155,7 +155,7 @@ namespace rx_dbc_ora
 
     public:
         //-------------------------------------------------
-        query_t(conn_t &Conn) :m_fields(Conn.m_mem),stmt_t(Conn) { m_clear(); }
+        query_t(conn_t &Conn) :stmt_t(Conn),m_fields(Conn.m_mem) { m_clear(); }
         ~query_t (){close();}
         //-------------------------------------------------
         //执行解析后的sql语句,并尝试得到结果(入口为每次获取的批量数量)

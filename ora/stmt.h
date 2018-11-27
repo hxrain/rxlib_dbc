@@ -180,7 +180,7 @@ namespace rx_dbc_ora
             m_cur_bulk_idx = idx;
             for (ub4 i = 0; i < m_params.size(); ++i)
                 m_params[i].bulk(m_cur_bulk_idx);
-            
+
             return *this;
         }
         //-------------------------------------------------
@@ -196,7 +196,7 @@ namespace rx_dbc_ora
         //手动进行参数的绑定
         stmt_t& operator()(const char* name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
         {
-            sql_param_t &param = m_param_bind(name, type, MaxStringSize);
+            m_param_bind(name, type, MaxStringSize);
             return *this;
         }
         //-------------------------------------------------
@@ -226,7 +226,7 @@ namespace rx_dbc_ora
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
             rx_assert(BulkCount<=m_max_bulk_count);
-            
+
             if (m_sql_type == ST_SELECT)
                 BulkCount = 0;
             else if (BulkCount == 0)
@@ -275,8 +275,8 @@ namespace rx_dbc_ora
         //绑定过的参数数量
         ub4 params() { return m_params.size(); }
         //获取绑定的参数对象
-        sql_param_t& param(const char* name) 
-        { 
+        sql_param_t& param(const char* name)
+        {
             char Tmp[200];
             rx::st::strlwr(name, Tmp);
             ub4 Idx = m_params.index(Tmp);

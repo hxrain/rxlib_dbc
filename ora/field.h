@@ -3,7 +3,7 @@
 
 namespace rx_dbc_ora
 {
-
+    class query_t;
     //-----------------------------------------------------
     //结果集使用的字段访问对象
     class field_t:public col_base_t

@@ -152,9 +152,9 @@ namespace rx_dbc_ora
         uint32_t    port;                                   //数据库端口
         uint32_t    conn_timeout;                           //连接超时时间
         uint32_t    tran_timeout;                           //数据传输超时
-        conn_param_t() 
-        { 
-            host[0] = 0; 
+        conn_param_t()
+        {
+            host[0] = 0;
             db[0] = 0;
             user[0] = 0;
             pwd[0] = 0;
@@ -199,21 +199,21 @@ namespace rx_dbc_ora
 
             switch (oci_result)
             {
-            case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)"; 
+            case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)";
                 break;
-            case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)"; 
+            case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)";
                 get_details = true; break;
-            case	OCI_ERROR:                  desc = ""; 
+            case	OCI_ERROR:                  desc = "";
                 get_details = true; break;
-            case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)"; 
+            case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)";
                 get_details = true; break;
-            case	OCI_INVALID_HANDLE:         desc = "(OCI_INVALID_HANDLE)"; 
+            case	OCI_INVALID_HANDLE:         desc = "(OCI_INVALID_HANDLE)";
                 break;
-            case	OCI_NEED_DATA:              desc = "(OCI_NEED_DATA)"; 
+            case	OCI_NEED_DATA:              desc = "(OCI_NEED_DATA)";
                 break;
-            case	OCI_STILL_EXECUTING:        desc = "(OCI_STILL_EXECUTING)"; 
+            case	OCI_STILL_EXECUTING:        desc = "(OCI_STILL_EXECUTING)";
                 get_details = true; break;
-            case	OCI_CONTINUE:               desc = "(OCI_CONTINUE)"; 
+            case	OCI_CONTINUE:               desc = "(OCI_CONTINUE)";
                 break;
             default:                            desc = "unknown";
             }
@@ -307,7 +307,7 @@ namespace rx_dbc_ora
             rx::st::strcpy(m_bind_host, MAX_PATH, Host);
             rx::st::strcpy(m_bind_sid, MAX_PATH, sid);
             rx::st::strcpy(m_bind_user, MAX_PATH, user);
-            m_out_buff[0];
+            m_out_buff[0]=0;
             return c_str();
         }
         const char* c_str(const conn_param_t &cp) { return c_str(cp.host,cp.db,cp.user); }
