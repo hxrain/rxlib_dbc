@@ -3,10 +3,9 @@
 
 #include "rx_str_util.h"
 
-    const uint16_t max_param_count = 128;
-
     //-----------------------------------------------------
     //SQL绑定参数名字解析器
+    template<uint16_t max_param_count = 128>
     class sql_param_parse_t
     {
     public:
@@ -70,7 +69,7 @@
                     {//碰到关键字符,冒号了,需要判断是否在引号中
                         if (!quote_deep)
                         {
-                            if (strchr(",( )=", *(sql - 1)) == NULL)
+                            if (strchr("+-*/< >,(=", *(sql - 1)) == NULL)
                                 return sql; //冒号的前面不是一个有效字符,也认为是错误
                             in_seg = true;  //不在引号中,遇到冒号了,认为进入了分段处理中
                             seg.name = sql;

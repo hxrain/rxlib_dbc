@@ -21,14 +21,13 @@ namespace rx_dbc_ora
         ub2                                 m_max_bulk_count; //参数批量数据提交的最大数
         ub2                                 m_cur_bulk_idx; //当前操作的块深度索引
         bool			                    m_executed;     //标记当前语句是否已经被正确执行过了
-
+        ub2                                 m_cur_param_idx;//当前正在绑定处理的参数顺序
         //-------------------------------------------------
         //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定了
         void m_prepare()
         {
             rx_assert(m_SQL.size()!=0);
             sword result;
-            m_executed = false;
             close(true);                                    //语句可能都变了,复位后重来
 
             if (m_stmt_handle == NULL)
@@ -44,7 +43,7 @@ namespace rx_dbc_ora
             {
                 ub2	stmt_type = 0;                          //得到sql语句的类型
                 result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &stmt_type, NULL, OCI_ATTR_STMT_TYPE, m_conn.m_handle_err);
-                m_sql_type = (sql_stmt_t)stmt_type;        //stmt_type为0说明语句是错误的
+                m_sql_type = (sql_stmt_t)stmt_type;         //stmt_type为0说明语句是错误的
             }
 
             if (result != OCI_SUCCESS)
@@ -74,7 +73,7 @@ namespace rx_dbc_ora
             m_max_bulk_count = MaxBulkCount;
         }
         //-------------------------------------------------
-        //如果批量数为1(默认情况),则可以直接调用bind而不需要begin
+        //如果批量数为1(默认情况),则可以直接调用bind
         //绑定一个命名变量给当前的语句,如果变量类型是DT_UNKNOWN,则根据变量名前缀进行自动分辨.对于字符串类型,可以设置参数缓存的尺寸
         //参数的数量在首个参数绑定时可以根据sql语句中的':'的数量来确定
         sql_param_t& m_param_bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
@@ -85,7 +84,7 @@ namespace rx_dbc_ora
             char Tmp[200];
             rx::st::strlwr(name, Tmp);
 
-            if (m_params.size() == 0)
+            if (m_params.capacity() == 0)
                 m_param_make(m_max_bulk_count);             //尝试分配参数块资源
 
             rx_assert(m_params.capacity() != 0);
@@ -95,7 +94,7 @@ namespace rx_dbc_ora
                 return m_params[ParamIdx];                  //参数名字重复的时候,直接返回
 
             //现在进行新名字的绑定
-            ParamIdx = m_params.size();
+            ParamIdx = m_params.size();                     //利用绑定过的数量作为增量序数
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
             sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
             Ret.bind(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_count);  //对参数对象进行必要的初始化
@@ -106,30 +105,29 @@ namespace rx_dbc_ora
         stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_mem)
         {
             m_stmt_handle = NULL;
-            m_executed = false;
-            m_sql_type = ST_UNKNOWN;
-            m_max_bulk_count=1;
-            m_cur_bulk_idx = 0;
+            close();
         }
         //-------------------------------------------------
         conn_t& conn()const { return m_conn; }
         //-------------------------------------------------
         virtual ~stmt_t() { close(); }
         //-------------------------------------------------
-        //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定了
-        void prepare(const char *sql,va_list arg)
+        //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定(调用auto_bind自动绑定或者调用(name,data)手动绑定)
+        stmt_t& prepare(const char *sql,va_list arg)
         {
             rx_assert(!is_empty(sql));
             if (!m_SQL.fmt(sql, arg))
                 throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, sql));
             m_prepare();
+            return *this;
         }
-        void prepare(const char *sql, ...)
+        stmt_t& prepare(const char *sql, ...)
         {
             rx_assert(!is_empty(sql));
             va_list	arg;
             va_start(arg, sql);
             prepare(sql,arg);
+            return *this;
         }
         //批量深度大于1的预解析操作
         stmt_t& prepare(ub2 MaxBulkCount,const char *sql, ...)
@@ -138,7 +136,74 @@ namespace rx_dbc_ora
             va_list	arg;
             va_start(arg, sql);
             prepare(sql, arg);
-            m_param_make(MaxBulkCount);
+            m_param_make(MaxBulkCount);     //进行绑定初始化,之后可以进行手动绑定
+            return *this;
+        }
+        //-------------------------------------------------
+        //在预解析完成后,可以直接进行参数的自动绑定
+        //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
+        stmt_t& auto_bind(ub2 MaxBulkCount=0)
+        {
+            if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
+
+            sql_param_parse_t<> sp;
+            const char* err = sp.ora_sql(m_SQL.c_str());
+            if (err)
+                throw (error_info_t(DBEC_PARSE_PARAM, __FILE__, __LINE__, "sql param parse error!| %s |",err));
+
+            if (MaxBulkCount == 0) MaxBulkCount = m_max_bulk_count;
+            m_param_make(MaxBulkCount, sp.count);           //不管解析得到了几个参数,都可尝试进行参数数组的生成
+
+            char name[FIELD_NAME_LENGTH];
+            for (ub2 i = 0; i < sp.count; ++i)
+            {//循环进行参数数组的自动绑定
+                rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].name_len);
+                m_param_bind(name);
+            }
+            return *this;
+        }
+        //-------------------------------------------------
+        //获取批量的最大深度
+        ub2 bulks() { return m_max_bulk_count; }
+        //-------------------------------------------------
+        //设置所有参数的当前块访问深度
+        stmt_t& bulk(ub2 idx)
+        {
+            rx_assert_if(m_cur_param_idx, m_cur_param_idx == m_params.size());//要求自动调整参数列序号的时候,必须与参数数量相同,避免<<的时候漏掉数据
+            m_cur_param_idx = 0;
+
+            if (idx >= m_max_bulk_count)
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
+
+            m_cur_bulk_idx = idx;
+            for (ub4 i = 0; i < m_params.size(); ++i)
+                m_params[i].bulk(m_cur_bulk_idx);
+            
+            return *this;
+        }
+        //-------------------------------------------------
+        //对指定参数的绑定与当前深度的数据赋值同时进行,便于应用层操作
+        template<class DT>
+        stmt_t& operator()(const char* name, const DT& data, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        {
+            sql_param_t &param = m_param_bind(name, type, MaxStringSize);
+            param = data;
+            return *this;
+        }
+        //-------------------------------------------------
+        //手动进行参数的绑定
+        stmt_t& operator()(const char* name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        {
+            sql_param_t &param = m_param_bind(name, type, MaxStringSize);
+            return *this;
+        }
+        //-------------------------------------------------
+        //手动或自动参数绑定之后,可以进行参数数据的设置
+        template<class DT>
+        stmt_t& operator<<(const DT& data)
+        {
+            param(m_cur_param_idx++) = data;
             return *this;
         }
         //-------------------------------------------------
@@ -150,9 +215,13 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
         //入口:当前实际绑定参数的批量深度.
-        void exec (ub2 BulkCount=0)
+        stmt_t& exec (ub2 BulkCount=0)
         {
-            if (m_sql_type == ST_UNKNOWN) 
+            m_executed = false;
+            rx_assert_if(m_cur_param_idx, m_cur_param_idx == m_params.size());//要求自动调整参数列序号的时候,必须与参数数量相同,避免<<的时候漏掉数据
+            m_cur_param_idx = 0;
+
+            if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
             rx_assert(BulkCount<=m_max_bulk_count);
@@ -176,16 +245,17 @@ namespace rx_dbc_ora
                 m_executed = true;
             else
                 throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__,m_SQL.c_str()));
+            return *this;
         }
         //-------------------------------------------------
         //预解析与执行同时进行,中间没有绑定参数的机会了,适合不绑定参数的语句
-        void exec (const char *sql,...)
+        stmt_t& exec (const char *sql,...)
         {
             rx_assert(!is_empty(sql));
             va_list	arg;
             va_start(arg, sql);
             prepare(sql, arg);
-            exec ();
+            return exec ();
         }
         //-------------------------------------------------
         //得到上一条语句执行后被影响的行数(select无效)
@@ -200,29 +270,6 @@ namespace rx_dbc_ora
             return RC;
         }
 
-        //-------------------------------------------------
-        //获取批量的最大深度
-        ub2 bulks() { return m_max_bulk_count; }
-        //-------------------------------------------------
-        //设置所有参数的当前块访问深度
-        stmt_t& bulk(ub2 idx)
-        {
-            if (idx>=m_max_bulk_count)
-                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
-            m_cur_bulk_idx = idx;
-            for (ub4 i = 0; i < m_params.size(); ++i)
-                m_params[i].bulk(m_cur_bulk_idx);
-            return *this;
-        }
-        //-------------------------------------------------
-        //对指定参数的绑定与当前深度的数据赋值同时进行,便于应用层操作
-        template<class DT>
-        stmt_t& operator()(const char* name, const DT& data, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
-        {
-            sql_param_t &param = m_param_bind(name, type, MaxStringSize);
-            param = data;
-            return *this;
-        }
         //-------------------------------------------------
         //绑定过的参数数量
         ub4 params() { return m_params.size(); }
@@ -251,6 +298,9 @@ namespace rx_dbc_ora
             m_params.clear(reset_only);
             m_max_bulk_count = 1;
             m_cur_bulk_idx = 0;
+            m_executed = false;
+            m_cur_param_idx = 0;
+            m_sql_type = ST_UNKNOWN;
 
             if (m_stmt_handle)
             {

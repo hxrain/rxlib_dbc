@@ -92,6 +92,7 @@ namespace rx_dbc_ora
         DBEC_FIELD_NOT_FOUND,                               //访问的列对象不存在
         DBEC_METHOD_CALL,                                   //方法调用的顺序错误
         DBEC_NOT_PARAM,                                     //sql语句中没有':'前缀的参数,但尝试绑定参数
+        DBEC_PARSE_PARAM,                                   //sql语句自动解析参数错误
     };
     inline const char* dbc_error_code_info(sword dbc_err)
     {
@@ -110,6 +111,7 @@ namespace rx_dbc_ora
         case	DBEC_FIELD_NOT_FOUND:   return "(DBEC_FIELD_NOT_FOUND):resultset doesn't contain field_t with such name";
         case    DBEC_METHOD_CALL:       return "(DBEC_METHOD_CALL):func method called order error";
         case    DBEC_NOT_PARAM:         return "(DBEC_NOT_PARAM):sql not parmas";
+        case    DBEC_PARSE_PARAM:       return "(DBEC_PARSE_PARAM): auto bind sql param error";
         default:                        return "(unknown DBC Error)";
         }
     }
