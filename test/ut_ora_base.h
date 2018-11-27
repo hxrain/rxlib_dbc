@@ -19,7 +19,7 @@ typedef struct ut_ora
         strcpy(conn_param.host, "20.0.2.106");
         strcpy(conn_param.user, "system");
         strcpy(conn_param.pwd, "sysdba");
-        strcpy(conn_param.sid, "oradb");
+        strcpy(conn_param.db, "oradb");
     }
 }ut_ora;
 
@@ -49,8 +49,15 @@ inline bool ut_ora_base_query_1(rx_tdd_t &rt, ut_ora &dbc)
         for (q.exec("select * from tmp_dbc"); !q.eof(); q.next())
         {
             printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
-                q.field("id").as_long(), q.field("int").as_long(), q.field("uint").as_ulong(), 
-                q.field("str").as_string(), q.field("mdate").as_string(), q.field("short").as_long());
+                q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(), 
+                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
+        }
+
+        for (q.exec("select * from tmp_dbc"); !q.eof(); q.next())
+        {
+            printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+                q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(),
+                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
         return true;
     }
@@ -67,14 +74,17 @@ inline bool ut_ora_base_query_2(rx_tdd_t &rt, ut_ora &dbc)
 {
     try {
         query_t q(dbc.conn);
+
+        q.exec("delete from tmp_dbc where str!='str'").conn().trans_commit();
+
         q.prepare("select * from tmp_dbc where str=:sSTR");
         q(":sSTR","2");
         
         for (q.exec(); !q.eof(); q.next())
         {
             printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
-                q.field("id").as_long(), q.field("int").as_long(), q.field("uint").as_ulong(),
-                q.field("str").as_string(), q.field("mdate").as_string(), q.field("short").as_long());
+                q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(),
+                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
         return true;
     }
@@ -309,7 +319,7 @@ rx_tdd(ut_dtl_array)
 {
     ut_ora_base_sql_parse_1(*this);
     ut_ora_base_1(*this);
-    for(int i=0;i<1000;++i)
+    for(int i=0;i<10;++i)
         ut_ora_base_1(*this);
 }
 

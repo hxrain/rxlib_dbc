@@ -1,13 +1,12 @@
 #ifndef _RX_DBC_ORA_COMM_H_
 #define _RX_DBC_ORA_COMM_H_
 
-    #define DBC_CC_DEBUG 1
     //-----------------------------------------------------
     //在调试状态下,用外部的内存管理函数替代OCI内部的内存管理函数,方便外面进行资源泄露的诊断
-    #if DBC_CC_DEBUG
-        inline dvoid *DBC_ORA_Malloc (dvoid * ctxp, size_t size) { return (malloc (size)); }
-        inline dvoid *DBC_ORA_Realloc (dvoid * ctxp, dvoid *ptr, size_t size){ return (realloc (ptr, size)); }
-        inline void   DBC_ORA_Free (dvoid * ctxp, dvoid *ptr){ free (ptr); }
+    #if RX_DEF_ALLOC_USE_STD
+        inline dvoid *DBC_ORA_Malloc (dvoid * ctxp, size_t size) { return malloc(size); }
+        inline dvoid *DBC_ORA_Realloc (dvoid * ctxp, dvoid *ptr, size_t size){ return realloc(ptr, size); }
+        inline void   DBC_ORA_Free (dvoid * ctxp, dvoid *ptr){ free(ptr); }
     #else
         #define	DBC_ORA_Malloc		NULL
         #define	DBC_ORA_Realloc	    NULL
@@ -16,14 +15,14 @@
 
 namespace rx_dbc_ora
 {
-    //对于绑定参数来说,允许使用的字符串的最大长度
+    //允许使用的字符串的最大长度
     const ub2 MAX_TEXT_BYTES = 1024 * 2;
 
-    //每次批量FEATCH获取的数据行的数量
-    const ub2 BAT_FETCH_SIZE = 100;
+    //每次批量FEATCH获取的结果集的数量
+    const ub2 BAT_FETCH_SIZE = 20;
 
     //字段名字最大长度
-    const ub2 FIELD_NAME_LENGTH = 60;
+    const ub2 FIELD_NAME_LENGTH = 30;
 
     //sql语句的长度限制
     const int MAX_SQL_LENGTH = 1024 * 8;
@@ -149,14 +148,14 @@ namespace rx_dbc_ora
         char        host[64];                               //数据库服务器所在地址
         char        user[64];                               //数据库用户名
         char        pwd[64];                                //数据库口令
-        char        sid[64];                                //数据库实例名
+        char        db[64];                                 //数据库实例名
         uint32_t    port;                                   //数据库端口
         uint32_t    conn_timeout;                           //连接超时时间
         uint32_t    tran_timeout;                           //数据传输超时
         conn_param_t() 
         { 
             host[0] = 0; 
-            sid[0] = 0;
+            db[0] = 0;
             user[0] = 0;
             pwd[0] = 0;
             port = 1521;
@@ -311,7 +310,7 @@ namespace rx_dbc_ora
             m_out_buff[0];
             return c_str();
         }
-        const char* c_str(const conn_param_t &cp) { return c_str(cp.host,cp.sid,cp.user); }
+        const char* c_str(const conn_param_t &cp) { return c_str(cp.host,cp.db,cp.user); }
         //-------------------------------------------------
         //得到错误的详细信息
         const char* c_str(void)

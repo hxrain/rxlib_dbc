@@ -3,7 +3,7 @@
 
 #include "oci.h"                        //引入OCI接口,默认在"3rd_deps\ora\include"
 
-#define RX_DEF_ALLOC_USE_STD 1
+#define RX_DEF_ALLOC_USE_STD 0          //是否使用标准malloc分配器进行测试(可用于检测内存泄露)
 
 #include "rx_cc_macro.h"                //引入基础宏定义
 #include "rx_assert.h"                  //引入断言

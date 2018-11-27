@@ -87,7 +87,8 @@ namespace rx_dbc_ora
             if (m_params.capacity() == 0)
                 m_param_make(m_max_bulk_count);             //尝试分配参数块资源
 
-            rx_assert(m_params.capacity() != 0);
+            if (m_params.capacity() == 0)
+                throw (error_info_t(DBEC_NOT_PARAM, __FILE__, __LINE__, m_SQL.c_str()));
 
             ub4 ParamIdx = m_params.index(Tmp);
             if (ParamIdx != m_params.capacity())
