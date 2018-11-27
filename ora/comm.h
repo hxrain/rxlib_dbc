@@ -115,14 +115,6 @@ namespace rx_dbc_ora
         }
     }
 
-
-    //-----------------------------------------------------
-    //月份枚举
-    enum month_name_t
-    {
-        jan = 1, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec
-    };
-
     //-----------------------------------------------------
     //OCI连接的环境选项
     typedef struct env_option_t
@@ -372,8 +364,8 @@ namespace rx_dbc_ora
         }
         void set(const struct tm &ST)
         {
-            year(ST.tm_year);
-            mon(ST.tm_mon);
+            year(ST.tm_year+1900);
+            mon(ST.tm_mon+1);
             day((ub1)ST.tm_mday);
             hour((ub1)ST.tm_hour);
             minute((ub1)ST.tm_min);
@@ -384,8 +376,7 @@ namespace rx_dbc_ora
         sb2 year(void) const { return m_Date.OCIDateYYYY; }
         void year(sb2 yy) { m_Date.OCIDateYYYY = yy; }
 
-        month_name_t mon(void) const { return month_name_t(m_Date.OCIDateMM); }
-        void mon(month_name_t mm) { m_Date.OCIDateMM = (ub1)mm; }
+        ub1 mon(void) const { return m_Date.OCIDateMM; }
         void mon(int mm) { m_Date.OCIDateMM = (ub1)mm; }
 
         ub1 day(void) const { return m_Date.OCIDateDD; }
