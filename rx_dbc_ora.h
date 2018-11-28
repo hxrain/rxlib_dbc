@@ -7,8 +7,9 @@
 
 #include "rx_cc_macro.h"                //引入基础宏定义
 #include "rx_assert.h"                  //引入断言
-#include "rx_str_util.h"                //引入基础字符串功能
-#include "rx_str_tiny.h"
+#include "rx_str_util_std.h"            //引入基础字符串功能
+#include "rx_str_util_ex.h"             //引入扩展字符串功能
+#include "rx_str_tiny.h"                //引入定长字符串功能
 #include "rx_mem_alloc_cntr.h"          //引入内存分配容器
 #include "rx_datetime.h"                //引入日期时间功能
 #include "rx_dtl_buff.h"                //引入缓冲区功能

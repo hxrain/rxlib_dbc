@@ -16,7 +16,7 @@ typedef struct ut_ora
 
     ut_ora()
     {
-        strcpy(conn_param.host, "20.0.2.106");
+        strcpy(conn_param.host, "20.0.21.106");
         strcpy(conn_param.user, "system");
         strcpy(conn_param.pwd, "sysdba");
         strcpy(conn_param.db, "oradb");

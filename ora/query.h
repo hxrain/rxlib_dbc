@@ -117,17 +117,19 @@ namespace rx_dbc_ora
         void m_bat_fetch (void)
         {
             sword	result;
+            //记录之前已经提取过的结果数
             ub4		old_rows_count = m_fetched_count;
 
+            //尝试批量获取一次结果集
             result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_bat_fetch_count,OCI_FETCH_NEXT,OCI_DEFAULT);
             if (result == OCI_SUCCESS || result == OCI_NO_DATA || result == OCI_SUCCESS_WITH_INFO)
-            {
+            {//正常完成了,或有条件完成了,则取出实际提取结果数
                 result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
-
+                //如果本次提取的结果数量与前次提取数量的差小于要求提取的数量,则说明遇到结果集的尾部了.
                 if (m_fetched_count - old_rows_count != (ub4)m_bat_fetch_count)
-                    m_is_eof = true;
+                    m_is_eof = true;                        //标记结果集提取结束
             }
             else
                 throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
@@ -183,7 +185,7 @@ namespace rx_dbc_ora
             stmt_t::close();
         }
         //-------------------------------------------------
-        //判断当前行是否结果集结束(exec/eof/next构成了结果集遍历原语)
+        //判断当前是否为结果集真正的结束状态(exec/eof/next构成了结果集遍历原语)
         bool eof(void) const { return (m_cur_row_idx >= m_fetched_count && m_is_eof); }
         //-------------------------------------------------
         //跳转到下一行,返回值为false说明到结尾了

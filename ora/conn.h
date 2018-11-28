@@ -79,11 +79,11 @@ namespace rx_dbc_ora
             result = OCIServerAttach (m_handle_svr,m_handle_err,(text *) dblink,(ub4)strlen (dblink),OCI_DEFAULT);
             if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
-            //分配得到服务句柄
+            //分配得到功能句柄
             result = OCIHandleAlloc (m_handle_env,(void **) &m_handle_svc,OCI_HTYPE_SVCCTX,0,NULL);
             if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
-            //绑定服务器句柄到服务句柄
+            //绑定功能句柄关联服务器句柄
             result = OCIAttrSet (m_handle_svc,OCI_HTYPE_SVCCTX,m_handle_svr,sizeof (OCIServer *),OCI_ATTR_SERVER,m_handle_err);
             if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
 
@@ -108,7 +108,7 @@ namespace rx_dbc_ora
             }
             else if(result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
-            //绑定用户会话句柄到服务环境句柄上
+            //绑定功能句柄关联会话句柄
             result = OCIAttrSet (m_handle_svc,OCI_HTYPE_SVCCTX,m_handle_session,sizeof (OCISession *),OCI_ATTR_SESSION,m_handle_err);
             if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
@@ -146,7 +146,7 @@ namespace rx_dbc_ora
             m_handle_session = NULL;
             if (result != OCI_SUCCESS) ++ec;
 
-            if (m_handle_svc != NULL)                       //释放服务句柄
+            if (m_handle_svc != NULL)                       //释放功能句柄
                 result = OCIHandleFree (m_handle_svc,OCI_HTYPE_SVCCTX);
             m_handle_svc = NULL;                         
             if (result != OCI_SUCCESS) ++ec;
@@ -254,7 +254,7 @@ namespace rx_dbc_ora
         OCIServer	        *m_handle_svr;                  //OCI服务器句柄
         mutable OCIError	*m_handle_err;	                //OCI错误句柄.可能这个句柄会被OCI内部改变
         OCISession	        *m_handle_session;              //OCI用户会话句柄
-        OCISvcCtx	        *m_handle_svc;                  //OCI服务环境句柄
+        OCISvcCtx	        *m_handle_svc;                  //OCI业务功能句柄
         OCITrans            *m_handle_trans;                //OCI明确手动开启的事务句柄
 
         conn_t (const conn_t&);
