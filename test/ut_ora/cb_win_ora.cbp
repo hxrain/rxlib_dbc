@@ -42,8 +42,9 @@
 		</Compiler>
 		<Linker>
 			<Add option="-m32" />
-			<Add library="liboci.a" />
-			<Add directory="../../3rd_deps/ora/lib_w32" />
+			<Add option="-loci" />
+			<Add directory="../../3rd_deps/ora/lib_w32/gcc" />
+			<Add directory="out" />
 		</Linker>
 		<Unit filename="ut_dbc_ora.cpp" />
 		<Extensions>

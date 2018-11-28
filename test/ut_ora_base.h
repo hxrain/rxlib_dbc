@@ -75,8 +75,6 @@ inline bool ut_ora_base_query_2(rx_tdd_t &rt, ut_ora &dbc)
     try {
         query_t q(dbc.conn);
 
-        q.exec("delete from tmp_dbc where str!='str'").conn().trans_commit();
-
         q.prepare("select * from tmp_dbc where str=:sSTR");
         q(":sSTR","2");
 
@@ -86,6 +84,9 @@ inline bool ut_ora_base_query_2(rx_tdd_t &rt, ut_ora &dbc)
                 q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(),
                 q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
+
+        q.exec("delete from tmp_dbc where str!='str'").conn().trans_commit();
+
         return true;
     }
     catch (error_info_t &e)

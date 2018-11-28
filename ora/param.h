@@ -163,7 +163,7 @@ namespace rx_dbc_ora
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
-                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(double), data_buff);
+                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), data_buff);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
                 m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
@@ -195,9 +195,17 @@ namespace rx_dbc_ora
                 return (*this);
             }
             case DT_TEXT:
-            {
+            {//将real数字转换为文本,使用OCI函数
+                OCINumber num;
+                sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), &num);
+                if (result != OCI_SUCCESS)
+                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+
                 char tmp_buff[50];
-                sprintf(tmp_buff, "%Lf", value);
+                ub4 buff_size = sizeof(tmp_buff);
+                result = OCINumberToText(m_conn->m_handle_err, &num, (oratext*)NUMBER_FRM_FMT, NUMBER_FRM_FMT_LEN, NULL, 0, &buff_size, (oratext*)tmp_buff);
+                if (result != OCI_SUCCESS)
+                    throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
                 return set_string(tmp_buff);
             }
             default:

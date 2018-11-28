@@ -30,6 +30,9 @@ namespace rx_dbc_ora
     typedef const char* PStr;
     const int CHAR_SIZE = sizeof(char);
 
+    //OCI数字格式:去除空格,最大允许x个整数位,小数点最小保留2位最大保留14位
+    const char* NUMBER_FRM_FMT = "FM999999999999999999.00999999999999";
+    const ub2 NUMBER_FRM_FMT_LEN = 35;
     //-----------------------------------------------------
     //dbc_ora可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
     enum data_type_t
@@ -518,15 +521,28 @@ namespace rx_dbc_ora
             switch (m_dbc_data_type)
             {
             case DT_TEXT:
-                return (DT)rx::st::atod((char*)data_buff);
+            {//文本转换为double值
+                //借用oci的方法,先把文本串转换为OCI的number
+                OCINumber num;
+                sword result = ::OCINumberFromText(oci_err_handle(), (const oratext*)data_buff, rx::st::strlen((char*)data_buff), (const oratext*)NUMBER_FRM_FMT, NUMBER_FRM_FMT_LEN, (const oratext*)"NLS_NUMERIC_CHARACTERS='.''", 27, &num);
+                if (result != OCI_SUCCESS)
+                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+
+                //再将OCI的number转换为原生double
+                DT	value;
+                result = ::OCINumberToReal(oci_err_handle(), &num, sizeof(DT), &value);
+                if (result != OCI_SUCCESS)
+                    throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+
+                return value;
+            }
             case DT_NUMBER:
-            {
+            {//OCI数字转换为double
                 DT	value;
                 sword result = ::OCINumberToReal(oci_err_handle(), reinterpret_cast <OCINumber *>(data_buff), sizeof(DT), &value);
-                if (result == OCI_SUCCESS)
-                    return (value);
-                else
+                if (result != OCI_SUCCESS)
                     throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                return value;
             }
             default:
                 throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
