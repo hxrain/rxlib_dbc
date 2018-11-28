@@ -15,16 +15,14 @@
 #include "rx_dtl_buff.h"                //引入缓冲区功能
 #include "rx_dtl_array_ex.h"            //引入别名数组
 
-#include "comm/sql_param_parse.h"       //SQL绑定参数的名字解析功能
+#include "dbc_comm/sql_param_parse.h"   //SQL绑定参数的名字解析功能
 
-#include "ora/comm.h"                   //实现一些通用功能
-#include "ora/conn.h"                   //实现数据库连接
-
-#include "ora/param.h"                  //实现语句段绑定参数
-#include "ora/stmt.h"                   //实现sql语句段
-
-#include "ora/field.h"                  //实现记录字段操作对象
-#include "ora/query.h"                  //实现记录查询访问对象
+#include "dbc_ora/comm.h"               //实现一些通用功能
+#include "dbc_ora/conn.h"               //实现数据库连接
+#include "dbc_ora/param.h"              //实现语句段绑定参数
+#include "dbc_ora/stmt.h"               //实现sql语句段
+#include "dbc_ora/field.h"              //实现记录字段操作对象
+#include "dbc_ora/query.h"              //实现记录查询访问对象
 
 #endif
 
