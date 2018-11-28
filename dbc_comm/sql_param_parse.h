@@ -1,7 +1,8 @@
 #ifndef _RX_DBC_SQL_PARAM_PARSE_H_
 #define _RX_DBC_SQL_PARAM_PARSE_H_
 
-#include "rx_str_util_std.h"
+#include "rx_str_util_ex.h"
+#include "rx_str_util_tiny.h"
 
     //-----------------------------------------------------
     //SQL绑定参数名字解析器
@@ -69,7 +70,7 @@
                     {//碰到关键字符,冒号了,需要判断是否在引号中
                         if (!quote_deep)
                         {
-                            if (strchr("+-*/< >,(=", *(sql - 1)) == NULL)
+                            if (strchr("+-*/< >,(=%", *(sql - 1)) == NULL)
                                 return sql; //冒号的前面不是一个有效字符,也认为是错误
                             in_seg = true;  //不在引号中,遇到冒号了,认为进入了分段处理中
                             seg.name = sql;
@@ -80,6 +81,13 @@
                     case ',':
                     case ';':
                     case ')':
+                    case '+':
+                    case '-':
+                    case '*':
+                    case '/':
+                    case '<':
+                    case '>':
+                    case '%':
                     case ' ':
                     case '\0':
                     {//碰到结束字符了
@@ -106,6 +114,32 @@
 
             } while (1);
             return NULL;
+        }
+        //-------------------------------------------------
+        //解析oracle的sql绑定语句并转化为mysql的?格式.绑定参数的格式为":name"
+        //返回值:buffsize缓冲器不足;其他为缓冲器结果串长度
+        uint32_t ora_mysql(const char* sql,char* buff,uint32_t buffsize)
+        {
+            ora_sql(sql);                                   //先进行ora模式的参数解析
+            uint32_t rc=0;
+            if (count==0)
+            {//如果解析后没有发现参数,则将原串直接返回,作为mysql的语句
+                rc=rx::st::strcpy(buff,buffsize,sql);
+                return rc==0?buffsize:rc;
+            }
+
+            //现在需要将ora的sql参数绑定格式转换为mysql格式
+            rx::strcat_ct cat(buff,buffsize);               //绑定输出缓冲区
+            for(uint32_t i=0;i<count;++i)
+            {//对参数段进行循环
+                uint32_t len=segs[i].name-sql;              //获取参数段之前的串长度
+                cat(sql,len);                               //复制参数段之前的内容
+                cat<<'?';                                   //参数段的部分用?代替
+                sql+=len+segs[i].name_len;                  //原语句跳过当前段,准备处理下一段
+            }
+
+            cat<<sql;                                       //全部参数段都处理完成后,拼装最后剩余的部分
+            return cat.err()?buffsize:cat.size();
         }
     };
 

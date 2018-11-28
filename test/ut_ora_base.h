@@ -295,6 +295,14 @@ inline void ut_ora_base_sql_parse_1(rx_tdd_t &rt)
 
     rt.tdd_assert(sp.ora_sql("select id,'\"',UINT:se from tmp_dbc where id=:nID and UINT=: nUINT;") != NULL);
     rt.tdd_assert(sp.ora_sql("select id,'\"',UINT :se from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);   //解析通过,但不符合sql语法
+    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1") == NULL); 
+    rt.tdd_assert(sp.count==0);
+
+    char tmp[1024];
+    rt.tdd_assert(sp.ora_mysql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1",tmp,sizeof(tmp)) != sizeof(tmp)); 
+
+    rt.tdd_assert(sp.ora_mysql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;",tmp,sizeof(tmp)) != sizeof(tmp));
+
 }
 //---------------------------------------------------------
 //进行数据库基础动作测试
