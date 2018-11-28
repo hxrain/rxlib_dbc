@@ -35,6 +35,7 @@ inline bool ut_ora_base_conn(rx_tdd_t &rt, ut_ora &dbc)
     catch (error_info_t &e)
     {
         printf(e.c_str(dbc.conn_param));
+        printf("\n");
         return false;
     }
 }
