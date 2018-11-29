@@ -154,7 +154,6 @@ namespace rx_dbc_ora
         char        db[64];                                 //数据库实例名
         uint32_t    port;                                   //数据库端口
         uint32_t    conn_timeout;                           //连接超时时间
-        uint32_t    tran_timeout;                           //数据传输超时
         conn_param_t()
         {
             host[0] = 0;
@@ -163,7 +162,6 @@ namespace rx_dbc_ora
             pwd[0] = 0;
             port = 1521;
             conn_timeout = 3;
-            tran_timeout = 5;
         }
     }conn_param_t;
 

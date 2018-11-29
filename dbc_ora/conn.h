@@ -53,7 +53,7 @@ namespace rx_dbc_ora
         sword open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
         {
             char dblink[1024];
-            sprintf(dblink, "(DESCRIPTION=(CONNECT_TIMEOUT=%d)(TRANSPORT_CONNECT_TIMEOUT=%d)(ADDRESS=(PROTOCOL=tcp) (HOST=%s) (PORT=%d))(CONNECT_DATA=(SERVICE_NAME=%s)))",dst.conn_timeout,dst.tran_timeout,dst.host, dst.port, dst.db);
+            sprintf(dblink, "(DESCRIPTION=(CONNECT_TIMEOUT=%d)(TRANSPORT_CONNECT_TIMEOUT=%d)(ADDRESS=(PROTOCOL=tcp) (HOST=%s) (PORT=%d))(CONNECT_DATA=(SERVICE_NAME=%s)))",dst.conn_timeout,dst.conn_timeout,dst.host, dst.port, dst.db);
             return open(dblink,dst.user,dst.pwd,op,env_mode);
         }
         sword open (const char *dblink,const char *login,const char *password,const env_option_t &op = env_option_t(),unsigned long env_mode = OCI_OBJECT|OCI_THREADED)
@@ -213,6 +213,15 @@ namespace rx_dbc_ora
                 get_last_error(*ec, tmp, sizeof(tmp));
             }
             m_trans_free();                                 //释放事务句柄
+            return result == OCI_SUCCESS;
+        }
+        //-------------------------------------------------
+        //进行服务器ping检查,真实的判断连接是否有效.不会抛出异常
+        bool ping()
+        {
+            if (m_handle_svc == NULL)
+                return false;
+            sword result = OCIPing(m_handle_svc, m_handle_err, OCI_DEFAULT);
             return result == OCI_SUCCESS;
         }
         //-------------------------------------------------
