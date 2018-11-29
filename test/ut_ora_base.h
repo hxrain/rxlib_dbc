@@ -16,7 +16,7 @@ typedef struct ut_ora
 
     ut_ora()
     {
-        strcpy(conn_param.host, "20.0.21.106");
+        strcpy(conn_param.host, "20.0.2.106");
         strcpy(conn_param.user, "system");
         strcpy(conn_param.pwd, "sysdba");
         strcpy(conn_param.db, "oradb");
@@ -175,6 +175,39 @@ inline bool ut_ora_base_insert_2b(rx_tdd_t &rt, ut_ora &dbc)
     }
 }
 //---------------------------------------------------------
+//参数绑定插入示例(使用stmt_t与显示事务)
+inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
+{
+    char cur_time_str[20];
+    rx_iso_datetime(cur_time_str);
+    try {
+        rt.tdd_assert(dbc.conn.ping());
+
+        dbc.conn.trans_begin();
+
+        stmt_t q(dbc.conn);
+        //预处理解析
+        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        //绑定参数
+        q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
+        //绑定数据
+        q << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        //执行语句
+        q.exec();
+        //提交
+        dbc.conn.trans_commit();
+        rt.tdd_assert(q.rows() == 1);
+        return true;
+    }
+    catch (error_info_t &e)
+    {
+        dbc.conn.trans_rollback();
+        printf(e.c_str(dbc.conn_param));
+        printf("\n");
+        return false;
+    }
+}
+//---------------------------------------------------------
 //批量插入示例
 inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
 {
@@ -311,9 +344,12 @@ inline void ut_ora_base_1(rx_tdd_t &rt)
     ut_ora ora;
     if (ut_ora_base_conn(rt, ora))
     {
+        rt.tdd_assert(ut_ora_base_query_1(rt, ora));
+
         rt.tdd_assert(ut_ora_base_insert_1(rt, ora));
         rt.tdd_assert(ut_ora_base_insert_2(rt, ora));
         rt.tdd_assert(ut_ora_base_insert_2b(rt, ora));
+        rt.tdd_assert(ut_ora_base_insert_2c(rt, ora));
         rt.tdd_assert(ut_ora_base_insert_3(rt, ora));
         rt.tdd_assert(ut_ora_base_insert_4(rt, ora));
         rt.tdd_assert(ut_ora_base_insert_5(rt, ora));
