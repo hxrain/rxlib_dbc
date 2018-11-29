@@ -338,9 +338,9 @@ namespace rx_dbc_ora
         //密码即将过期
         bool is_pwd_will_expire() { return m_ora_ec == 28002; }
         //连接断开
-        bool is_connection_lost() { return m_ora_ec == 3135; }
-        //连接失败(12541监听器不存在;或口令错误;或连接超时)
-        bool is_connect_fail() { return m_ora_ec == 12541 || is_bad_user_pwd() || is_conn_timeout(); }
+        bool is_connection_lost() { return m_ora_ec == 3135|| m_ora_ec == 3114 || m_ora_ec == 3113; }
+        //连接失败(12541监听器不存在;或口令错误;或连接超时;或连接丢失)
+        bool is_connect_fail() { return m_ora_ec == 12541 || is_bad_user_pwd() || is_conn_timeout() || is_connection_lost(); }
     };
 
     //-----------------------------------------------------

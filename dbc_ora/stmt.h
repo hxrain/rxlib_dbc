@@ -39,6 +39,7 @@ namespace rx_dbc_ora
 
             result = OCIStmtPrepare(m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(),m_SQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 #else
+            //预解析/参数绑定/数据赋值等,可以在脱网的情况下进行
             rx_assert(m_stmt_handle==NULL);
             result = OCIStmtPrepare2(m_conn.m_handle_svc,&m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(), m_SQL.size(),NULL,0,OCI_NTV_SYNTAX, OCI_DEFAULT);
 #endif

@@ -201,7 +201,8 @@ inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
     }
     catch (error_info_t &e)
     {
-        dbc.conn.trans_rollback();
+        sword ec = 0;
+        dbc.conn.trans_rollback(&ec);
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;
@@ -344,6 +345,8 @@ inline void ut_ora_base_1(rx_tdd_t &rt)
     ut_ora ora;
     if (ut_ora_base_conn(rt, ora))
     {
+        rt.tdd_assert(ut_ora_base_insert_2c(rt, ora));
+
         rt.tdd_assert(ut_ora_base_query_1(rt, ora));
 
         rt.tdd_assert(ut_ora_base_insert_1(rt, ora));
