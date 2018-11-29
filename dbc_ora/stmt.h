@@ -29,7 +29,7 @@ namespace rx_dbc_ora
             rx_assert(m_SQL.size()!=0);
             sword result;
             close(true);                                    //语句可能都变了,复位后重来
-
+#if RX_DBC_ORA_USE_OLD_STMT
             if (m_stmt_handle == NULL)
             {//分配sql语句执行句柄,初始执行或在close之后执行
                 result = OCIHandleAlloc(m_conn.m_handle_env, (void **)&m_stmt_handle, OCI_HTYPE_STMT, 0, NULL);
@@ -38,7 +38,10 @@ namespace rx_dbc_ora
             }
 
             result = OCIStmtPrepare(m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(),m_SQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
-
+#else
+            rx_assert(m_stmt_handle==NULL);
+            result = OCIStmtPrepare2(m_conn.m_handle_svc,&m_stmt_handle, m_conn.m_handle_err, (text *)m_SQL.c_str(), m_SQL.size(),NULL,0,OCI_NTV_SYNTAX, OCI_DEFAULT);
+#endif
             if (result == OCI_SUCCESS)
             {
                 ub2	stmt_type = 0;                          //得到sql语句的类型
@@ -302,12 +305,20 @@ namespace rx_dbc_ora
             m_executed = false;
             m_cur_param_idx = 0;
             m_sql_type = ST_UNKNOWN;
-
+#if RX_DBC_ORA_USE_OLD_STMT
             if (m_stmt_handle)
-            {
-                OCIHandleFree(m_stmt_handle,OCI_HTYPE_STMT); //释放sql语句句柄
+            {//释放sql语句句柄
+                OCIHandleFree(m_stmt_handle,OCI_HTYPE_STMT); 
                 m_stmt_handle = NULL;
             }
+#else
+            if (m_stmt_handle)
+            {//释放sql语句句柄
+                sword result = OCIStmtRelease(m_stmt_handle, m_conn.m_handle_err,NULL,0, OCI_DEFAULT);
+                rx_assert(result == OCI_SUCCESS);
+                m_stmt_handle = NULL;
+            }
+#endif
         }
     };
 

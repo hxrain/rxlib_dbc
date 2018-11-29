@@ -119,11 +119,14 @@ namespace rx_dbc_ora
             sword	result;
             //记录之前已经提取过的结果数
             ub4		old_rows_count = m_fetched_count;
-
             //尝试批量获取一次结果集
+#if RX_DBC_ORA_USE_OLD_STMT
             result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_bat_fetch_count,OCI_FETCH_NEXT,OCI_DEFAULT);
+#else
+            result = OCIStmtFetch2(m_stmt_handle, m_conn.m_handle_err, m_bat_fetch_count, OCI_FETCH_NEXT,0, OCI_DEFAULT);
+#endif
             if (result == OCI_SUCCESS || result == OCI_NO_DATA || result == OCI_SUCCESS_WITH_INFO)
-            {//正常完成了,或有条件完成了,则取出实际提取结果数
+            {//正常完成了,或有条件完成了,则取出实际提取结果数;返回OCI_NO_DATA代表本批次结束了,但批次内的具体结果数量仍需要正常处理.
                 result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
