@@ -19,14 +19,14 @@ namespace rx_dbc_ora
             }
             sword result=OCIHandleAlloc(m_handle_env, (void **)&m_handle_trans,  OCI_HTYPE_TRANS, 0, 0);
             if (result!=OCI_SUCCESS) return result;
-            return OCIAttrSet(m_handle_svc, OCI_HTYPE_SVCCTX, m_handle_trans, 0,OCI_ATTR_TRANS, m_handle_err);
+            return OCIAttrSet(m_handle_svc, OCI_HTYPE_SVCCTX, m_handle_trans, 0, OCI_ATTR_TRANS, m_handle_err);
         }
         //-------------------------------------------------
         //释放事务句柄
         void m_trans_free()
         {
             if (!m_handle_trans) return;
-            OCIAttrSet(m_handle_svc, OCI_HTYPE_SVCCTX, 0, 0,OCI_ATTR_TRANS, m_handle_err);
+            OCIAttrSet(m_handle_svc, OCI_HTYPE_SVCCTX, NULL, 0, OCI_ATTR_TRANS, m_handle_err);
             OCIHandleFree(m_handle_trans,OCI_HTYPE_TRANS);
             m_handle_trans=NULL;
         }
@@ -42,14 +42,14 @@ namespace rx_dbc_ora
             m_handle_svr = NULL;
             m_handle_session = NULL;
 
-            m_opened = false;
+            m_is_valid = false;
         }
         ~conn_t (){close();}
         //-------------------------------------------------
-        bool is_valid(){return m_opened;}
+        bool is_valid(){return m_is_valid;}
         //-------------------------------------------------
         //连接到Oracle服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
-        //返回值:是否出现了可控问题(比如密码即将过期的提示)
+        //返回值:0正常;其他出现了可控问题(比如密码即将过期的提示)
         sword open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
         {
             char dblink[1024];
@@ -61,8 +61,6 @@ namespace rx_dbc_ora
             if (is_empty(dblink) || is_empty(login) || is_empty(password))
                 throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
                 
-            if (m_opened) return 0;
-            sword ec = 0;
             close();
             //初始化OCI环境,得到环境句柄
             sword result = OCIEnvNlsCreate (&m_handle_env,env_mode,NULL,DBC_ORA_Malloc,DBC_ORA_Realloc,DBC_ORA_Free,0,NULL,op.charset_id, op.charset_id);
@@ -98,6 +96,7 @@ namespace rx_dbc_ora
             result = OCIAttrSet (m_handle_session,OCI_HTYPE_SESSION,(text *) password,(ub4)strlen (password),OCI_ATTR_PASSWORD,m_handle_err);
             if (result != OCI_SUCCESS) throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
 
+            sword ec = 0;
             //!!进行登录认证!!
             result = OCISessionBegin(m_handle_svc,m_handle_err,m_handle_session,OCI_CRED_RDBMS,OCI_DEFAULT);
             if (result == OCI_SUCCESS_WITH_INFO)
@@ -120,7 +119,7 @@ namespace rx_dbc_ora
             if (!is_empty(op.date_format))
                 exec("ALTER SESSION SET NLS_DATE_FORMAT='%s'", op.date_format);
 
-            m_opened = true;
+            m_is_valid = true;
             return ec;
         }
         //-------------------------------------------------
@@ -166,7 +165,7 @@ namespace rx_dbc_ora
             m_handle_env = NULL;
             if (result != OCI_SUCCESS) ++ec;
                    
-            m_opened = false;
+            m_is_valid = false;
             rx_assert(ec == 0);
             return ec == 0;
         }
@@ -181,7 +180,7 @@ namespace rx_dbc_ora
         //当前连接启动事务
         void trans_begin()
         {
-            rx_assert(m_opened);
+            rx_assert(m_is_valid);
             sword result=m_trans_alloc();
             if (result!=OCI_SUCCESS)
                 throw (error_info_t (result, m_handle_err, __FILE__, __LINE__));
@@ -194,7 +193,7 @@ namespace rx_dbc_ora
         //提交当前事务
         void trans_commit (void)
         {
-            rx_assert(m_opened);
+            rx_assert(m_is_valid);
             sword result=OCITransCommit(m_handle_svc,m_handle_err,OCI_DEFAULT);
             if (result != OCI_SUCCESS)
                 throw (error_info_t(result, m_handle_err, __FILE__, __LINE__));
@@ -205,7 +204,7 @@ namespace rx_dbc_ora
         //返回值:操作结果(回滚本身出错时不再抛出异常)
         bool trans_rollback (sword *ec=NULL)
         {
-            rx_assert(m_opened);
+            rx_assert(m_is_valid);
             sword result=OCITransRollback(m_handle_svc,m_handle_err,OCI_DEFAULT);
             if (result!=OCI_SUCCESS&&ec)
             {//可以查看错误原因,就不抛异常了
@@ -229,7 +228,7 @@ namespace rx_dbc_ora
         //返回值:操作结果(出错时不再抛出异常)
         bool nls_info(ub2 InfoItem,char* Buf,ub4 BufSize, sword *ec = NULL)
         {
-            rx_assert(m_opened);
+            rx_assert(m_is_valid);
             sword result=OCINlsGetInfo(m_handle_session,m_handle_err,(oratext*)Buf,BufSize,InfoItem);
             if (result != OCI_SUCCESS&&ec)
             {//可以查看错误原因,就不抛异常了
@@ -257,7 +256,7 @@ namespace rx_dbc_ora
         friend class field_t;
 
         rx::mem_allotter_i &m_mem;                          //内存分配器
-        bool		        m_opened;
+        bool		        m_is_valid;
 
         OCIEnv		        *m_handle_env;                  //OCI环境句柄
         OCIServer	        *m_handle_svr;                  //OCI服务器句柄

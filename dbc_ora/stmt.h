@@ -18,7 +18,7 @@ namespace rx_dbc_ora
         OCIStmt			                    *m_stmt_handle; //该语句对象的OCI句柄
         sql_stmt_t	                        m_sql_type;     //该语句对象当前sql语句的类型
         rx::tiny_string_t<char,MAX_SQL_LENGTH>  m_SQL;      //预解析时记录的待执行的sql语句
-        ub2                                 m_max_bulk_count; //参数批量数据提交的最大数
+        ub2                                 m_max_bulk_deep; //参数批量数据提交的最大数
         ub2                                 m_cur_bulk_idx; //当前操作的块深度索引
         bool			                    m_executed;     //标记当前语句是否已经被正确执行过了
         ub2                                 m_cur_param_idx;//当前正在绑定处理的参数顺序
@@ -59,9 +59,9 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //绑定参数初始化:批量数据数的最大数量(在exec的时候可以告知实际数量);参数的数量(如果不告知,则自动根据sql语句分析获取);
         //如果要使用Bulk模式批量插入,那么必须先调用此函数,告知每个Bulk的最大元素数量
-        void m_param_make(ub2 MaxBulkCount, ub2 ParamCount = 0)
+        void m_param_make(ub2 max_bulk_deep, ub2 ParamCount = 0)
         {
-            rx_assert(MaxBulkCount != 0);
+            rx_assert(max_bulk_deep != 0);
 
             if (ParamCount == 0)    //尝试根据sql中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ParamCount = rx::st::count(m_SQL.c_str(), ':');
@@ -74,7 +74,7 @@ namespace rx_dbc_ora
                     throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
             }
             m_cur_bulk_idx = 0;
-            m_max_bulk_count = MaxBulkCount;
+            m_max_bulk_deep = max_bulk_deep;
         }
         //-------------------------------------------------
         //如果批量数为1(默认情况),则可以直接调用bind
@@ -89,7 +89,7 @@ namespace rx_dbc_ora
             rx::st::strlwr(name, Tmp);
 
             if (m_params.capacity() == 0)
-                m_param_make(m_max_bulk_count);             //尝试分配参数块资源
+                m_param_make(m_max_bulk_deep);             //尝试分配参数块资源
 
             if (m_params.capacity() == 0)
                 throw (error_info_t(DBEC_NOT_PARAM, __FILE__, __LINE__, m_SQL.c_str()));
@@ -100,9 +100,12 @@ namespace rx_dbc_ora
 
             //现在进行新名字的绑定
             ParamIdx = m_params.size();                     //利用绑定过的数量作为增量序数
+            if (ParamIdx>= m_params.capacity())
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, name));
+
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
             sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
-            Ret.bind(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_count);  //对参数对象进行必要的初始化
+            Ret.bind(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_deep);  //对参数对象进行必要的初始化
             return Ret;
         }
     public:
@@ -134,20 +137,10 @@ namespace rx_dbc_ora
             prepare(sql,arg);
             return *this;
         }
-        //批量深度大于1的预解析操作
-        stmt_t& prepare(ub2 MaxBulkCount,const char *sql, ...)
-         {
-            rx_assert(!is_empty(sql));
-            va_list	arg;
-            va_start(arg, sql);
-            prepare(sql, arg);
-            m_param_make(MaxBulkCount);     //进行绑定初始化,之后可以进行手动绑定
-            return *this;
-        }
         //-------------------------------------------------
-        //在预解析完成后,可以直接进行参数的自动绑定
+        //在预解析完成后,可以直接进行参数的自动绑定,默认max_bulk_deep使用之前预解析时告知的深度值.
         //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
-        stmt_t& auto_bind(ub2 MaxBulkCount=0)
+        stmt_t& auto_bind(ub2 max_bulk_deep=0)
         {
             if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
@@ -157,8 +150,8 @@ namespace rx_dbc_ora
             if (err)
                 throw (error_info_t(DBEC_PARSE_PARAM, __FILE__, __LINE__, "sql param parse error!| %s |",err));
 
-            if (MaxBulkCount == 0) MaxBulkCount = m_max_bulk_count;
-            m_param_make(MaxBulkCount, sp.count);           //不管解析得到了几个参数,都可尝试进行参数数组的生成
+            if (max_bulk_deep == 0) max_bulk_deep = m_max_bulk_deep;
+            m_param_make(max_bulk_deep, sp.count);           //不管解析得到了几个参数,都可尝试进行参数数组的生成
 
             char name[FIELD_NAME_LENGTH];
             for (ub2 i = 0; i < sp.count; ++i)
@@ -169,18 +162,30 @@ namespace rx_dbc_ora
             return *this;
         }
         //-------------------------------------------------
+        //在预解析完成后,如果不进行自动绑定则可以尝试进行手动参数绑定,告知的深度值.
+        //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
+        stmt_t& manual_bind(ub2 max_bulk_deep, ub2 params = 0)
+        {
+            if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
+
+            if (max_bulk_deep == 0) max_bulk_deep = m_max_bulk_deep;
+            m_param_make(max_bulk_deep, params);            //尝试进行参数数组的生成
+
+            return *this;
+        }
+        //-------------------------------------------------
         //获取批量的最大深度
-        ub2 bulks() { return m_max_bulk_count; }
+        ub2 bulks() { return m_max_bulk_deep; }
         //-------------------------------------------------
         //设置所有参数的当前块访问深度
         stmt_t& bulk(ub2 idx)
         {
             rx_assert_if(m_cur_param_idx, m_cur_param_idx == m_params.size());//要求自动调整参数列序号的时候,必须与参数数量相同,避免<<的时候漏掉数据
+            if (idx >= m_max_bulk_deep)
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, "bulkdeep(%d/%d)",idx, m_max_bulk_deep));
+
             m_cur_param_idx = 0;
-
-            if (idx >= m_max_bulk_count)
-                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
-
             m_cur_bulk_idx = idx;
             for (ub4 i = 0; i < m_params.size(); ++i)
                 m_params[i].bulk(m_cur_bulk_idx);
@@ -220,7 +225,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
         //入口:当前实际绑定参数的批量深度.
-        stmt_t& exec (ub2 BulkCount=0)
+        stmt_t& exec (ub2 BulkCount=0,bool auto_commit=false)
         {
             m_executed = false;
             rx_assert_if(m_cur_param_idx, m_cur_param_idx == m_params.size());//要求自动调整参数列序号的时候,必须与参数数量相同,避免<<的时候漏掉数据
@@ -229,12 +234,12 @@ namespace rx_dbc_ora
             if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
-            rx_assert(BulkCount<=m_max_bulk_count);
+            rx_assert(BulkCount<=m_max_bulk_deep);
 
             if (m_sql_type == ST_SELECT)
                 BulkCount = 0;
             else if (BulkCount == 0)
-                BulkCount = m_max_bulk_count;
+                BulkCount = m_max_bulk_deep;
 
             sword result = OCIStmtExecute (
                          m_conn.m_handle_svc,
@@ -244,7 +249,7 @@ namespace rx_dbc_ora
                          0,		// starting index from which the data in an array bind is relevant
                          NULL,	// input snapshot descriptor
                          NULL,	// output snapshot descriptor
-                         OCI_DEFAULT);
+                        auto_commit? OCI_COMMIT_ON_SUCCESS :OCI_DEFAULT);
 
             if (result == OCI_SUCCESS)
                 m_executed = true;
@@ -300,7 +305,7 @@ namespace rx_dbc_ora
         void close (bool reset_only=false)
         {
             m_params.clear(reset_only);
-            m_max_bulk_count = 1;
+            m_max_bulk_deep = 1;
             m_cur_bulk_idx = 0;
             m_executed = false;
             m_cur_param_idx = 0;

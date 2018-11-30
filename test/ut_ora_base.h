@@ -194,6 +194,8 @@ inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
         q << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         //执行语句
         q.exec();
+        //再不重新绑定数据的场景,反复再次执行语句
+        q.exec();
         //提交
         dbc.conn.trans_commit();
         rt.tdd_assert(q.rows() == 1);
@@ -209,7 +211,7 @@ inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
     }
 }
 //---------------------------------------------------------
-//批量插入示例
+//批量插入手动绑定示例
 inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
 {
     char cur_time_str[20];
@@ -217,7 +219,7 @@ inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
-        q.prepare(2,"insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
 
         //给每个块深度对应的参数进行绑定与赋值
         q.bulk(0)(":nID", 2)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
@@ -277,7 +279,7 @@ inline bool ut_ora_base_insert_5(rx_tdd_t &rt, ut_ora &dbc)
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
-        q.prepare(2, "insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind();
+        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
 
         //给每个块深度对应的参数进行赋值
         q.bulk(0) << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
@@ -287,7 +289,7 @@ inline bool ut_ora_base_insert_5(rx_tdd_t &rt, ut_ora &dbc)
 
         //继续进行批量数据的绑定
         q.bulk(0) << 4 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
-        q.exec(1).conn().trans_commit();                    //告知真正绑定的数据深度并执行操作,并进行提交
+        q.exec(1, true);                                    //告知真正绑定的数据深度,执行并提交
         rt.tdd_assert(q.rows() == 1);
 
         return true;
@@ -363,9 +365,111 @@ inline void ut_ora_base_1(rx_tdd_t &rt)
         rt.tdd_assert(ut_ora_base_query_2(rt, ora));
     }
 }
+
+//---------------------------------------------------------
+typedef struct ut_ins_dat_t
+{
+    uint32_t    ID;
+    int32_t     INT;
+    uint32_t    UINT;
+    char        STR[20];
+    char        DATE[20];
+    int16_t     SHORT;
+    
+    ut_ins_dat_t() 
+    {
+        ID = (uint32_t)rx_time();
+        INT = -155905152;
+        UINT = 2155905152u;
+        sprintf(STR,"%x",ID);
+        rx_iso_datetime(DATE);
+        SHORT = (int16_t)ID;
+    }
+}ut_ins_dat_t;
+
+//DBC事件委托对应的函数指针类型;//返回值:<0错误; 0用户要求放弃; >0完成,批量深度
+inline int32_t ut_dbc_event_func_1(query_t &q, void *usrdat)
+{
+    ut_ins_dat_t &dat = *(ut_ins_dat_t*)usrdat;
+    q << dat.ID << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
+    return 1;
+}
+
+inline void ut_ora_ext_1(rx_tdd_t &rt)
+{
+    //定义数据库连接
+    dbc_conn_t conn;
+    conn.set_conn_param("20.0.2.106", "system", "sysdba");
+    rt.tdd_assert(conn.schema_to("HYTPDTBILLDB"));
+
+    //定义待处理数据
+    ut_ins_dat_t dat;
+
+    //定义数据库功能对象,告知数据绑定函数与数据对象
+    dbc_exec_t dbc(conn, ut_dbc_event_func_1, &dat);
+
+    //首次执行sql语句,使用构造时给定的数据
+    int rc=dbc("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+    rt.tdd_assert(rc>0);
+
+    //更换数据对象后再次执行
+    ++dat.ID;
+    rc = dbc(&dat);
+    rt.tdd_assert(rc>0);
+
+    //更换数据对象后再次执行
+    ++dat.ID;
+    rc = dbc(NULL,&dat);
+    rt.tdd_assert(rc>0);
+}
+//---------------------------------------------------------
+//使用dbc_t作为基类进行业务处理
+class mydbc :public dbc_t
+{
+    //!!关键!!进行参数数据的绑定动作;
+    //返回值:<0错误;0用户要求放弃;>0完成
+    virtual int32_t on_bind_data(query_t &q, void *usrdat)
+    {
+        ut_ins_dat_t &dat = *(ut_ins_dat_t*)usrdat;
+        q << dat.ID << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
+        return 1;
+    }
+public:
+    mydbc(dbc_conn_t  &c) :dbc_t(c) {}
+};
+inline void ut_ora_ext_2(rx_tdd_t &rt)
+{
+    //定义数据库连接
+    dbc_conn_t conn;
+    conn.set_conn_param("20.0.2.106", "system", "sysdba");
+    rt.tdd_assert(conn.schema_to("HYTPDTBILLDB"));
+
+    //定义待处理数据
+    ut_ins_dat_t dat;
+
+    //定义数据库功能对象,告知数据绑定函数与数据对象
+    mydbc dbc(conn);
+
+    //首次执行sql语句,并告知数据
+    int rc = dbc("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)", &dat);
+    rt.tdd_assert(rc>0);
+
+    //更换数据对象后再次执行
+    ++dat.ID;
+    rc = dbc.exec(&dat);
+    rt.tdd_assert(rc>0);
+
+    //更换数据对象后再次执行
+    ++dat.ID;
+    rc = dbc.exec(&dat);
+    rt.tdd_assert(rc>0);
+}
 //---------------------------------------------------------
 rx_tdd(ut_dtl_array)
 {
+    ut_ora_ext_1(*this);
+    ut_ora_ext_2(*this);
+
     ut_ora_base_sql_parse_1(*this);
     ut_ora_base_1(*this);
     for(int i=0;i<10;++i)

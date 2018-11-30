@@ -9,7 +9,7 @@ namespace rx_dbc_ora
     class sql_param_t:public col_base_t
     {
         friend class stmt_t;
-        ub4                 m_max_bulk_count;               //最大的批量数
+        ub4                 m_max_bulk_deep;               //最大的批量数
         conn_t		        *m_conn;		                //关联的数据库连接对象
         ub2                 m_bulk_idx;                     //当前操作的行块序号
 
@@ -22,7 +22,7 @@ namespace rx_dbc_ora
         void clear(void)
         {
             col_base_t::reset();
-            m_max_bulk_count = 0;
+            m_max_bulk_deep = 0;
             m_bulk_idx = 0;
         }
         //-------------------------------------------------
@@ -46,9 +46,9 @@ namespace rx_dbc_ora
         void m_init_data_type(const char *param_name,ub4 name_size, data_type_t type, int StringMaxSize, ub4 BulkCount)
         {
             rx_assert(!is_empty(param_name));
-            rx_assert(m_max_bulk_count == (ub4)0);
+            rx_assert(m_max_bulk_deep == (ub4)0);
             rx_assert(BulkCount >= 1);
-            m_max_bulk_count = BulkCount;
+            m_max_bulk_deep = BulkCount;
 
             ub2 oci_data_type;
             data_type_t	dbc_data_type;
@@ -126,7 +126,7 @@ namespace rx_dbc_ora
         //绑定数字值
         sql_param_t& set_long(int32_t value, bool is_signed)
         {
-            rx_assert_msg(m_bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
             case DT_NUMBER:
@@ -156,7 +156,7 @@ namespace rx_dbc_ora
         //绑定大数字与浮点数
         sql_param_t& set_double(double value)
         {
-            rx_assert_msg(m_bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
             case DT_NUMBER:
@@ -181,7 +181,7 @@ namespace rx_dbc_ora
         }
         sql_param_t& set_real(long double value)
         {
-            rx_assert_msg(m_bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
             case DT_NUMBER:
@@ -217,7 +217,7 @@ namespace rx_dbc_ora
         //绑定日期数据
         sql_param_t& set_datetime(const datetime_t& d)
         {
-            rx_assert_msg(m_bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
             case DT_DATE:
@@ -241,7 +241,7 @@ namespace rx_dbc_ora
         //绑定文本串
         sql_param_t& set_string(PStr text)
         {
-            rx_assert_msg(m_bulk_idx < m_max_bulk_count, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
+            rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (is_empty(text))
             {//不管什么类型,空串都让其变为空值
                 m_set_data_size(0, m_bulk_idx);   //记录数据的实际长度
@@ -294,20 +294,20 @@ namespace rx_dbc_ora
         //设置块访问序号
         void bulk(ub2 idx)
         {
-            if (idx >= m_max_bulk_count)
+            if (idx >= m_max_bulk_deep)
                 throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             m_bulk_idx = idx;
         }
         //获取最大块深度
-        ub2 bulks() { return m_max_bulk_count; }
+        ub2 bulks() { return m_max_bulk_deep; }
     public:
         //-------------------------------------------------
         sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { clear(); }
         ~sql_param_t() { clear(); }
         //-------------------------------------------------
         //让当前参数设置为空值
-        void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_count); m_set_data_size(0, bulk_row_idx()); }
-        bool is_null() const { rx_assert(bulk_row_idx() < m_max_bulk_count); return col_base_t::m_is_null(bulk_row_idx()); }
+        void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_deep); m_set_data_size(0, bulk_row_idx()); }
+        bool is_null() const { rx_assert(bulk_row_idx() < m_max_bulk_deep); return col_base_t::m_is_null(bulk_row_idx()); }
         //-------------------------------------------------
         //给参数的指定数组批量元素赋值:字符串值
         sql_param_t& operator = (PStr text) { return set_string(text);}
