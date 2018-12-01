@@ -296,7 +296,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //给用户提供执行事件,可以进行多条语句的处理;sql已经被预解析了.
         //返回值:<0错误;0用户要求放弃;>0完成
-        virtual int32_t on_exec(query_t &q, const char *sql, void *usrdat) = 0;
+        virtual int32_t on_exec(query_t &q, const char *sql, void *usrdat) { q.exec(BAT_FETCH_SIZE); return 1; }
     };
 
 

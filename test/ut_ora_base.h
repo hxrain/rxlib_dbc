@@ -513,6 +513,13 @@ inline void ut_ora_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     while (dbc.fetch(3) > 0);
 }
 //---------------------------------------------------------
+//进行非绑定sql处理
+inline void ut_ora_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
+{
+    const char* sql = "insert into tmp_dbc(id,int,uint,str,mdate,short) values(123456789,-123,123,'insert',to_date('2000-01-01 13:14:20','yyyy-MM-dd HH24:mi:ss'),1)";
+    rt.tdd_assert(tiny_dbc_t(conn).action(sql) > 0);
+}
+//---------------------------------------------------------
 //对上层封装的db操作进行真正的驱动测试
 inline void ut_ora_ext_a(rx_tdd_t &rt)
 {
@@ -528,6 +535,7 @@ inline void ut_ora_ext_a(rx_tdd_t &rt)
     ut_ora_ext_a2(rt, conn, dat);
     ut_ora_ext_a3(rt, conn, dat);
     ut_ora_ext_a4(rt, conn, dat);
+    ut_ora_ext_a5(rt, conn, dat);
 }
 
 //---------------------------------------------------------
