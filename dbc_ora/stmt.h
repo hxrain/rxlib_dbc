@@ -113,7 +113,7 @@ namespace rx_dbc_ora
         stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_mem)
         {
             m_stmt_handle = NULL;
-            m_SQL.set(NULL);
+            m_SQL.reset();
             close();
         }
         //-------------------------------------------------
