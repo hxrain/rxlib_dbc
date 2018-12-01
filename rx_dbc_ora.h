@@ -1,8 +1,6 @@
 #ifndef	_RX_DBC_ORA_H_
 #define	_RX_DBC_ORA_H_
 
-#include "oci.h"                                            //引入OCI接口,默认在"3rd_deps\ora\include"
-
 #include "rx_cc_macro.h"                                    //引入基础宏定义
 #include "rx_assert.h"                                      //引入断言
 #include "rx_str_util_std.h"                                //引入基础字符串功能
@@ -15,6 +13,8 @@
 #include "rx_ct_delegate.h"                                 //引入委托功能
 #include "rx_datetime_ex.h"                                 //引入日期时间功能扩展
 #include "rx_cc_atomic.h"                                   //引入原子变量功能
+
+#include "oci.h"                                            //引入OCI接口,默认在"3rd_deps\ora\include"
 
 #include "dbc_comm/sql_param_parse.h"                       //SQL绑定参数的名字解析功能
 
@@ -30,8 +30,8 @@ namespace rx_dbc_ora
 {
     //日志输出函数的委托类型
     typedef rx::delegate3_t<const char*,const char*, va_list,void> dbc_log_delegate_t;
-    static inline void default_dbc_log_func(const char* type, const char* msg, va_list arg, void*) 
-    { 
+    static inline void default_dbc_log_func(const char* type, const char* msg, va_list arg, void*)
+    {
         static rx::atomic_t<uint32_t> msg_seq;
 
         char cur_time_str[20];
@@ -98,7 +98,7 @@ namespace rx_dbc_ora
         void use_chinese_env(bool flag = true) { flag ? m_env_param.use_chinese() : m_env_param.use_english(); }
         //-------------------------------------------------
         //设置连接参数
-        void set_conn_param(const char* host,const char* user,const char* pwd,const char* db="oradb",uint16_t port=1521,uint16_t conn_timeout_sec=3) 
+        void set_conn_param(const char* host,const char* user,const char* pwd,const char* db="oradb",uint16_t port=1521,uint16_t conn_timeout_sec=3)
         {
             rx::st::strcpy(m_conn_param.host, sizeof(m_conn_param.host), host);
             rx::st::strcpy(m_conn_param.user, sizeof(m_conn_param.user), user);
@@ -194,7 +194,7 @@ namespace rx_dbc_ora
             int rc = m_exec(sql,manual_trans, usrdat);      //调用真正的执行动作
             if (!can_retry || rc >= 0)
                 return rc;                                  //无需重试或成功完成,直接返回
-            
+
             //执行失败需要重试
             if (!m_dbconn.connect(true))
                 return -101;                                //强制连接或连接检查失败,说明连接确实断开了
@@ -328,7 +328,7 @@ namespace rx_dbc_ora
             rc = m_exec(manual_trans, usrdat);              //调用真正的执行动作
             if (!can_retry || rc >= 0)
                 return rc;                                  //无需重试或成功完成,直接返回
-            
+
             //执行失败需要重试
             if (!m_dbconn.connect(true))
                 return -101;                                //强制连接或连接检查失败,说明连接确实断开了
@@ -368,17 +368,17 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //关联数据绑定处理回调函数(如果func为空,则可以进行usrdat的更新)
-        bool event_data_bind(dbc_event_func_t func, void *usrdat=NULL) 
-        { 
+        bool event_data_bind(dbc_event_func_t func, void *usrdat=NULL)
+        {
             if (func == NULL)
                 func = m_databind_dgt.cb_func();
             if (func == NULL)
                 return false;
-            m_databind_dgt.bind(func,usrdat); 
+            m_databind_dgt.bind(func,usrdat);
             return true;
         }
         //关联数据提取处理的回调函数
-        bool event_data_row(dbc_event_func_t func, void *usrdat = NULL) 
+        bool event_data_row(dbc_event_func_t func, void *usrdat = NULL)
         {
             if (func == NULL)
                 func = m_datafetch_dgt.cb_func();
@@ -414,10 +414,10 @@ namespace rx_dbc_ora
         //!!关键!!进行参数数据的绑定动作;
         //返回值:<0错误;0用户要求放弃;>0完成
         virtual int32_t on_bind_data(query_t &q, void *usrdat)
-        { 
-            if (m_databind_dgt.is_valid()) 
+        {
+            if (m_databind_dgt.is_valid())
                 return m_databind_dgt(q);                   //默认实现,尝试使用委托对象中的函数进行调用
-            return 0; 
+            return 0;
         }
     protected:
         //-------------------------------------------------

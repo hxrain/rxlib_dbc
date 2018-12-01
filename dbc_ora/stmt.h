@@ -313,14 +313,13 @@ namespace rx_dbc_ora
 #if RX_DBC_ORA_USE_OLD_STMT
             if (m_stmt_handle)
             {//ÊÍ·ÅsqlÓï¾ä¾ä±ú
-                OCIHandleFree(m_stmt_handle,OCI_HTYPE_STMT); 
+                OCIHandleFree(m_stmt_handle,OCI_HTYPE_STMT);
                 m_stmt_handle = NULL;
             }
 #else
             if (m_stmt_handle)
             {//ÊÍ·ÅsqlÓï¾ä¾ä±ú
-                sword result = OCIStmtRelease(m_stmt_handle, m_conn.m_handle_err,NULL,0, OCI_DEFAULT);
-                rx_assert(result == OCI_SUCCESS);
+                OCIStmtRelease(m_stmt_handle, m_conn.m_handle_err,NULL,0, OCI_DEFAULT);
                 m_stmt_handle = NULL;
             }
 #endif
