@@ -61,6 +61,7 @@ namespace rx_dbc_ora
             if (is_empty(dblink) || is_empty(login) || is_empty(password))
                 throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
                 
+            //每次连接前都先尝试关闭之前的连接
             close();
             //初始化OCI环境,得到环境句柄
             sword result = OCIEnvNlsCreate (&m_handle_env,env_mode,NULL,DBC_ORA_Malloc,DBC_ORA_Realloc,DBC_ORA_Free,0,NULL,op.charset_id, op.charset_id);
