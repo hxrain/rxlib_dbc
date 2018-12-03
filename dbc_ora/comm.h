@@ -188,7 +188,7 @@ namespace rx_dbc_ora
         void make_oci_error_info(sword oci_result, OCIError *error_handle, OCIEnv *env_handle)
         {
             bool get_details = false;
-            rx::tiny_string_ct desc(sizeof(m_err_desc), m_err_desc);
+            rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
             m_dbc_ec = 0;
             m_err_type = ET_ORACLE;
 
@@ -235,7 +235,7 @@ namespace rx_dbc_ora
         //得到当前库内的详细错误信息
         void make_dbc_error(sword dbc_err)
         {
-            rx::tiny_string_ct desc(sizeof(m_err_desc), m_err_desc);
+            rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
             m_err_type = ET_DBC;
             m_dbc_ec = dbc_err;
             m_ora_ec = 0;
@@ -254,7 +254,7 @@ namespace rx_dbc_ora
                 rx_assert(!is_empty(format) && va);
                 char Tmp[ERROR_FORMAT_MAX_MSG_LEN];
                 vsnprintf(Tmp, ERROR_FORMAT_MAX_MSG_LEN - 1, format, va);
-                rx::tiny_string_ct desc(sizeof(m_err_desc), m_err_desc,rx::st::strlen(m_err_desc));
+                rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc,rx::st::strlen(m_err_desc));
                 desc << " @ < " << Tmp <<" >";
             }
             m_src_file = source_name;

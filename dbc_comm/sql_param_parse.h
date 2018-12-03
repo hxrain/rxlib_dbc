@@ -129,7 +129,7 @@
             }
 
             //现在需要将ora的sql参数绑定格式转换为mysql格式
-            rx::tiny_string_ct cat(buffsize, buff);         //绑定输出缓冲区
+            rx::tiny_string_t<> cat(buffsize, buff);        //绑定输出缓冲区
             for(uint32_t i=0;i<count;++i)
             {//对参数段进行循环
                 uint32_t len=segs[i].name-sql;              //获取参数段之前的串长度
