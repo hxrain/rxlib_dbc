@@ -164,7 +164,6 @@ namespace rx_dbc_ora
             }
             catch (error_info_t &e)
             {
-                m_query.conn().trans_rollback();            //出现任何错误,都尝试回滚
                 m_dbconn.log_err(e.c_str(m_dbconn.m_conn_param));//给出错误日志
                 return -103;
             }
@@ -172,13 +171,13 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //真正执行语句
         //返回值:<0错误; 0用户要求放弃; >0完成
-        int m_exec(const char* sql,bool explicit_trans, void *usrdat)
+        int m_exec(bool explicit_trans, void *usrdat)
         {
             try {
                 if (explicit_trans)
                     m_query.conn().trans_begin();           //回调函数里面要执行多条语句,需要进行手动事务处理
 
-                int rc=on_exec(m_query, sql, usrdat);       //执行用户给定的语句
+                int rc=on_exec(m_query,usrdat);             //执行用户给定的语句
                 if (rc <= 0)
                 {
                     if (explicit_trans)
@@ -193,8 +192,8 @@ namespace rx_dbc_ora
             }
             catch (error_info_t &e)
             {
-                m_query.conn().trans_rollback();            //出现任何错误,都尝试回滚
                 m_dbconn.log_err(e.c_str(m_dbconn.m_conn_param));//给出错误日志
+                m_query.conn().trans_rollback();            //出现任何错误,都尝试回滚
                 return -102;
             }
         }
@@ -214,11 +213,8 @@ namespace rx_dbc_ora
                     if (rc <= 0)
                         return rc;
                 }
-                else
-                    sql = m_query.sql_string();             //否则取出原有语句
 
-
-                rc = m_exec(sql, explicit_trans, usrdat);   //调用真正的执行动作
+                rc = m_exec(explicit_trans, usrdat);        //调用真正的执行动作
                 if (!retry || rc >= 0)
                     return rc;                              //无需重试或成功完成,直接返回
 
@@ -269,7 +265,7 @@ namespace rx_dbc_ora
             try {
                 uint32_t rc = 0;
                 for (; !m_query.eof() && rc<loop_count; m_query.next(), ++rc)
-                    on_row_data(m_query,&rc);
+                    on_row(m_query,&rc);
                 return rc;
             }
             catch (error_info_t &e)
@@ -280,6 +276,7 @@ namespace rx_dbc_ora
         }
     protected:
         //-------------------------------------------------
+        //子类可以实现动作前后触发事件的回调
         //动作开始之前进行处理(可进行计时/重连/调试等处理);返回值:是否继续执行
         virtual bool on_begin(dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) { return true; }
         //动作完成之后进行处理(可进行计时,重连等处理)
@@ -287,11 +284,11 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //获取到结果,访问当前行数据;
         //返回值:<0错误;0用户要求放弃;>0完成
-        virtual int32_t on_row_data(query_t &q, void *usrdat) { return 1; }
+        virtual int32_t on_row(query_t &q, void *usrdat) { return 1; }
         //-------------------------------------------------
         //给用户提供执行事件,可以进行多条语句的处理;sql已经被预解析了.
         //返回值:<0错误;0用户要求放弃;>0完成
-        virtual int32_t on_exec(query_t &q, const char *sql, void *usrdat) { q.exec(BAT_FETCH_SIZE); return 1; }
+        virtual int32_t on_exec(query_t &q, void *usrdat) { q.exec(BAT_FETCH_SIZE); return 1; }
     };
 
 
@@ -336,7 +333,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //执行事件,可以进行多条语句的处理
         //返回值:<0错误;0用户要求放弃;>0完成
-        virtual int32_t on_exec(query_t &q, const char *sql, void *usrdat)
+        virtual int32_t on_exec(query_t &q, void *usrdat)
         { 
             if (!q.params())
                 q.auto_bind(10);                            //尝试自动绑定,告知最大批量深度
@@ -348,18 +345,15 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //!!关键!!获取到结果,访问当前行数据;
         //返回值:<0错误;0用户要求放弃;>0完成
-        virtual int32_t on_row_data(query_t &q, void *usrdat)
+        virtual int32_t on_row(query_t &q, void *usrdat)
         {
             if (m_datafetch_dgt.is_valid())
+            {
+                m_datafetch_dgt.bind(m_datafetch_dgt.cb_func(), usrdat);
                 return m_datafetch_dgt(q);                  //默认实现,尝试使用委托对象中的函数进行调用
+            }
             return 1;
         }
-    protected:
-        //-------------------------------------------------
-        //动作开始之前进行处理(可进行计时/重连/调试等处理);返回值:是否继续执行
-        virtual bool on_begin(dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) { return true; }
-        //动作完成之后进行处理(可进行计时,重连等处理)
-        virtual void on_end(int rc, dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) {}
     protected:
         //-------------------------------------------------
         //通过子类给定sql语句
@@ -370,8 +364,8 @@ namespace rx_dbc_ora
         virtual int32_t on_bind_data(query_t &q, void *usrdat)
         {
             if (m_databind_dgt.is_valid())
-            {
-                m_databind_dgt.bind(m_databind_dgt.cb_func(), usrdat);//更新用户数据指针
+            {//每次都需要尝试更新用户绑定数据函数对应的数据指针
+                m_databind_dgt.bind(m_databind_dgt.cb_func(), usrdat);
                 return m_databind_dgt(q);                   //调用委托对象中的函数
             }
             return 0;

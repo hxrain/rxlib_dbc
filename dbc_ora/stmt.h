@@ -89,7 +89,7 @@ namespace rx_dbc_ora
             rx::st::strlwr(name, Tmp);
 
             if (m_params.capacity() == 0)
-                m_param_make(m_max_bulk_deep);             //尝试分配参数块资源
+                m_param_make(m_max_bulk_deep);              //尝试分配参数块资源
 
             if (m_params.capacity() == 0)
                 throw (error_info_t(DBEC_NOT_PARAM, __FILE__, __LINE__, m_SQL.c_str()));
@@ -113,7 +113,6 @@ namespace rx_dbc_ora
         stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_mem)
         {
             m_stmt_handle = NULL;
-            m_SQL.reset();
             close();
         }
         //-------------------------------------------------

@@ -494,7 +494,7 @@ class mydbc4 :public dbc_t
     }
     //-----------------------------------------------------
     //获取到结果,访问当前行数据;返回值:<0错误;0用户要求放弃;>0完成
-    virtual int32_t on_row_data(query_t &q, void *usrdat)
+    virtual int32_t on_row(query_t &q, void *usrdat)
     {
         printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
             q["id"].as_ulong(), q["int"].as_long(), q["uint"].as_ulong(),
