@@ -64,14 +64,14 @@ namespace rx_dbc_ora
     enum error_class_t
     {
         ET_UNKNOWN = 0,
-        ET_ORACLE,
+        ET_OCI,
         ET_DBC,
     };
     inline const char* error_class_name(int ErrType)
     {
         switch (ErrType)
         {
-        case ET_ORACLE:return "oci";
+        case ET_OCI:return "oci";
         case ET_DBC:return "dbc";
         case ET_UNKNOWN:
         default:return "unknown";
@@ -81,6 +81,7 @@ namespace rx_dbc_ora
     //DBC封装操作错误码
     enum dbc_error_code_t
     {
+        DBEC_OK=0,
         DBEC_ENV_FAIL = 1000,                               //OCI环境创建错误
         DBEC_NO_MEMORY,                                     //内存不足
         DBEC_NO_BUFFER,                                     //缓冲区不足
@@ -95,7 +96,16 @@ namespace rx_dbc_ora
         DBEC_METHOD_CALL,                                   //方法调用的顺序错误
         DBEC_NOT_PARAM,                                     //sql语句中没有':'前缀的参数,但尝试绑定参数
         DBEC_PARSE_PARAM,                                   //sql语句自动解析参数错误
+
+        DBEC_OCI,                                           //OCI错误
+        DBEC_OCI_BADPWD,                                    //OCI错误细分:账号口令错误
+        DBEC_OCI_PWD_WILLEXPIRE,                            //OCI错误细分:口令即将过期,不是致命错误但应该进行告警
+        DBEC_OCI_CONNTIMEOUT,                               //OCI错误细分:连接超时
+        DBEC_OCI_CONNLOST,                                  //OCI错误细分:已经建立的连接断开了.
+        DBEC_OCI_CONNFAIL,                                  //OCI错误细分:连接失败,无法建立连接
+        DBEC_OCI_UNIQUECONST,                               //OCI错误细分:唯一约束导致的错误
     };
+
     inline const char* dbc_error_code_info(sword dbc_err)
     {
         switch (dbc_err)
@@ -114,6 +124,13 @@ namespace rx_dbc_ora
         case    DBEC_METHOD_CALL:       return "(DBEC_METHOD_CALL):func method called order error";
         case    DBEC_NOT_PARAM:         return "(DBEC_NOT_PARAM):sql not parmas";
         case    DBEC_PARSE_PARAM:       return "(DBEC_PARSE_PARAM): auto bind sql param error";
+        case    DBEC_OCI:               return "(DBEC_OCI_ERROR)";
+        case    DBEC_OCI_BADPWD:        return "(DBEC_OCI_BADPWD)";
+        case    DBEC_OCI_PWD_WILLEXPIRE:return "(DBEC_OCI_PWD_WILLEXPIRE)";
+        case    DBEC_OCI_CONNTIMEOUT:   return "(DBEC_OCI_CONNTIMEOUT)";
+        case    DBEC_OCI_CONNLOST:      return "(DBEC_OCI_CONNLOST)";
+        case    DBEC_OCI_CONNFAIL:      return "(DBEC_OCI_CONNFAIL)";
+        case    DBEC_OCI_UNIQUECONST:   return "(DBEC_OCI_UNIQUECONST)";
         default:                        return "(unknown DBC Error)";
         }
     }
@@ -189,8 +206,9 @@ namespace rx_dbc_ora
         {
             bool get_details = false;
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
-            m_dbc_ec = 0;
-            m_err_type = ET_ORACLE;
+            m_dbc_ec = DBEC_OCI;
+            m_err_type = ET_OCI;
+            m_ora_ec = 0;
 
             if (error_handle == NULL && env_handle == NULL)
             {
@@ -228,6 +246,21 @@ namespace rx_dbc_ora
                 else
                     OCIErrorGet(env_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ENV);
                 desc << '<' << Tmp << '>';
+            }
+
+            //进行OCI错误细分,映射到DBEC错误码
+            switch (m_ora_ec)
+            {
+                case 1      :m_dbc_ec = DBEC_OCI_UNIQUECONST; break;
+                case 1017   :m_dbc_ec = DBEC_OCI_BADPWD; break;
+                case 12170  :m_dbc_ec = DBEC_OCI_CONNTIMEOUT; break;
+                case 28002  :m_dbc_ec = DBEC_OCI_PWD_WILLEXPIRE; break;
+                default:
+                    if (is_connection_lost())
+                        m_dbc_ec = DBEC_OCI_CONNLOST;
+                    else if (is_connect_fail())
+                        m_dbc_ec = DBEC_OCI_CONNFAIL;
+                    break;
             }
         }
 
@@ -325,9 +358,12 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //判断是否为OCI错误类别
-        bool is_oci_error() { return m_err_type == ET_ORACLE; }
+        bool is_oci_error() { return m_err_type == ET_OCI; }
         //得到oci错误代码
         ub4 oci_error_code() { return m_ora_ec; }
+        //得到dbc错误代码
+        ub4 dbc_error_code() { return m_dbc_ec; }
+        //-------------------------------------------------
         //判断错误是否为用户名口令错误
         bool is_bad_user_pwd() { return m_ora_ec == 1017; }
         //判断是否为连接错误
@@ -338,6 +374,9 @@ namespace rx_dbc_ora
         bool is_connection_lost() { return m_ora_ec == 3135|| m_ora_ec == 3114 || m_ora_ec == 3113; }
         //连接失败(12541监听器不存在;或口令错误;或连接超时;或连接丢失)
         bool is_connect_fail() { return m_ora_ec == 12541 || is_bad_user_pwd() || is_conn_timeout() || is_connection_lost(); }
+        //-------------------------------------------------
+        //是否为唯一性约束冲突
+        bool is_unique_constraint() { return m_ora_ec == 1; }
     };
 
     //-----------------------------------------------------

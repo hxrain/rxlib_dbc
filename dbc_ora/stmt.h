@@ -22,6 +22,7 @@ namespace rx_dbc_ora
         ub2                                 m_cur_bulk_idx; //当前操作的块深度索引
         bool			                    m_executed;     //标记当前语句是否已经被正确执行过了
         ub2                                 m_cur_param_idx;//当前正在绑定处理的参数顺序
+        ub2                                 m_last_bulk_deep;//记录最后一次exec时处理的块深度,便于掌握最后的数据深度
         //-------------------------------------------------
         //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定了
         void m_prepare()
@@ -175,8 +176,8 @@ namespace rx_dbc_ora
             return *this;
         }
         //-------------------------------------------------
-        //获取批量的最大深度
-        ub2 bulks() { return m_max_bulk_deep; }
+        //获取批量的最大深度或最后操作的深度
+        ub2 bulks(bool is_max = true) { return is_max ? m_max_bulk_deep : m_last_bulk_deep;; }
         //-------------------------------------------------
         //设置所有参数的当前块访问深度
         stmt_t& bulk(ub2 idx)
@@ -235,11 +236,21 @@ namespace rx_dbc_ora
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
             rx_assert(BulkCount<=m_max_bulk_deep);
+            
+            m_last_bulk_deep = BulkCount;                  //记录最后执行时块的深度
 
             if (m_sql_type == ST_SELECT)
+            {
+                if (m_last_bulk_deep == 0)
+                    m_last_bulk_deep = 1;
                 BulkCount = 0;
+            }
             else if (BulkCount == 0)
+            {
                 BulkCount = m_max_bulk_deep;
+                m_last_bulk_deep = m_max_bulk_deep;
+            }
+                
 
             sword result = OCIStmtExecute (
                          m_conn.m_handle_svc,
@@ -305,6 +316,7 @@ namespace rx_dbc_ora
         void close (bool reset_only=false)
         {
             m_params.clear(reset_only);
+            m_last_bulk_deep = 0;
             m_max_bulk_deep = 1;
             m_cur_bulk_idx = 0;
             m_executed = false;

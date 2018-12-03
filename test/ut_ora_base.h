@@ -31,7 +31,7 @@ inline bool ut_ora_base_conn(rx_tdd_t &rt, ut_ora &dbc)
 {
     try {
         dbc.conn.open(dbc.conn_param);
-        dbc.conn.schema_to("HYTPDTBILLDB");
+        dbc.conn.schema_to("SCOTT");
         return true;
     }
     catch (error_info_t &e)
@@ -56,12 +56,6 @@ inline bool ut_ora_base_query_1(rx_tdd_t &rt, ut_ora &dbc)
                 q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
 
-        for (q.exec("select * from tmp_dbc"); !q.eof(); q.next())
-        {
-            printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
-                q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(),
-                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
-        }
         return true;
     }
     catch (error_info_t &e)
@@ -109,7 +103,7 @@ inline bool ut_ora_base_insert_1(rx_tdd_t &rt, ut_ora &dbc)
         query_t q(dbc.conn);
 
         q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
-        q(":nID", 2)(":nINT", -155905152)(":nUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q(":nID", 20)(":nINT", -155905152)(":nUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         q.exec();
         dbc.conn.trans_commit();
         rt.tdd_assert(q.rows() == 1);
@@ -133,7 +127,7 @@ inline bool ut_ora_base_insert_2(rx_tdd_t &rt, ut_ora &dbc)
         //预处理解析
         q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定单条参数
-        q(":nID", 2)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q(":nID", 21)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //执行语句
         q.exec();
         //提交
@@ -161,7 +155,7 @@ inline bool ut_ora_base_insert_2b(rx_tdd_t &rt, ut_ora &dbc)
         //绑定参数
         q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
         //绑定数据
-        q << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q << 24 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         //执行语句
         q.exec();
         //提交
@@ -193,10 +187,12 @@ inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
         //绑定参数
         q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
         //绑定数据
-        q << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q << 22 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         //执行语句
         q.exec();
-        //再不重新绑定数据的场景,反复再次执行语句
+
+        q << 23 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        //再次执行语句
         q.exec();
         //提交
         dbc.conn.trans_commit();
@@ -224,8 +220,8 @@ inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
         q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
 
         //给每个块深度对应的参数进行绑定与赋值
-        q.bulk(0)(":nID", 2)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
-        q.bulk(1)(":nID", 3)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.bulk(0)(":nID", 25)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.bulk(1)(":nID", 35)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //执行本次批量操作
         q.exec();
         rt.tdd_assert(q.rows() == 2);
@@ -233,7 +229,7 @@ inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
         dbc.conn.trans_commit();
 
         //继续进行批量数据的绑定
-        q.bulk(0)(":nID", 4)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.bulk(0)(":nID", 45)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //告知真正绑定的数据深度并执行操作
         q.exec(1);
         rt.tdd_assert(q.rows() == 1);
@@ -259,7 +255,7 @@ inline bool ut_ora_base_insert_4(rx_tdd_t &rt, ut_ora &dbc)
 
         //预处理解析并进行参数的自动绑定
         q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind();
-        q << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;   //顺序给参数进行数据赋值
+        q << 26 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;   //顺序给参数进行数据赋值
         q.exec().conn().trans_commit();                     //执行语句并提交
 
         rt.tdd_assert(q.rows() == 1);
@@ -284,13 +280,13 @@ inline bool ut_ora_base_insert_5(rx_tdd_t &rt, ut_ora &dbc)
         q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
 
         //给每个块深度对应的参数进行赋值
-        q.bulk(0) << 2 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
-        q.bulk(1) << 3 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32769;
+        q.bulk(0) << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q.bulk(1) << 37 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32769;
         q.exec().conn().trans_commit();                     //执行本次批量操作,并进行提交
         rt.tdd_assert(q.rows() == 2);
 
         //继续进行批量数据的绑定
-        q.bulk(0) << 4 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q.bulk(0) << 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         q.exec(1, true);                                    //告知真正绑定的数据深度,执行并提交
         rt.tdd_assert(q.rows() == 1);
 
@@ -350,8 +346,6 @@ inline void ut_ora_base_1(rx_tdd_t &rt)
     ut_ora ora;
     if (ut_ora_base_conn(rt, ora))
     {
-        rt.tdd_assert(ut_ora_base_insert_2c(rt, ora));
-
         rt.tdd_assert(ut_ora_base_query_1(rt, ora));
 
         rt.tdd_assert(ut_ora_base_insert_1(rt, ora));
@@ -395,7 +389,7 @@ typedef struct ut_ins_dat_t
 //扩展应用层连接对象,在连接建立后需要切换用户模式
 class my_conn_t :public dbc_conn_t
 {
-    virtual void on_connect(conn_t& conn, const conn_param_t &param) { conn.schema_to("HYTPDTBILLDB"); }
+    virtual void on_connect(conn_t& conn, const conn_param_t &param) { conn.schema_to("SCOTT"); }
 };
 
 //---------------------------------------------------------
@@ -470,11 +464,11 @@ inline void ut_ora_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 //---------------------------------------------------------
 inline void ut_ora_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
-    //只给出最必要的语句,执行业务动作
-    //mydbc(conn).action(&dat);
+    //ID不改变,应该会出现唯一性约束的冲突
+    //++dat.ID;
 
     //极简模式,使用业务功能的临时对象执行业务定义的语句并处理数据
-    rt.tdd_assert( mydbc(conn).action(&dat) > 0);
+    rt.tdd_assert( mydbc(conn).action(&dat) < 0);
 }
 //---------------------------------------------------------
 //使用dbc_t作为基类进行业务处理,测试查询提取结果
@@ -508,6 +502,7 @@ public:
 //进行数据提取操作
 inline void ut_ora_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
+    ++dat.ID;
     mydbc4 dbc(conn);
     dbc.action(&dat);
     while (dbc.fetch(3) > 0);
@@ -516,6 +511,7 @@ inline void ut_ora_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 //进行非绑定sql处理
 inline void ut_ora_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
+    ++dat.ID;
     const char* sql = "insert into tmp_dbc(id,int,uint,str,mdate,short) values(123456789,-123,123,'insert',to_date('2000-01-01 13:14:20','yyyy-MM-dd HH24:mi:ss'),1)";
     rt.tdd_assert(tiny_dbc_t(conn).action(sql) > 0);
 }

@@ -38,9 +38,9 @@ namespace rx_dbc_ora
 
         char cur_time_str[20];
         rx_iso_datetime(cur_time_str);
-        printf("[%s][%04d][%s]", cur_time_str, msg_seq.inc(),type);
+        printf("[%s][%04d][%s]:", cur_time_str, msg_seq.inc(),type);
         vprintf(msg, arg);
-        puts("\n");
+        puts("");
     }
 
     //-----------------------------------------------------
@@ -48,9 +48,10 @@ namespace rx_dbc_ora
     //-----------------------------------------------------
     class dbc_conn_t
     {
-        conn_t          m_conn;
-        conn_param_t    m_conn_param;
-        env_option_t    m_env_param;
+        conn_t              m_conn;
+        conn_param_t        m_conn_param;
+        env_option_t        m_env_param;
+        dbc_error_code_t    m_last_error;
         friend class dbc_t;
         friend class tiny_dbc_t;
     public:
@@ -58,6 +59,7 @@ namespace rx_dbc_ora
         dbc_log_delegate_t  log_func;                       //日志输出方法,默认为default_dbc_log_func.
         dbc_conn_t() { log_func.bind(default_dbc_log_func); }
         dbc_conn_t(rx::mem_allotter_i& ma):m_conn(ma) { log_func.bind(default_dbc_log_func); }
+        dbc_error_code_t last_err() { return m_last_error; }
         virtual ~dbc_conn_t() {}
         //-------------------------------------------------
         //日志输出功能封装
@@ -71,7 +73,7 @@ namespace rx_dbc_ora
         {
             va_list arg;
             va_start(arg, msg);
-            log_func("err", msg, arg);
+            log_func("errr", msg, arg);
         }
         void log_info(const char* msg, ...)
         {
@@ -80,6 +82,7 @@ namespace rx_dbc_ora
             log_func("info", msg, arg);
         }
         //-------------------------------------------------
+        //切换到指定的用户域
         bool schema_to(const char *schema)
         {
             if (!connect())
@@ -91,7 +94,7 @@ namespace rx_dbc_ora
             }
             catch (error_info_t &e)
             {
-                log_err(e.c_str(m_conn_param));
+                do_error(e, NULL);
                 return false;
             }
         }
@@ -115,6 +118,7 @@ namespace rx_dbc_ora
         //返回值:连接是否成功,0-连接失败;1连接正常;2连接建立;3重连完成.
         uint32_t connect(bool force_check=false)
         {
+            set_last_error(DBEC_OK);
             if (force_check)
             {//如果要求强制检查,则进行真正的连接ping动作
                 if (m_conn.ping())
@@ -128,19 +132,45 @@ namespace rx_dbc_ora
                 bool is_opened = m_conn.is_valid();
                 sword rc=m_conn.open(m_conn_param);
                 if (rc)
-                    log_warn("connect with error code[%d]:host(%s),port(%d),user(%s),db(%s)",rc,m_conn_param.host, m_conn_param.port, m_conn_param.user, m_conn_param.db);
+                {
+                    log_warn("connect with error code[%d]:host(%s),port(%d),user(%s),db(%s)", rc, m_conn_param.host, m_conn_param.port, m_conn_param.user, m_conn_param.db);
+                    set_last_error(DBEC_OCI_PWD_WILLEXPIRE);
+                }
+                    
                 on_connect(m_conn, m_conn_param);           //给出连接完成动作事件
                 return is_opened?3:2;
             }
             catch (error_info_t &e)
             {
-                log_err(e.c_str(m_conn_param));
+                do_error(e,NULL);
                 return 0;
             }
         }
 
         //-------------------------------------------------
     protected:
+        //-------------------------------------------------
+        //单纯的记录最后的dbc错误号
+        void set_last_error(dbc_error_code_t e) { m_last_error = e; }
+        //-------------------------------------------------
+        //进行错误记录与日志输出
+        void do_error(error_info_t &e, query_t *q)
+        {
+            log_err(e.c_str(m_conn_param));                 //先输出异常内容
+            set_last_error((dbc_error_code_t)e.dbc_error_code());//记录最后的统一错误码
+            if (!q||!q->params()) return;                   //没有语句处理对象,或没有绑定的参数,返回
+
+            rx::tiny_string_t<char, 1024> str;              //定义局部小串对象,准备拼装参数的值
+            for (uint32_t bi = 0; bi < q->bulks(false); ++bi)
+            {//对最后的批量深度进行遍历
+                q->bulk(bi);                                //设置块深度
+                str.reset();                                //缓冲区复位
+                for (uint32_t i = 0; i < q->params(); ++i)  //循环拼装当前块深度的参数值
+                    str << q->param(i).as_string() << (i + 1 == q->params() ? "" : " ,");
+                log_info("params:<%s>", str.c_str());//输出拼装后的结果内容
+            }
+        }
+        //-------------------------------------------------
         //连接完成事件
         virtual void on_connect(conn_t& conn, const conn_param_t &param) {}
     };
@@ -164,7 +194,7 @@ namespace rx_dbc_ora
             }
             catch (error_info_t &e)
             {
-                m_dbconn.log_err(e.c_str(m_dbconn.m_conn_param));//给出错误日志
+                m_dbconn.do_error(e, &m_query);
                 return -103;
             }
         }
@@ -192,7 +222,7 @@ namespace rx_dbc_ora
             }
             catch (error_info_t &e)
             {
-                m_dbconn.log_err(e.c_str(m_dbconn.m_conn_param));//给出错误日志
+                m_dbconn.do_error(e, &m_query);
                 m_query.conn().trans_rollback();            //出现任何错误,都尝试回滚
                 return -102;
             }
@@ -256,9 +286,11 @@ namespace rx_dbc_ora
         //返回值:<0错误;0结束;>0本次提取的数量
         int fetch(uint32_t loop_count = 100)
         {
+            m_dbconn.set_last_error(DBEC_OK);
             if (m_query.sql_type() != ST_SELECT)
             {
                 m_dbconn.log_err("non-select statements were fetched resultset! (%s)", m_query.sql_string());
+                m_dbconn.set_last_error(DBEC_METHOD_CALL);
                 return -200;
             }
 
@@ -270,7 +302,7 @@ namespace rx_dbc_ora
             }
             catch (error_info_t &e)
             {
-                m_dbconn.log_err(e.c_str(m_dbconn.m_conn_param));
+                m_dbconn.do_error(e, &m_query);
                 return -201;
             }
         }
