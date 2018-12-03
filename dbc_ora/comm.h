@@ -473,7 +473,7 @@ namespace rx_dbc_ora
             rx_assert(!is_empty(name));
             reset();
 
-            m_name.reset(name, name_len);
+            m_name.assign(name, name_len);
             m_oci_data_type = oci_data_type;
             m_dbc_data_type = dbc_data_type;
             m_max_data_size = max_data_size;

@@ -166,7 +166,7 @@ namespace rx_dbc_ora
                 for (uint32_t bi = 0; bi < q->bulks(false); ++bi)
                 {//对最后的批量深度进行遍历
                     q->bulk(bi);                                //设置块深度
-                    str.reset();                                //缓冲区复位
+                    str.assign();                               //缓冲区复位
                     for (uint32_t i = 0; i < q->params(); ++i)  //循环拼装当前块深度的参数值
                         str << q->param(i).as_string() << (i + 1 == q->params() ? "" : " ,");
                     log_info("params:<%s>", str.c_str());//输出拼装后的结果内容
