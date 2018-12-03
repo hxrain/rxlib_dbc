@@ -200,7 +200,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //进行重试与重连的动作处理
-        int do_action(const char* sql, void *usrdat, bool explicit_trans, uint32_t retry = 1)
+        int do_action(const char* sql, void *usrdat, bool explicit_trans, uint32_t retry)
         {
             if (!m_dbconn.connect())
                 return -100;                                //进行连接或连接检查失败,直接返回
@@ -237,28 +237,23 @@ namespace rx_dbc_ora
         virtual ~tiny_dbc_t() {}
         //以下对外输出功能方法,都不会抛出异常且会输出错误日志,简化外部调用者的错误处理.
         //-------------------------------------------------
-        //执行sql语句
+        //执行sql语句,并给定待处理数据;反复多次处理数据的时候可以不再指定sql语句.
         //返回值:<0错误;0用户要求放弃;>0完成
-        int action(const char* sql, void *usrdat = NULL, bool explicit_trans = false, bool can_retry = true)
+        int action(const char* sql, void *usrdat = NULL, bool explicit_trans = false, uint32_t retry = 1)
         {
             const char* event_sql = is_empty(sql) ? m_query.sql_string() : sql;
-            on_begin(m_dbconn, m_query, event_sql, usrdat);         //给出动作开始前的处理机会
-            int rc = do_action(sql, usrdat, explicit_trans, can_retry);
+            if (!on_begin(m_dbconn, m_query, event_sql, usrdat))//给出动作开始前的处理机会
+                return 0;
+            int rc = do_action(sql, usrdat, explicit_trans, retry);
             on_end(rc, m_dbconn, m_query, event_sql, usrdat);
             return rc;
         }
         //-------------------------------------------------
-        //语法糖,执行sql语句
+        //语法糖,执行sql语句,并给定待处理数据;反复多次处理数据的时候可以不再指定sql语句.
         //返回值:<0错误;0用户要求放弃;>0完成
-        int operator()(const char* sql, void *usrdat = NULL, bool explicit_trans = false, bool can_retry = true)
+        int operator()(const char* sql, void *usrdat = NULL, bool explicit_trans = false, uint32_t retry = 1)
         {
-            return action(sql,usrdat,explicit_trans,can_retry);
-        }
-        //语法糖,反复执行动作
-        //返回值:<0错误;0用户要求放弃;>0完成
-        int operator()(void *usrdat, bool explicit_trans = false, bool can_retry = true)
-        {
-            return action(NULL, usrdat, explicit_trans, can_retry);
+            return action(sql,usrdat,explicit_trans,retry);
         }
         //-------------------------------------------------
         //执行了select后,可以进行结果的提取;此方法可以反复多次调用,直到结果遍历完成
@@ -285,8 +280,8 @@ namespace rx_dbc_ora
         }
     protected:
         //-------------------------------------------------
-        //动作开始之前进行处理(可进行计时,重连等处理)
-        virtual void on_begin(dbc_conn_t &conn,query_t &q,const char* sql, void *usrdat) {}
+        //动作开始之前进行处理(可进行计时/重连/调试等处理);返回值:是否继续执行
+        virtual bool on_begin(dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) { return true; }
         //动作完成之后进行处理(可进行计时,重连等处理)
         virtual void on_end(int rc,dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) {}
         //-------------------------------------------------
@@ -323,30 +318,20 @@ namespace rx_dbc_ora
         }
         virtual ~dbc_t() {}
         //-------------------------------------------------
-        //执行sql语句或处理数据
+        //执行子类提供的sql语句,处理数据
         //返回值:<0错误;0用户要求放弃;>0完成
-        int action(void *usrdat, bool explicit_trans = false, bool can_retry = true)
+        int action(void *usrdat, bool explicit_trans = false, uint32_t retry = 1)
         {
             if (!is_empty(m_query.sql_string()))
-                return tiny_dbc_t::action(NULL, usrdat, explicit_trans, can_retry);
+                return tiny_dbc_t::action(NULL, usrdat, explicit_trans, retry);     //后续执行,不需要再解析sql
             else
-                return tiny_dbc_t::action(on_sql(),usrdat, explicit_trans, can_retry);
+                return tiny_dbc_t::action(on_sql(),usrdat, explicit_trans, retry);  //首次执行,需要解析sql
         }
         //-------------------------------------------------
-        //关联数据绑定处理回调函数(如果func为空,则可以进行usrdat的更新)
-        bool event_on_bind(dbc_event_func_t func)
-        {
-            if (func == NULL) return false;
-            m_databind_dgt.bind(func);
-            return true;
-        }
+        //关联数据绑定处理回调函数
+        void event_on_bind(dbc_event_func_t func) { m_databind_dgt.bind(func); }
         //关联数据提取处理的回调函数
-        bool event_on_row(dbc_event_func_t func)
-        {
-            if (func == NULL) return false;
-            m_datafetch_dgt.bind(func);
-            return true;
-        }
+        void event_on_row(dbc_event_func_t func) { m_datafetch_dgt.bind(func); }
     protected:
         //-------------------------------------------------
         //执行事件,可以进行多条语句的处理
@@ -371,12 +356,13 @@ namespace rx_dbc_ora
         }
     protected:
         //-------------------------------------------------
-        //动作开始之前进行处理(可进行计时,重连等处理)
-        virtual void on_begin(dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) {}
+        //动作开始之前进行处理(可进行计时/重连/调试等处理);返回值:是否继续执行
+        virtual bool on_begin(dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) { return true; }
         //动作完成之后进行处理(可进行计时,重连等处理)
         virtual void on_end(int rc, dbc_conn_t &conn, query_t &q, const char* sql, void *usrdat) {}
     protected:
         //-------------------------------------------------
+        //通过子类给定sql语句
         virtual const char* on_sql() { return NULL; }
         //-------------------------------------------------
         //!!关键!!进行参数数据的绑定动作;

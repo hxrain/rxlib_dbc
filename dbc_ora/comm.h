@@ -180,8 +180,8 @@ namespace rx_dbc_ora
         char                m_bind_host[64];                //绑定过的主机名
         char                m_bind_sid[64];                 //绑定过的主机Oracle实例名字
         char                m_bind_user[64];                //绑定过的用户名
-        char	            m_src_file[256];	            // source file, where error was thrown (optional)
-        long		        m_src_file_lineno;		        // line number, where error was thrown (optional)
+        const char	       *m_src_file;	                    // source file, where error was thrown (optional)
+        long		        m_src_lineno;		            // line number, where error was thrown (optional)
 
         //--------------------------------------------------
         //得到Oracle的错误详细信息
@@ -257,11 +257,8 @@ namespace rx_dbc_ora
                 rx::tiny_string_ct desc(sizeof(m_err_desc), m_err_desc,rx::st::strlen(m_err_desc));
                 desc << " @ < " << Tmp <<" >";
             }
-            if (!is_empty(source_name))
-            {
-                rx::st::strcpy(m_src_file, sizeof(m_src_file), source_name);
-                m_src_file_lineno = line_number;
-            }
+            m_src_file = source_name;
+            m_src_lineno = line_number;
             m_bind_host[0] = 0;
         }
         //-------------------------------------------------
@@ -320,9 +317,9 @@ namespace rx_dbc_ora
             {
                 rx::st::replace(m_err_desc, '\n', ' ');
                 if (!m_bind_host[0])
-                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::%s", error_class_name(m_err_type), m_err_desc);
+                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::%s # (%s:%d)", error_class_name(m_err_type), m_err_desc,m_src_file,m_src_lineno);
                 else
-                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::host[%s],db[%s],user[%s]::%s", error_class_name(m_err_type), m_bind_host, m_bind_sid, m_bind_user, m_err_desc);
+                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::host[%s],db[%s],user[%s]::%s # (%s:%d)", error_class_name(m_err_type), m_bind_host, m_bind_sid, m_bind_user, m_err_desc, m_src_file, m_src_lineno);
             }
             return m_out_buff;
         }

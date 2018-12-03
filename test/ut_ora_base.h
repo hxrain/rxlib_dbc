@@ -419,7 +419,7 @@ inline void ut_ora_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 
     //更换数据对象后再次执行
     ++dat.ID;
-    rc = dbc(&dat);
+    rc = dbc("",&dat);
     rt.tdd_assert(rc>0);
 
     //解析sql语句,不操作数据
@@ -459,12 +459,12 @@ inline void ut_ora_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 
     //更换数据对象后再次执行
     ++dat.ID;
-    rc = dbc(&dat);
+    rc = dbc("",&dat);
     rt.tdd_assert(rc>0);
 
     //更换数据对象后再次执行
     ++dat.ID;
-    rc = dbc(&dat);
+    rc = dbc("",&dat);
     rt.tdd_assert(rc>0);
 }
 //---------------------------------------------------------
