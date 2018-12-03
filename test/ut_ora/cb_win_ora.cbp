@@ -33,7 +33,6 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-m32" />
 			<Add option="-fexceptions" />
 			<Add option="-D_WIN32" />
 			<Add option="-D_WIN32_WINNT=0x0600" />
@@ -42,9 +41,8 @@
 			<Add directory="../../3rd_deps/ora/include" />
 		</Compiler>
 		<Linker>
-			<Add option="-m32" />
 			<Add option="-loci" />
-			<Add directory="../../3rd_deps/ora/lib_w32/gcc" />
+			<Add directory="../../3rd_deps/ora/lib_w64/gcc" />
 			<Add directory="out" />
 		</Linker>
 		<Unit filename="ut_dbc_ora.cpp" />

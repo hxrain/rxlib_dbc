@@ -198,7 +198,7 @@ namespace rx_dbc_ora
         char                m_bind_sid[64];                 //绑定过的主机Oracle实例名字
         char                m_bind_user[64];                //绑定过的用户名
         const char	       *m_src_file;	                    // source file, where error was thrown (optional)
-        long		        m_src_lineno;		            // line number, where error was thrown (optional)
+        uint32_t	        m_src_lineno;		            // line number, where error was thrown (optional)
 
         //--------------------------------------------------
         //得到Oracle的错误详细信息
@@ -300,7 +300,7 @@ namespace rx_dbc_ora
     public:
         //-------------------------------------------------
         //构造函数,根据错误句柄得到Oracle的详细错误信息
-        error_info_t(sword oci_result, OCIError *error_handle, const char *source_name = NULL, long line_number = -1, const char *format = NULL, ...)
+        error_info_t(sword oci_result, OCIError *error_handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
             make_oci_error_info(oci_result, error_handle, NULL);
 
@@ -311,7 +311,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //构造函数,通过环境句柄得到Oracle的详细错误信息
-        error_info_t(sword oci_result, OCIEnv *env_handle, const char *source_name = NULL, long line_number = -1, const char *format = NULL, ...)
+        error_info_t(sword oci_result, OCIEnv *env_handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
             make_oci_error_info(oci_result, NULL, env_handle);
 
@@ -322,7 +322,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //构造函数,记录库内部错误
-        error_info_t(sword dbc_err, const char *source_name = NULL, long line_number = -1, const char *format = NULL, ...)
+        error_info_t(sword dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
             make_dbc_error(dbc_err);
 

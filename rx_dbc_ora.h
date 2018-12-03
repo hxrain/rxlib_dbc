@@ -118,7 +118,6 @@ namespace rx_dbc_ora
         //返回值:连接是否成功,0-连接失败;1连接正常;2连接建立;3重连完成.
         uint32_t connect(bool force_check=false)
         {
-            set_last_error(DBEC_OK);
             if (force_check)
             {//如果要求强制检查,则进行真正的连接ping动作
                 if (m_conn.ping())
@@ -126,6 +125,8 @@ namespace rx_dbc_ora
             }
             else if (m_conn.is_valid())
                 return 1;
+
+            set_last_error(DBEC_OK);
 
             //现在,连接无效,需要进行连接或重连动作
             try {
@@ -161,14 +162,17 @@ namespace rx_dbc_ora
             if (!q||!q->params()) return;                   //没有语句处理对象,或没有绑定的参数,返回
 
             rx::tiny_string_t<char, 1024> str;              //定义局部小串对象,准备拼装参数的值
-            for (uint32_t bi = 0; bi < q->bulks(false); ++bi)
-            {//对最后的批量深度进行遍历
-                q->bulk(bi);                                //设置块深度
-                str.reset();                                //缓冲区复位
-                for (uint32_t i = 0; i < q->params(); ++i)  //循环拼装当前块深度的参数值
-                    str << q->param(i).as_string() << (i + 1 == q->params() ? "" : " ,");
-                log_info("params:<%s>", str.c_str());//输出拼装后的结果内容
+            try {
+                for (uint32_t bi = 0; bi < q->bulks(false); ++bi)
+                {//对最后的批量深度进行遍历
+                    q->bulk(bi);                                //设置块深度
+                    str.reset();                                //缓冲区复位
+                    for (uint32_t i = 0; i < q->params(); ++i)  //循环拼装当前块深度的参数值
+                        str << q->param(i).as_string() << (i + 1 == q->params() ? "" : " ,");
+                    log_info("params:<%s>", str.c_str());//输出拼装后的结果内容
+                }
             }
+            catch (...) {}
         }
         //-------------------------------------------------
         //连接完成事件

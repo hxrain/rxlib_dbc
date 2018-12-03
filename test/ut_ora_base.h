@@ -331,11 +331,11 @@ inline void ut_ora_base_sql_parse_1(rx_tdd_t &rt)
 
     rt.tdd_assert(sp.ora_sql("select id,'\"',UINT:se from tmp_dbc where id=:nID and UINT=: nUINT;") != NULL);
     rt.tdd_assert(sp.ora_sql("select id,'\"',UINT :se from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);   //解析通过,但不符合sql语法
-    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1") == NULL); 
+    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1") == NULL);
     rt.tdd_assert(sp.count==0);
 
     char tmp[1024];
-    rt.tdd_assert(sp.ora2mysql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1",tmp,sizeof(tmp)) != sizeof(tmp)); 
+    rt.tdd_assert(sp.ora2mysql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1",tmp,sizeof(tmp)) != sizeof(tmp));
 
     rt.tdd_assert(sp.ora2mysql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;",tmp,sizeof(tmp)) != sizeof(tmp));
 }
@@ -374,8 +374,8 @@ typedef struct ut_ins_dat_t
     char        STR[20];
     char        DATE[20];
     int16_t     SHORT;
-    
-    ut_ins_dat_t() 
+
+    ut_ins_dat_t()
     {
         ID = (uint32_t)rx_time();
         INT = -155905152;
@@ -469,6 +469,7 @@ inline void ut_ora_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 
     //极简模式,使用业务功能的临时对象执行业务定义的语句并处理数据
     rt.tdd_assert( mydbc(conn).action(&dat) < 0);
+    rt.tdd_assert(conn.last_err()==DBEC_OCI_UNIQUECONST);
 }
 //---------------------------------------------------------
 //使用dbc_t作为基类进行业务处理,测试查询提取结果
@@ -541,10 +542,10 @@ rx_tdd(ut_dtl_array)
 {
     //进行上层封装的测试
     ut_ora_ext_a(*this);
-    
+
     //进行sql参数解析的测试
     ut_ora_base_sql_parse_1(*this);
-    
+
     //进行底层功能的测试
     ut_ora_base_1(*this);
 

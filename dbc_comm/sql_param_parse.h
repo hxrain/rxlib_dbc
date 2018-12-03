@@ -132,7 +132,7 @@
             rx::tiny_string_t<> cat(buffsize, buff);        //绑定输出缓冲区
             for(uint32_t i=0;i<count;++i)
             {//对参数段进行循环
-                uint32_t len=segs[i].name-sql;              //获取参数段之前的串长度
+                uint32_t len=uint32_t(segs[i].name-sql);    //获取参数段之前的串长度
                 cat(sql,len);                               //复制参数段之前的内容
                 cat<<'?';                                   //参数段的部分用?代替
                 sql+=len+segs[i].name_len;                  //原语句跳过当前段,准备处理下一段
