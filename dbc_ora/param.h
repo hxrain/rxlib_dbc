@@ -19,7 +19,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //释放全部的资源
-        void clear(void)
+        void m_clear(void)
         {
             col_base_t::reset();
             m_max_bulk_deep = 0;
@@ -43,7 +43,8 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //进行数据类型确认并进行数据初始化
-        void m_init_data_type(const char *param_name,ub4 name_size, data_type_t type, int StringMaxSize, ub4 BulkCount)
+        //返回值:归一化后的OCI数据类型
+        ub2 m_bind_data_type(const char *param_name,ub4 name_size, data_type_t type, int StringMaxSize, ub4 BulkCount)
         {
             rx_assert(!is_empty(param_name));
             rx_assert(m_max_bulk_deep == (ub4)0);
@@ -54,9 +55,9 @@ namespace rx_dbc_ora
             data_type_t	dbc_data_type;
             int max_data_size;
 
-            char NamePreDateTypeChar = ' ';                   //默认前缀无效
+            char NamePreDateTypeChar = DT_UNKNOWN;          //前缀类型默认为无效
             if (param_name[0] == ':')
-                NamePreDateTypeChar = param_name[1];          //以':'为前导的参数命名才进行前缀类型解析
+                NamePreDateTypeChar = param_name[1];        //以':'为前导的参数命名才进行前缀类型解析
 
             //根据外面告知的绑定数据类型,进行内部数据类型转换
             if (type == DT_NUMBER || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_NUMBER))
@@ -83,31 +84,34 @@ namespace rx_dbc_ora
 
 
             //分配参数数据内存,并初始清零
-            col_base_t::make(param_name, name_size, oci_data_type, dbc_data_type, max_data_size, BulkCount, true);
+            col_base_t::make(param_name, name_size, dbc_data_type, max_data_size, BulkCount, true);
 
             for (ub4 i = 0; i < BulkCount; i++)
                 m_set_data_size(0,i);
+
+            return oci_data_type;
         }
 
         //-------------------------------------------------
         //初始化绑定到对应的语句句柄上
-        void bind(conn_t &conn, OCIStmt* StmtHandle, const char *name, data_type_t type, int StringMaxSize, int BulkCount)
+        void bind_param(conn_t &conn, OCIStmt* StmtHandle, const char *name, data_type_t dbc_data_type, int StringMaxSize, int BulkCount)
         {
             rx_assert(!is_empty(name));
-            clear();
+            m_clear();
             try
             {
                 m_conn = &conn;
                 ub4 name_size = (ub4)rx::st::strlen(name);
-                //可以根据参数名前缀额外处理参数数据类型,如果没有明确设置参数类型的话
-                m_init_data_type(name, name_size,type, StringMaxSize, BulkCount);
+                //设置数据类型并进行归一化处理,分配参数使用的缓冲区
+                ub2 oci_data_type= m_bind_data_type(name, name_size, dbc_data_type, StringMaxSize, BulkCount);
 
                 //OCI绑定句柄,无需释放
                 OCIBind	*bind_handle=NULL;                     
 
+                //进行参数名字与缓冲区指针以及数据类型的绑定
                 sword result = OCIBindByName(StmtHandle, &bind_handle, conn.m_handle_err, (text *)name, name_size,
                     m_col_databuff.ptr(), m_max_data_size,
-                    m_oci_data_type, m_col_dataempty.ptr<sb2>(), m_col_datasize.ptr<ub2>(),
+                    oci_data_type, m_col_dataempty.ptr<sb2>(), m_col_datasize.ptr<ub2>(),
                     NULL,	// pointer conn array of field_t-level return codes
                     0,		// maximum possible number of elements of type m_nType
                     NULL,	// a pointer conn the actual number of elements (PL/sql binds)
@@ -118,7 +122,7 @@ namespace rx_dbc_ora
             }
             catch (...)
             {
-                clear();
+                m_clear();
                 throw;
             }
         }
@@ -302,8 +306,8 @@ namespace rx_dbc_ora
         ub2 bulks() { return m_max_bulk_deep; }
     public:
         //-------------------------------------------------
-        sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { clear(); }
-        ~sql_param_t() { clear(); }
+        sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { m_clear(); }
+        ~sql_param_t() { m_clear(); }
         //-------------------------------------------------
         //让当前参数设置为空值
         void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_deep); m_set_data_size(0, bulk_row_idx()); }

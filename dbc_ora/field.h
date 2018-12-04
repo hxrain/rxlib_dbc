@@ -15,7 +15,8 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size)
+        //返回值:归一化之后的OCI数据类型
+        ub2 bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size)
         {
             rx_assert(rs && !is_empty(name));
             data_type_t dbc_data_type = DT_UNKNOWN;
@@ -60,7 +61,8 @@ namespace rx_dbc_ora
             }
 
             //生成最终的数据缓冲区
-            col_base_t::make(name, name_len, oci_data_type, dbc_data_type, max_data_size, fetch_size, dbc_data_type == DT_TEXT);
+            col_base_t::make(name, name_len, dbc_data_type, max_data_size, fetch_size, dbc_data_type == DT_TEXT);
+            return oci_data_type;
         }
         //-------------------------------------------------
         //得到错误句柄
@@ -87,7 +89,6 @@ namespace rx_dbc_ora
         field_t(rx::mem_allotter_i &ma):col_base_t(ma)
         {
             m_dbc_data_type = DT_UNKNOWN;
-            m_oci_data_type = 0;
             m_max_data_size = 0;
             m_field_handle = NULL;
             m_query = NULL;

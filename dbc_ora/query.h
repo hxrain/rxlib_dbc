@@ -86,27 +86,24 @@ namespace rx_dbc_ora
                 //绑定并初始化字段对象
                 field_t	&Field = m_fields[i];
                 m_fields.bind(i,rx::st::strlwr(Tmp));
-                Field.bind_data_type (this,reinterpret_cast <const char *> (param_name),name_len,oci_data_type,size,m_fetch_bat_size);
-            }
 
-            //循环进行字段值缓冲区的绑定
-            ub4 position = 1;
-            for (ub4 i = 0; i<m_fields.size(); i++)
-            {
-                field_t& Field = m_fields[i];
+                //进行OCI数据类型的归一化处理并构造对应的缓冲区
+                oci_data_type=Field.bind_data_type (this,reinterpret_cast <const char *> (param_name),name_len,oci_data_type,size,m_fetch_bat_size);
+
+                //进行字段缓冲区的绑定
                 result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_handle_err,
-                    position++,
+                    i+1,
                     Field.m_col_databuff.ptr(),
                     Field.m_max_data_size,			    // fetch m_max_data_size for a single row (NOT for several)
-                    Field.m_oci_data_type,
+                    oci_data_type,
                     Field.m_col_dataempty.ptr(),
                     Field.m_col_datasize.ptr<ub2>(),	// will be NULL for non-text columns
                     NULL,				                // ptr to array of field_t-level return codes
                     OCI_DEFAULT);
-
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, Field.m_name.c_str()));
             }
+
             return count;
         }
 

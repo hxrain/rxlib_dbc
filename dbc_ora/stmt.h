@@ -106,7 +106,7 @@ namespace rx_dbc_ora
 
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
             sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
-            Ret.bind(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_deep);  //对参数对象进行必要的初始化
+            Ret.bind_param(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_deep);  //对参数对象进行必要的初始化
             return Ret;
         }
     public:

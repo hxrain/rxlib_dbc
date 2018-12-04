@@ -24,7 +24,7 @@ namespace rx_dbc_ora
     const ub2 BAT_BULKS_SIZE = 10;
 
     //字段名字最大长度
-    const ub2 FIELD_NAME_LENGTH = 30;
+    const ub2 FIELD_NAME_LENGTH = 32;
 
     //sql语句的长度限制
     const int MAX_SQL_LENGTH = 1024 * 4;
@@ -40,9 +40,9 @@ namespace rx_dbc_ora
     enum data_type_t
     {
         DT_UNKNOWN,
-        DT_NUMBER   = 'n',
-        DT_DATE     = 'd',
-        DT_TEXT     = 's'
+        DT_NUMBER   = 'n',                                  //数字类型的字段或参数
+        DT_DATE     = 'd',                                  //日期类型
+        DT_TEXT     = 's'                                   //文本串类型
     };
 
     //-----------------------------------------------------
@@ -458,25 +458,23 @@ namespace rx_dbc_ora
 
         col_name_t          m_name;		                    // 对象名字
         data_type_t	        m_dbc_data_type;		        // 期待的数据类型
-        ub2				    m_oci_data_type;		        // Oracle实际数据类型,二者用于自动转换
         int				    m_max_data_size;			    // 每个字段数据最大尺寸
 
         static const int    m_working_buff_size = 64;       // 临时存放转换字符串的缓冲区
         char                m_working_buff[m_working_buff_size];
 
-        array_datasize_t    m_col_datasize;		            // 文本字段没行的长度数组
+        array_datasize_t    m_col_datasize;		            // 文本字段每行的长度数组
         array_databuff_t    m_col_databuff;	                // 记录该字段的每行的实际数据的数组
         array_dataempty_t   m_col_dataempty;	            // 标记该字段的值是否为空的状态数组: 0 - ok; -1 - null
 
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void make(const char *name, ub4 name_len, ub2 oci_data_type, data_type_t dbc_data_type, ub4 max_data_size, int bulk_row_count, bool make_datasize_array = false)
+        void make(const char *name, ub4 name_len, data_type_t dbc_data_type, ub4 max_data_size, int bulk_row_count, bool make_datasize_array = false)
         {
             rx_assert(!is_empty(name));
             reset();
 
             m_name.assign(name, name_len);
-            m_oci_data_type = oci_data_type;
             m_dbc_data_type = dbc_data_type;
             m_max_data_size = max_data_size;
 
@@ -503,7 +501,6 @@ namespace rx_dbc_ora
             m_col_databuff.clear();
             m_col_dataempty.clear();
             m_dbc_data_type = DT_UNKNOWN;
-            m_oci_data_type = 0;
             m_max_data_size = 0;
         }
         //-------------------------------------------------
@@ -636,7 +633,6 @@ namespace rx_dbc_ora
         const char* name()const { return m_name.c_str(); }
         data_type_t dbc_data_type() { return m_dbc_data_type; }
         int max_data_size() { return m_max_data_size; }
-        ub2 oci_data_type() { return m_oci_data_type; }
         //-------------------------------------------------
         bool is_null(void) const { return m_is_null(bulk_row_idx()); }
         //-------------------------------------------------
