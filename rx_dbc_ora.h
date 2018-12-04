@@ -68,18 +68,21 @@ namespace rx_dbc_ora
             va_list arg;
             va_start(arg, msg);
             log_func("warn", msg, arg);
+            va_end(arg);
         }
         void log_err(const char* msg, ...)
         {
             va_list arg;
             va_start(arg, msg);
             log_func("errr", msg, arg);
+            va_end(arg);
         }
         void log_info(const char* msg, ...)
         {
             va_list arg;
             va_start(arg, msg);
             log_func("info", msg, arg);
+            va_end(arg);
         }
         //-------------------------------------------------
         //切换到指定的用户域
@@ -168,8 +171,8 @@ namespace rx_dbc_ora
                     q->bulk(bi);                                //设置块深度
                     str.assign();                               //缓冲区复位
                     for (uint32_t i = 0; i < q->params(); ++i)  //循环拼装当前块深度的参数值
-                        str << q->param(i).as_string() << (i + 1 == q->params() ? "" : " ,");
-                    log_info("params:<%s>", str.c_str());//输出拼装后的结果内容
+                        str << q->param(i).name() << '=' <<q->param(i).as_string() << (i + 1 == q->params() ? "" : ",");
+                    log_info("params<%s>", str.c_str());//输出拼装后的结果内容
                 }
             }
             catch (...) {}

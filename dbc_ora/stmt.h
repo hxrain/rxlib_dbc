@@ -136,6 +136,7 @@ namespace rx_dbc_ora
             va_list	arg;
             va_start(arg, sql);
             prepare(sql,arg);
+            va_end(arg);
             return *this;
         }
         //-------------------------------------------------
@@ -276,6 +277,7 @@ namespace rx_dbc_ora
             va_list	arg;
             va_start(arg, sql);
             prepare(sql, arg);
+            va_end(arg);
             return exec ();
         }
         //-------------------------------------------------
@@ -347,6 +349,7 @@ namespace rx_dbc_ora
         va_start(arg, sql);
         stmt_t st (*this);
         st.prepare(sql,arg);
+        va_end(arg);
         st.exec ();
     }
 
