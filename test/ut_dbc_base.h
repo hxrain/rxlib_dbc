@@ -2,32 +2,64 @@
 #define _UT_RX_DBC_ORA_BASE_H_
 
 #include "rx_tdd.h"
-#include "../rx_dbc_ora.h"
-#include "rx_datetime_ex.h"
 
-using namespace rx_dbc_ora;
+#define DB_ORA      1
+#define DB_MYSQL    2
+
+#ifndef UT_DB
+    #define UT_DB DB_ORA
+#endif
+
+#if UT_DB==DB_ORA
+    #include "../rx_dbc_ora.h"
+    using namespace rx_dbc_ora;
+    /*
+    CREATE TABLE "SCOTT"."TMP_DBC" (
+	    "ID" NUMBER NOT NULL ENABLE,
+	    "INT" NUMBER (*, 0),
+	    "UINT" NUMBER,
+	    "STR" VARCHAR2 (255),
+	    "MDATE" DATE,
+	    "SHORT" NUMBER (*, 0),
+	    PRIMARY KEY ("ID") USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS STORAGE (
+		    INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645 PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
+	    ) TABLESPACE "USERS" ENABLE
+    ) SEGMENT CREATION IMMEDIATE PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING STORAGE (
+	    INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645 PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
+    ) TABLESPACE "USERS";
+
+    CREATE UNIQUE INDEX "SCOTT"."TMP_DBC_IDX_ID" ON "SCOTT"."TMP_DBC" ("ID") PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS STORAGE (
+	    INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645 PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
+    ) TABLESPACE "USERS";
+    */
+#endif
+
+#if UT_DB==DB_MYSQL
+    #include "../rx_dbc_mysql.h"
+    using namespace rx_dbc_mysql;
+#endif
 
 //---------------------------------------------------------
 //基于底层功能对象进行连接与数据库操作测试
 //---------------------------------------------------------
 //测试使用的对象容器
-typedef struct ut_ora
+typedef struct ut_dbc
 {
     conn_param_t conn_param;
     conn_t conn;
 
-    ut_ora()
+    ut_dbc()
     {
         strcpy(conn_param.host, "20.0.2.106");
         strcpy(conn_param.user, "system");
         strcpy(conn_param.pwd, "sysdba");
         strcpy(conn_param.db, "oradb");
     }
-}ut_ora;
+}ut_dbc;
 
 //---------------------------------------------------------
 //数据库连接
-inline bool ut_ora_base_conn(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_conn(rx_tdd_t &rt, ut_dbc &dbc)
 {
     try {
         dbc.conn.open(dbc.conn_param);
@@ -44,7 +76,7 @@ inline bool ut_ora_base_conn(rx_tdd_t &rt, ut_ora &dbc)
 
 //---------------------------------------------------------
 //简单查询
-inline bool ut_ora_base_query_1(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_query_1(rx_tdd_t &rt, ut_dbc &dbc)
 {
     try {
         query_t q(dbc.conn);
@@ -67,7 +99,7 @@ inline bool ut_ora_base_query_1(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //参数绑定的查询
-inline bool ut_ora_base_query_2(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_query_2(rx_tdd_t &rt, ut_dbc &dbc)
 {
     try {
         query_t q(dbc.conn);
@@ -95,7 +127,7 @@ inline bool ut_ora_base_query_2(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //绑定参数插入(使用query_t)
-inline bool ut_ora_base_insert_1(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_1(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -118,7 +150,7 @@ inline bool ut_ora_base_insert_1(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //参数绑定插入示例(使用stmt_t)
-inline bool ut_ora_base_insert_2(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_2(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -144,7 +176,7 @@ inline bool ut_ora_base_insert_2(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //参数绑定插入示例(使用stmt_t)
-inline bool ut_ora_base_insert_2b(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_2b(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -172,7 +204,7 @@ inline bool ut_ora_base_insert_2b(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //参数绑定插入示例(使用stmt_t与显示事务)
-inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_2c(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -210,7 +242,7 @@ inline bool ut_ora_base_insert_2c(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //批量插入手动绑定示例
-inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -246,7 +278,7 @@ inline bool ut_ora_base_insert_3(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //进行自动参数绑定的插入示例
-inline bool ut_ora_base_insert_4(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_4(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -270,7 +302,7 @@ inline bool ut_ora_base_insert_4(rx_tdd_t &rt, ut_ora &dbc)
 }
 //---------------------------------------------------------
 //进行自动参数绑定的批量插入示例
-inline bool ut_ora_base_insert_5(rx_tdd_t &rt, ut_ora &dbc)
+inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
 {
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
@@ -303,7 +335,7 @@ inline bool ut_ora_base_insert_5(rx_tdd_t &rt, ut_ora &dbc)
 //---------------------------------------------------------
 //sql绑定参数解析示例
 //---------------------------------------------------------
-inline void ut_ora_base_sql_parse_1(rx_tdd_t &rt)
+inline void ut_dbc_base_sql_parse_1(rx_tdd_t &rt)
 {
     sql_param_parse_t<> sp;
     rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);
@@ -341,25 +373,25 @@ inline void ut_ora_base_sql_parse_1(rx_tdd_t &rt)
 }
 //---------------------------------------------------------
 //进行数据库基础动作测试
-inline void ut_ora_base_1(rx_tdd_t &rt)
+inline void ut_dbc_base_1(rx_tdd_t &rt)
 {
-    ut_ora ora;
-    if (ut_ora_base_conn(rt, ora))
+    ut_dbc utdb;
+    if (ut_dbc_base_conn(rt, utdb))
     {
-        rt.tdd_assert(ut_ora_base_query_1(rt, ora));
+        rt.tdd_assert(ut_dbc_base_query_1(rt, utdb));
 
-        rt.tdd_assert(ut_ora_base_insert_1(rt, ora));
-        rt.tdd_assert(ut_ora_base_insert_2(rt, ora));
-        rt.tdd_assert(ut_ora_base_insert_2b(rt, ora));
-        rt.tdd_assert(ut_ora_base_insert_2c(rt, ora));
-        rt.tdd_assert(ut_ora_base_insert_3(rt, ora));
-        rt.tdd_assert(ut_ora_base_insert_4(rt, ora));
-        rt.tdd_assert(ut_ora_base_insert_5(rt, ora));
+        rt.tdd_assert(ut_dbc_base_insert_1(rt, utdb));
+        rt.tdd_assert(ut_dbc_base_insert_2(rt, utdb));
+        rt.tdd_assert(ut_dbc_base_insert_2b(rt, utdb));
+        rt.tdd_assert(ut_dbc_base_insert_2c(rt, utdb));
+        rt.tdd_assert(ut_dbc_base_insert_3(rt, utdb));
+        rt.tdd_assert(ut_dbc_base_insert_4(rt, utdb));
+        rt.tdd_assert(ut_dbc_base_insert_5(rt, utdb));
 
         for (int i = 0; i < 10; ++i)
-            rt.tdd_assert(ut_ora_base_query_1(rt, ora));
+            rt.tdd_assert(ut_dbc_base_query_1(rt, utdb));
 
-        rt.tdd_assert(ut_ora_base_query_2(rt, ora));
+        rt.tdd_assert(ut_dbc_base_query_2(rt, utdb));
     }
 }
 
@@ -402,7 +434,7 @@ inline int32_t ut_dbc_event_func_1(query_t &q, void *usrdat)
     return 1;
 }
 //---------------------------------------------------------
-inline void ut_ora_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
+inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     //定义数据库功能对象并绑定函数指针
     dbc_t dbc(conn, ut_dbc_event_func_1);
@@ -444,7 +476,7 @@ public:
     mydbc(dbc_conn_t  &c) :dbc_t(c) {}
 };
 //---------------------------------------------------------
-inline void ut_ora_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
+inline void ut_dbc_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     //定义数据库功能对象,告知数据绑定函数与数据对象
     mydbc dbc(conn);
@@ -463,7 +495,7 @@ inline void ut_ora_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     rt.tdd_assert(rc>0);
 }
 //---------------------------------------------------------
-inline void ut_ora_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
+inline void ut_dbc_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     //ID不改变,应该会出现唯一性约束的冲突
     --dat.ID;
@@ -502,7 +534,7 @@ public:
 };
 //---------------------------------------------------------
 //进行数据提取操作
-inline void ut_ora_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
+inline void ut_dbc_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     ++dat.ID;
     mydbc4 dbc(conn);
@@ -511,7 +543,7 @@ inline void ut_ora_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 }
 //---------------------------------------------------------
 //进行非绑定sql处理
-inline void ut_ora_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
+inline void ut_dbc_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     ++dat.ID;
     const char* sql = "insert into tmp_dbc(id,int,uint,str,mdate,short) values(123456789,-123,123,'insert',to_date('2000-01-01 13:14:20','yyyy-MM-dd HH24:mi:ss'),1)";
@@ -519,7 +551,7 @@ inline void ut_ora_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 }
 //---------------------------------------------------------
 //对上层封装的db操作进行真正的驱动测试
-inline void ut_ora_ext_a(rx_tdd_t &rt)
+inline void ut_dbc_ext_a(rx_tdd_t &rt)
 {
     //定义待处理数据
     ut_ins_dat_t dat;
@@ -529,11 +561,11 @@ inline void ut_ora_ext_a(rx_tdd_t &rt)
     conn.set_conn_param("20.0.2.106", "system", "sysdba");
 
     //执行测试过程
-    ut_ora_ext_a1(rt, conn, dat);
-    ut_ora_ext_a2(rt, conn, dat);
-    ut_ora_ext_a3(rt, conn, dat);
-    ut_ora_ext_a4(rt, conn, dat);
-    ut_ora_ext_a5(rt, conn, dat);
+    ut_dbc_ext_a1(rt, conn, dat);
+    ut_dbc_ext_a2(rt, conn, dat);
+    ut_dbc_ext_a3(rt, conn, dat);
+    ut_dbc_ext_a4(rt, conn, dat);
+    ut_dbc_ext_a5(rt, conn, dat);
 }
 
 //---------------------------------------------------------
@@ -542,17 +574,17 @@ inline void ut_ora_ext_a(rx_tdd_t &rt)
 rx_tdd(ut_dtl_array)
 {
     //进行上层封装的测试
-    ut_ora_ext_a(*this);
+    ut_dbc_ext_a(*this);
 
     //进行sql参数解析的测试
-    ut_ora_base_sql_parse_1(*this);
+    ut_dbc_base_sql_parse_1(*this);
 
     //进行底层功能的测试
-    ut_ora_base_1(*this);
+    ut_dbc_base_1(*this);
 
     //循环进行底层功能的测试
     for(int i=0;i<10;++i)
-        ut_ora_base_1(*this);
+        ut_dbc_base_1(*this);
 }
 
 #endif
