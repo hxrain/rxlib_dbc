@@ -50,7 +50,7 @@ namespace rx_dbc_ora
 
             //动态生成字段对象数组
             rx_assert(m_fields.size()==0);
-            if (count > m_fields.capacity()&& !m_fields.make_ex(count)) //字段数量超过已有数量,重新分配字段数组
+            if (!m_fields.make_ex(count,true))              //分配字段数组
                 throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
 
             //循环获取字段属性信息

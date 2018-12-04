@@ -67,13 +67,9 @@ namespace rx_dbc_ora
             if (ParamCount == 0)    //尝试根据sql中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
                 ParamCount = rx::st::count(m_SQL.c_str(), ':');
 
-            if (ParamCount)         //生成绑定参数对象的数组
-            {
-                if (ParamCount <= m_params.capacity())
-                    m_params.clear(true);                       //容量还够,只需复位即可
-                else if (!m_params.make_ex(ParamCount))         //容量不够重新分配
-                    throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
-            }
+            if (ParamCount && !m_params.make_ex(ParamCount,true))    //生成绑定参数对象的数组
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
+
             m_cur_bulk_idx = 0;
             m_max_bulk_deep = max_bulk_deep;
         }
