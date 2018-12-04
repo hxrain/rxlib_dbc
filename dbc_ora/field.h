@@ -10,7 +10,6 @@ namespace rx_dbc_ora
     {
         friend class query_t;
 
-        OCIDefine		*m_field_handle;	                // 字段定义句柄
         query_t		    *m_query;	                        // 该字段的实际拥有者Query对象指针
 
         //-------------------------------------------------
@@ -76,7 +75,8 @@ namespace rx_dbc_ora
         {
             if (!m_query) return;
             col_base_t::reset();
-            m_field_handle = NULL;
+            m_dbc_data_type = DT_UNKNOWN;
+            m_max_data_size = 0;
             m_query = NULL;
         }
         //-------------------------------------------------
@@ -86,13 +86,7 @@ namespace rx_dbc_ora
         field_t(const field_t&);
         field_t& operator = (const field_t&);
     public:
-        field_t(rx::mem_allotter_i &ma):col_base_t(ma)
-        {
-            m_dbc_data_type = DT_UNKNOWN;
-            m_max_data_size = 0;
-            m_field_handle = NULL;
-            m_query = NULL;
-        }
+        field_t(rx::mem_allotter_i &ma) :col_base_t(ma) { reset(); }
         //-------------------------------------------------
         ~field_t() { reset(); }
         //-------------------------------------------------

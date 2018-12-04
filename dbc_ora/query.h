@@ -28,6 +28,8 @@ namespace rx_dbc_ora
             m_fetched_count = 0;
             m_cur_row_idx = 0;
             m_is_eof = false;
+            for (uint32_t i = 0; i < m_fields.capacity(); ++i)
+                m_fields[i].reset();
             m_fields.clear(reset_only);
         }
 
@@ -35,6 +37,8 @@ namespace rx_dbc_ora
         //根据字段描述信息表生成字段对象数组,绑定名称
         ub4 m_make_fields ()
         {
+            m_clear(true);                                  //状态归零,先不释放字段数组
+
             //获取当前结果集的字段数量
             ub4			count=0;
             sword result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_handle_err);
@@ -46,9 +50,7 @@ namespace rx_dbc_ora
 
             //动态生成字段对象数组
             rx_assert(m_fields.size()==0);
-            if (count <= m_fields.capacity())
-                m_fields.clear(true);                       //字段对象足够的时候,复位即可
-            else if (!m_fields.make_ex(count))              //否则重新分配字段数组
+            if (count > m_fields.capacity()&& !m_fields.make_ex(count)) //字段数量超过已有数量,重新分配字段数组
                 throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
 
             //循环获取字段属性信息
@@ -90,14 +92,15 @@ namespace rx_dbc_ora
                 //进行OCI数据类型的归一化处理并构造对应的缓冲区
                 oci_data_type=Field.bind_data_type (this,reinterpret_cast <const char *> (param_name),name_len,oci_data_type,size,m_fetch_bat_size);
 
-                //进行字段缓冲区的绑定
-                result = OCIDefineByPos(m_stmt_handle, &(Field.m_field_handle), m_conn.m_handle_err,
-                    i+1,
-                    Field.m_col_databuff.ptr(),
-                    Field.m_max_data_size,			    // fetch m_max_data_size for a single row (NOT for several)
-                    oci_data_type,
-                    Field.m_col_dataempty.ptr(),
-                    Field.m_col_datasize.ptr<ub2>(),	// will be NULL for non-text columns
+                //进行字段缓冲区的绑定,缓冲区的行深度是m_fetch_bat_size,便于在OCIStmtFetch2的时候进行多行批量获取
+                OCIDefine *field_handle=NULL;
+                result = OCIDefineByPos(m_stmt_handle, &field_handle, m_conn.m_handle_err,
+                    i+1,                                //跳过0,rowid列
+                    Field.m_col_databuff.ptr(),         //数据缓冲区指针
+                    Field.m_max_data_size,			    //每行字段数据的最大尺寸
+                    oci_data_type,                      //字段类型
+                    Field.m_col_dataempty.ptr(),        //数据是否为空的指示数组指针
+                    Field.m_col_datasize.ptr<ub2>(),	//文本字段每行数据的实际尺寸数组,非文本应该为NULL
                     NULL,				                // ptr to array of field_t-level return codes
                     OCI_DEFAULT);
                 if (result != OCI_SUCCESS)
@@ -165,7 +168,6 @@ namespace rx_dbc_ora
         //执行后如果没有异常,就可以尝试访问结果集了
         query_t& exec(ub2 BulkCount=0)
         {
-            m_clear(true);
             stmt_t::exec(BulkCount);
             if (m_make_fields())
                 m_bat_fetch();
