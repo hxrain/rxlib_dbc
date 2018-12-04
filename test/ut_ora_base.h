@@ -431,13 +431,14 @@ class mydbc :public dbc_t
 {
     //告知待执行的业务SQL语句
     virtual const char* on_sql() { return "insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)"; }
-    //处理数据绑定;返回值:<0错误;0用户要求放弃;>0完成
+    //处理数据绑定;返回值:<0错误;0用户要求放弃;>0绑定批量块的深度
     virtual int32_t on_bind_data(query_t &q, void *usrdat)
     {
         if (!usrdat) return 0;
         ut_ins_dat_t &dat = *(ut_ins_dat_t*)usrdat;
-        q << dat.ID << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
-        return 1;
+        q.bulk(0) << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
+        q.bulk(1) << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
+        return 2;
     }
 public:
     mydbc(dbc_conn_t  &c) :dbc_t(c) {}
@@ -465,7 +466,7 @@ inline void ut_ora_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 inline void ut_ora_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     //ID不改变,应该会出现唯一性约束的冲突
-    //++dat.ID;
+    --dat.ID;
 
     //极简模式,使用业务功能的临时对象执行业务定义的语句并处理数据
     rt.tdd_assert( mydbc(conn).action(&dat) < 0);

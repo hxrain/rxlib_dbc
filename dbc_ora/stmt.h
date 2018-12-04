@@ -140,9 +140,9 @@ namespace rx_dbc_ora
             return *this;
         }
         //-------------------------------------------------
-        //在预解析完成后,可以直接进行参数的自动绑定,默认max_bulk_deep使用之前预解析时告知的深度值.
+        //在预解析完成后,可以直接进行参数的自动绑定,默认max_bulk_deep为0则使用预解析初始化时的默认值1.
         //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
-        stmt_t& auto_bind(ub2 max_bulk_deep=0)
+        stmt_t& auto_bind(ub2 max_bulk_deep = 0)
         {
             if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));

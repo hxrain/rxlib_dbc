@@ -20,12 +20,14 @@ namespace rx_dbc_ora
 
     //每次批量FEATCH获取的结果集的数量
     const ub2 BAT_FETCH_SIZE = 20;
+    //每次批量提交时的块数据最大深度
+    const ub2 BAT_BULKS_SIZE = 10;
 
     //字段名字最大长度
     const ub2 FIELD_NAME_LENGTH = 30;
 
     //sql语句的长度限制
-    const int MAX_SQL_LENGTH = 1024 * 8;
+    const int MAX_SQL_LENGTH = 1024 * 4;
 
     typedef const char* PStr;
     const int CHAR_SIZE = sizeof(char);

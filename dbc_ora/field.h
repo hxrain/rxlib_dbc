@@ -15,7 +15,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size = BAT_FETCH_SIZE)
+        void bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size)
         {
             rx_assert(rs && !is_empty(name));
             data_type_t dbc_data_type = DT_UNKNOWN;

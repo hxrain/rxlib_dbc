@@ -166,13 +166,20 @@ namespace rx_dbc_ora
 
             rx::tiny_string_t<char, 1024> str;              //定义局部小串对象,准备拼装参数的值
             try {
-                for (uint32_t bi = 0; bi < q->bulks(false); ++bi)
+                uint32_t bulks = q->bulks(false);
+                uint32_t params = q->params();
+                for (uint32_t bi = 0; bi < bulks; ++bi)
                 {//对最后的批量深度进行遍历
-                    q->bulk(bi);                                //设置块深度
-                    str.assign();                               //缓冲区复位
-                    for (uint32_t i = 0; i < q->params(); ++i)  //循环拼装当前块深度的参数值
-                        str << q->param(i).name() << '=' <<q->param(i).as_string() << (i + 1 == q->params() ? "" : ",");
-                    log_info("params<%s>", str.c_str());//输出拼装后的结果内容
+                    q->bulk(bi);                            //设置块深度
+                    str.assign();                           //缓冲区复位
+
+                    for (uint32_t i = 0; i < params; ++i)   //循环拼装当前块深度的参数值
+                    {
+                        str << q->param(i).name() << '=' << q->param(i).as_string();
+                        if (i + 1 < params) str << ' ';
+                    }
+                        
+                    log_info("bulk[%d/%d]params(%d)<%s>", bi+1, bulks, q->params(),str.c_str());
                 }
             }
             catch (...) {}
@@ -270,7 +277,7 @@ namespace rx_dbc_ora
         virtual ~tiny_dbc_t() {}
         //以下对外输出功能方法,都不会抛出异常且会输出错误日志,简化外部调用者的错误处理.
         //-------------------------------------------------
-        //执行sql语句,并给定待处理数据;反复多次处理数据的时候可以不再指定sql语句.
+        //执行sql语句,并给定待处理数据;反复多次处理数据的时候不再指定sql语句(给NULL或"").
         //返回值:<0错误;0用户要求放弃;>0完成
         int action(const char* sql, void *usrdat = NULL, bool explicit_trans = false, uint32_t retry = 1)
         {
@@ -281,9 +288,6 @@ namespace rx_dbc_ora
             on_end(rc, m_dbconn, m_query, event_sql, usrdat);
             return rc;
         }
-        //-------------------------------------------------
-        //语法糖,执行sql语句,并给定待处理数据;反复多次处理数据的时候可以不再指定sql语句.
-        //返回值:<0错误;0用户要求放弃;>0完成
         int operator()(const char* sql, void *usrdat = NULL, bool explicit_trans = false, uint32_t retry = 1)
         {
             return action(sql,usrdat,explicit_trans,retry);
@@ -327,7 +331,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //给用户提供执行事件,可以进行多条语句的处理;sql已经被预解析了.
         //返回值:<0错误;0用户要求放弃;>0完成
-        virtual int32_t on_exec(query_t &q, void *usrdat) { q.exec(BAT_FETCH_SIZE); return 1; }
+        virtual int32_t on_exec(query_t &q, void *usrdat) { q.exec(); return 1; }
     };
 
 
@@ -358,10 +362,10 @@ namespace rx_dbc_ora
         //返回值:<0错误;0用户要求放弃;>0完成
         int action(void *usrdat, bool explicit_trans = false, uint32_t retry = 1)
         {
-            if (!is_empty(m_query.sql_string()))
-                return tiny_dbc_t::action(NULL, usrdat, explicit_trans, retry);     //后续执行,不需要再解析sql
+            if (is_empty(m_query.sql_string()))
+                return tiny_dbc_t::action(on_sql(), usrdat, explicit_trans, retry);  //首次执行,需要解析sql
             else
-                return tiny_dbc_t::action(on_sql(),usrdat, explicit_trans, retry);  //首次执行,需要解析sql
+                return tiny_dbc_t::action(NULL, usrdat, explicit_trans, retry);     //后续执行,不需要再解析sql
         }
         //-------------------------------------------------
         //关联数据绑定处理回调函数
@@ -375,10 +379,10 @@ namespace rx_dbc_ora
         virtual int32_t on_exec(query_t &q, void *usrdat)
         { 
             if (!q.params())
-                q.auto_bind(10);                            //尝试自动绑定,告知最大批量深度
+                q.auto_bind(BAT_BULKS_SIZE);                //尝试自动绑定,告知最大批量深度
             int rc= on_bind_data(q, usrdat);                //驱动on_bind_data事件
             if (rc <= 0) return rc;
-            q.exec(BAT_FETCH_SIZE, rc);                     //执行真正的OCI/ORA动作
+            q.exec(rc);                                     //执行真正的OCI/ORA动作
             return 1; 
         }
         //-------------------------------------------------
@@ -399,7 +403,7 @@ namespace rx_dbc_ora
         virtual const char* on_sql() { return NULL; }
         //-------------------------------------------------
         //!!关键!!进行参数数据的绑定动作;
-        //返回值:<0错误;0用户要求放弃;>0完成
+        //返回值:<0错误;0用户要求放弃;>0为绑定批量块的深度
         virtual int32_t on_bind_data(query_t &q, void *usrdat)
         {
             if (m_databind_dgt.is_valid())
