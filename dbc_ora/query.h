@@ -117,7 +117,7 @@ namespace rx_dbc_ora
             sword	result;
             //记录之前已经提取过的结果数
             ub4		old_rows_count = m_fetched_count;
-            //尝试批量获取一次结果集
+            //尝试批量获取一次结果集;我们使用了显示的批量提取方式,就不能使用内置OCI_ATTR_PREFETCH_ROWS预取模式.
 #if RX_DBC_ORA_USE_OLD_STMT
             result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_fetch_bat_size,OCI_FETCH_NEXT,OCI_DEFAULT);
 #else
