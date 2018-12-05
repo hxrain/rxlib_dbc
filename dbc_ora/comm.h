@@ -184,72 +184,72 @@ namespace rx_dbc_ora
         }
     }conn_param_t;
 
+    //-------------------------------------------------
+    //根据OCI返回值,获取更详细的错误信息
+    inline bool get_last_error(sword oci_result, sword &ec, char *buff, ub4 max_size, OCIError *handle_err, OCIEnv *handle_env = NULL)
+    {
+        bool get_details = false;
+        rx::tiny_string_t<> desc(max_size, buff);
+
+        if (handle_err == NULL && handle_env == NULL)
+        {
+            desc = "(OCI_ENV_NULL)";
+            return false;
+        }
+
+        switch (oci_result)
+        {
+        case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)";
+            break;
+        case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)";
+            get_details = true; break;
+        case	OCI_ERROR:                  desc = "";
+            get_details = true; break;
+        case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)";
+            get_details = true; break;
+        case	OCI_INVALID_HANDLE:         desc = "(OCI_INVALID_HANDLE)";
+            break;
+        case	OCI_NEED_DATA:              desc = "(OCI_NEED_DATA)";
+            break;
+        case	OCI_STILL_EXECUTING:        desc = "(OCI_STILL_EXECUTING)";
+            get_details = true; break;
+        case	OCI_CONTINUE:               desc = "(OCI_CONTINUE)";
+            break;
+        default:                            desc = "unknown";
+        }
+
+        // get detailed error m_err_desc
+        if (get_details)
+        {
+            char Tmp[512];
+            if (handle_err)
+                OCIErrorGet(handle_err, 1, NULL, &ec, reinterpret_cast<text *> (Tmp), sizeof(Tmp), OCI_HTYPE_ERROR);
+            else
+                OCIErrorGet(handle_env, 1, NULL, &ec, reinterpret_cast<text *> (Tmp), sizeof(Tmp), OCI_HTYPE_ENV);
+            desc << '<' << Tmp << '>';
+        }
+        return true;
+    }
+
     //-----------------------------------------------------
     //记录错误信息的功能类
     class error_info_t
     {
         static const ub4 MAX_BUF_SIZE = 1024 * 2;
     private:
-        error_class_t	    m_err_type;		                //error type
         sword		        m_dbc_ec;  	                    //DBC错误码
-        sb4			        m_ora_ec;		                //Oracle错误码,ORA-xxxxx
+        sb4			        m_ora_ec;		                //OCI错误码,ORA-xxxxx
         char	            m_err_desc[MAX_BUF_SIZE];	    //错误内容
-        char                m_out_buff[MAX_BUF_SIZE];       //返回完整消息时使用的缓冲串
-
-        char                m_bind_host[64];                //绑定过的主机名
-        char                m_bind_sid[64];                 //绑定过的主机Oracle实例名字
-        char                m_bind_user[64];                //绑定过的用户名
-        const char	       *m_src_file;	                    // source file, where error was thrown (optional)
-        uint32_t	        m_src_lineno;		            // line number, where error was thrown (optional)
 
         //--------------------------------------------------
         //得到Oracle的错误详细信息
-        void make_oci_error_info(sword oci_result, OCIError *error_handle, OCIEnv *env_handle)
+        void make_oci_error_info(sword ec, const char *msg)
         {
-            bool get_details = false;
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
+            desc << "OCI::" << msg;
             m_dbc_ec = DBEC_OCI;
-            m_err_type = ET_OCI;
-            m_ora_ec = 0;
-
-            if (error_handle == NULL && env_handle == NULL)
-            {
-                desc = "(OCI_ENV_NULL)";
-                return;
-            }
-
-            switch (oci_result)
-            {
-            case	OCI_SUCCESS:                desc = "(OCI_SUCCESS)";
-                break;
-            case	OCI_SUCCESS_WITH_INFO:      desc = "(OCI_SUCCESS_WITH_INFO)";
-                get_details = true; break;
-            case	OCI_ERROR:                  desc = "";
-                get_details = true; break;
-            case	OCI_NO_DATA:                desc = "(OCI_NO_DATA)";
-                get_details = true; break;
-            case	OCI_INVALID_HANDLE:         desc = "(OCI_INVALID_HANDLE)";
-                break;
-            case	OCI_NEED_DATA:              desc = "(OCI_NEED_DATA)";
-                break;
-            case	OCI_STILL_EXECUTING:        desc = "(OCI_STILL_EXECUTING)";
-                get_details = true; break;
-            case	OCI_CONTINUE:               desc = "(OCI_CONTINUE)";
-                break;
-            default:                            desc = "unknown";
-            }
-
-            // get detailed error m_err_desc
-            if (get_details)
-            {
-                char Tmp[MAX_BUF_SIZE];
-                if (error_handle)
-                    OCIErrorGet(error_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ERROR);
-                else
-                    OCIErrorGet(env_handle, 1, NULL, &m_ora_ec, reinterpret_cast<text *> (Tmp), MAX_BUF_SIZE, OCI_HTYPE_ENV);
-                desc << '<' << Tmp << '>';
-            }
-
+            m_ora_ec = ec;
+            desc.repleace('\n','.');
             //进行OCI错误细分,映射到DBEC错误码
             switch (m_ora_ec)
             {
@@ -271,51 +271,37 @@ namespace rx_dbc_ora
         void make_dbc_error(sword dbc_err)
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
-            m_err_type = ET_DBC;
+            desc << "DBC::" << dbc_error_code_info(dbc_err);
             m_dbc_ec = dbc_err;
             m_ora_ec = 0;
-            desc = dbc_error_code_info(dbc_err);
         }
 
         //-------------------------------------------------
         //将输入的可变参数对应的串连接到详细错误信息中
-        void make_attached_msg(const char *format, va_list va, const char *source_name = NULL, long line_number = -1)
+        void make_attached_msg(const char *format, va_list va, const char *source_name = NULL, uint32_t line_number = -1)
         {
-            m_out_buff[0] = 0;
-            if (format)
+            rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc, rx::st::strlen(m_err_desc));
+            if (!is_empty(format))
             {
-                //临时使用存放错误信息的缓冲区尺寸
-                const ub2 ERROR_FORMAT_MAX_MSG_LEN = 1024;
-                rx_assert(!is_empty(format) && va);
-                char Tmp[ERROR_FORMAT_MAX_MSG_LEN];
-                vsnprintf(Tmp, ERROR_FORMAT_MAX_MSG_LEN - 1, format, va);
-                rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc,rx::st::strlen(m_err_desc));
-                desc << " @ < " << Tmp <<" >";
+                desc << " @ < ";
+                desc(format,va) << " >";
             }
-            m_src_file = source_name;
-            m_src_lineno = line_number;
-            m_bind_host[0] = 0;
+
+            if (!is_empty(source_name))
+                desc << " # (" << source_name << ':' << rx::n2s_t(line_number) << ')';
         }
         //-------------------------------------------------
         //禁止拷贝赋值
         error_info_t& operator = (const error_info_t&);
     public:
         //-------------------------------------------------
-        //构造函数,根据错误句柄得到Oracle的详细错误信息
-        error_info_t(sword oci_result, OCIError *error_handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
-        {
-            make_oci_error_info(oci_result, error_handle, NULL);
-
-            va_list	va;
-            va_start(va, format);
-            make_attached_msg(format, va,source_name,line_number);
-            va_end(va);
-        }
-        //-------------------------------------------------
         //构造函数,通过环境句柄得到Oracle的详细错误信息
-        error_info_t(sword oci_result, OCIEnv *env_handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
+        error_info_t(sword oci_rc, OCIError *handle_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
-            make_oci_error_info(oci_result, NULL, env_handle);
+            sword oci_ec;
+            char msg[1024];
+            get_last_error(oci_rc, oci_ec, msg, sizeof(msg), handle_err);
+            make_oci_error_info(oci_ec,msg);
 
             va_list	va;
             va_start(va, format);
@@ -335,32 +321,18 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //绑定发生错误的数据库连接信息后再获取完整的错误输出
-        const char* c_str(const char* Host, const char* sid, const char* user)
-        {
-            rx::st::strcpy(m_bind_host, MAX_PATH, Host);
-            rx::st::strcpy(m_bind_sid, MAX_PATH, sid);
-            rx::st::strcpy(m_bind_user, MAX_PATH, user);
-            m_out_buff[0]=0;
-            return c_str();
+        const char* c_str(const conn_param_t &cp) 
+        { 
+            rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc, rx::st::strlen(m_err_desc));
+            desc << "::host[" << cp.host << "]db[" << cp.db << "]user[" << cp.user << ']';
+            return m_err_desc;
         }
-        const char* c_str(const conn_param_t &cp) { return c_str(cp.host,cp.db,cp.user); }
         //-------------------------------------------------
         //得到错误的详细信息
-        const char* c_str(void)
-        {
-            if (is_empty(m_out_buff))
-            {
-                rx::st::replace(m_err_desc, '\n', ' ');
-                if (!m_bind_host[0])
-                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::%s # (%s:%d)", error_class_name(m_err_type), m_err_desc,m_src_file,m_src_lineno);
-                else
-                    snprintf(m_out_buff, sizeof(m_out_buff), "%s::host[%s],db[%s],user[%s]::%s # (%s:%d)", error_class_name(m_err_type), m_bind_host, m_bind_sid, m_bind_user, m_err_desc, m_src_file, m_src_lineno);
-            }
-            return m_out_buff;
-        }
+        const char* c_str(void) { return m_err_desc; }
         //-------------------------------------------------
         //判断是否为OCI错误类别
-        bool is_oci_error() { return m_err_type == ET_OCI; }
+        bool is_oci_error() { return m_ora_ec != 0; }
         //得到oci错误代码
         ub4 oci_error_code() { return m_ora_ec; }
         //得到dbc错误代码

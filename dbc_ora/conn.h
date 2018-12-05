@@ -72,7 +72,7 @@ namespace rx_dbc_ora
 
             //分配得到错误句柄
             result = OCIHandleAlloc (m_handle_env,(void **) &m_handle_err,OCI_HTYPE_ERROR,0,NULL);
-            if (result!=OCI_SUCCESS) throw (error_info_t (result, m_handle_env, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (DBEC_ENV_FAIL, __FILE__, __LINE__));
 
             //!!连接到服务器!!
             result = OCIServerAttach (m_handle_svr,m_handle_err,(text *) dblink,(ub4)strlen (dblink),OCI_DEFAULT);
@@ -250,6 +250,11 @@ namespace rx_dbc_ora
             return false;
         }
         //-------------------------------------------------
+        //根据OCI返回值,获取更详细的错误信息
+        inline bool get_last_error(sword oci_result, sword &ec, char *buff, ub4 max_size)
+        {
+            return rx_dbc_ora::get_last_error(oci_result,ec,buff,max_size,m_handle_err,m_handle_env);
+        }
     private:
         friend class stmt_t;
         friend class sql_param_t;
