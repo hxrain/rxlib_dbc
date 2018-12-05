@@ -314,9 +314,9 @@ namespace rx_dbc_ora
         const char* c_str(void) { return m_err_desc; }
         //-------------------------------------------------
         //判断是否为OCI错误类别
-        bool is_oci_error() { return m_ora_ec != 0; }
+        bool is_db_error() { return m_ora_ec != 0; }
         //得到oci错误代码
-        ub4 oci_error_code() { return m_ora_ec; }
+        ub4 db_error_code() { return m_ora_ec; }
         //得到dbc错误代码
         ub4 dbc_error_code() { return m_dbc_ec; }
         //-------------------------------------------------
