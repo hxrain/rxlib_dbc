@@ -10,7 +10,7 @@ namespace rx_dbc_mysql
     const uint16_t BAT_FETCH_SIZE = 20;
 
     //字段名字最大长度
-    const uint16_t FIELD_NAME_LENGTH = 32;
+    const uint16_t FIELD_NAME_LENGTH = 64;
 
     //sql语句的长度限制
     const int MAX_SQL_LENGTH = 1024 * 4;
@@ -112,12 +112,12 @@ namespace rx_dbc_mysql
 
         env_option_t() { use_english(); }
         void use_chinese()
-        {//中文环境
+        {//中文环境,字符串中可以是直接的gbk字符集
             charset = "gbk";
             language = "en_US";
         }
         void use_english()
-        {//英文环境
+        {//英文环境,如果要插入中文,则需要进行gbk2utf8的转换
             charset = "utf8mb4";
             language = "en_US";
         }
@@ -292,7 +292,7 @@ namespace rx_dbc_mysql
 
 
     //-----------------------------------------------------
-    //操作Oracle格式的日期时间的功能类
+    //操作mysql格式的日期时间的功能类
     class datetime_t
     {
         MYSQL_TIME m_Date;
@@ -361,72 +361,40 @@ namespace rx_dbc_mysql
     class col_base_t
     {
     protected:
-        typedef rx::buff_t array_datasize_t;                //uint16_t
-        typedef rx::buff_t array_databuff_t;                //uint8_t
-        typedef rx::buff_t array_dataempty_t;               //int16_t
         typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
 
         col_name_t          m_name;		                    // 对象名字
         data_type_t	        m_dbc_data_type;		        // 期待的数据类型
-        int				    m_max_data_size;			    // 每个字段数据最大尺寸
 
-        static const int    m_working_buff_size = 64;       // 临时存放转换字符串的缓冲区
-        char                m_working_buff[m_working_buff_size];
+        MYSQL_BIND         *m_metainfo;                     // 指向mysql绑定需要的元信息结构
+        uint8_t             m_buff[MAX_TEXT_BYTES];         // 数据缓冲区
 
-        array_datasize_t    m_col_datasize;		            // 文本字段每行的长度数组
-        array_databuff_t    m_col_databuff;	                // 记录该字段的每行的实际数据的数组
-        array_dataempty_t   m_col_dataempty;	            // 标记该字段的值是否为空的状态数组: 0 - ok; -1 - null
-
+        char                m_working_buff[64];             // 临时存放转换字符串的缓冲区
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void make(const char *name, uint32_t name_len, data_type_t dbc_data_type, uint32_t max_data_size, int bulk_row_count, bool make_datasize_array = false)
+        void make(const char *name, uint32_t name_len, data_type_t dbc_data_type, MYSQL_BIND *bind,bool is_param=true)
         {
             rx_assert(!is_empty(name));
             reset();
 
             m_name.assign(name, name_len);
             m_dbc_data_type = dbc_data_type;
-            m_max_data_size = max_data_size;
-
-            if (make_datasize_array && !m_col_datasize.make<uint16_t>(bulk_row_count))
+            m_metainfo=bind;
+            if (is_param)
             {
-                reset();
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
-            }
-
-            //生成字段数据缓冲区
-            m_col_databuff.make(m_max_data_size * bulk_row_count);
-            //生成字段是否为空的数组
-            m_col_dataempty.make<int16_t>(bulk_row_count);
-            if (!m_col_dataempty.capacity() || !m_col_databuff.capacity())
-            {//判断是否内存不足
-                reset();
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                memset(m_metainfo,0,sizeof(*m_metainfo));
+                m_metainfo->buffer = m_buff;
+                m_metainfo->buffer_length = sizeof(m_buff);
+                m_metainfo->buffer_type;
             }
         }
         //-------------------------------------------------
         void reset()
         {
-            m_col_datasize.clear();
-            m_col_databuff.clear();
-            m_col_dataempty.clear();
             m_dbc_data_type = DT_UNKNOWN;
-            m_max_data_size = 0;
-        }
-        //-------------------------------------------------
-        //根据字段类型与字段数据缓冲区以及当前行号,进行正确的数据偏移调整
-        //入口:行数据数组;数据类型;当前行偏移;字段数据最大尺寸
-        uint8_t* get_data_buff(int RowNo) const
-        {
-            switch (m_dbc_data_type)
-            {
-            case DT_TEXT:
-                return m_col_databuff.ptr(RowNo*m_max_data_size);
-            case DT_NUMBER:
-            case DT_DATE:
-            default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
-            }
+            m_metainfo = NULL;
+            m_buff[0] = 0;
+            m_name.assign();
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为字符串:错误句柄;原始数据缓冲区;原始数据类型;临时字符串缓冲区;临时缓冲区尺寸;转换格式
@@ -486,47 +454,41 @@ namespace rx_dbc_mysql
         }
         //-------------------------------------------------
         //不可直接使用本功能类,必须被继承
-        col_base_t(rx::mem_allotter_i &ma) :m_col_datasize(ma), m_col_databuff(ma), m_col_dataempty(ma) { reset(); }
+        col_base_t(){ reset(); }
         virtual ~col_base_t() { reset(); }
-        bool m_is_null(uint16_t idx) const { return (m_col_dataempty.at<int16_t>(idx) == -1); }
+        bool m_is_null() const { return m_metainfo==NULL||m_metainfo->is_null_value; }
     protected:
         //-------------------------------------------------
         //子类需要覆盖实现的具体功能函数接口
         //-------------------------------------------------
         //得到错误句柄
         virtual void* oci_err_handle() const = 0;
-        //得到当前的访问行号
-        virtual uint16_t bulk_row_idx() const = 0;
     public:
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
         data_type_t dbc_data_type() { return m_dbc_data_type; }
-        int max_data_size() { return m_max_data_size; }
         //-------------------------------------------------
-        bool is_null(void) const { return m_is_null(bulk_row_idx()); }
+        bool is_null(void) const { return m_is_null(); }
         //-------------------------------------------------
         //尝试获取内部数据为字符串
         PStr as_string(const char* ConvFmt = NULL) const
         {
-            uint16_t idx = bulk_row_idx();
-            if (m_is_null(idx)) return NULL;
-            return comm_as_string(get_data_buff(idx), ConvFmt);
+            if (m_is_null()) return NULL;
+            return comm_as_string((uint8_t*)m_buff, ConvFmt);
         }
         //-------------------------------------------------
         //尝试获取内部数据为浮点数
         double as_double(double DefValue = 0) const
         {
-            uint16_t idx = bulk_row_idx();
-            if (m_is_null(idx)) return DefValue;
-            return comm_as_double<double>(get_data_buff(idx));
+            if (m_is_null()) return DefValue;
+            return comm_as_double<double>((uint8_t*)m_buff);
         }
         //-------------------------------------------------
         //尝试获取内部数据为高精度浮点数
         long double as_real(long double DefValue = 0) const
         {
-            uint16_t idx = bulk_row_idx();
-            if (m_is_null(idx)) return DefValue;
-            return comm_as_double<long double>(get_data_buff(idx));
+            if (m_is_null()) return DefValue;
+            return comm_as_double<long double>((uint8_t*)m_buff);
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
@@ -535,25 +497,22 @@ namespace rx_dbc_mysql
         //尝试获取内部数据为带符号整数
         int32_t as_long(int32_t DefValue = 0) const
         {
-            uint16_t idx = bulk_row_idx();
-            if (m_is_null(idx)) return DefValue;
-            return comm_as_long(get_data_buff(idx));
+            if (m_is_null()) return DefValue;
+            return comm_as_long((uint8_t*)m_buff);
         }
         //-------------------------------------------------
         //尝试获取内部数据为无符号整数
         uint32_t as_ulong(uint32_t DefValue = 0) const
         {
-            uint16_t idx = bulk_row_idx();
-            if (m_is_null(idx)) return DefValue;
-            return comm_as_long(get_data_buff(idx), false);
+            if (m_is_null()) return DefValue;
+            return comm_as_long((uint8_t*)m_buff, false);
         }
         //-------------------------------------------------
         //尝试获取内部数据为日期时间
         datetime_t as_datetime(void) const
         {
-            uint16_t idx = bulk_row_idx();
-            if (m_is_null(idx)) return datetime_t();
-            return comm_as_datetime(get_data_buff(idx));
+            if (m_is_null()) return datetime_t();
+            return comm_as_datetime((uint8_t*)m_buff);
         }
     };
 }

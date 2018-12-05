@@ -14,21 +14,21 @@
     #include "../rx_dbc_ora.h"
     using namespace rx_dbc_ora;
     /*
-    CREATE TABLE "SCOTT"."TMP_DBC" (
-	    "ID" NUMBER NOT NULL ENABLE,
-	    "INT" NUMBER (*, 0),
-	    "UINT" NUMBER,
-	    "STR" VARCHAR2 (255),
-	    "MDATE" DATE,
-	    "SHORT" NUMBER (*, 0),
-	    PRIMARY KEY ("ID") USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS STORAGE (
+    CREATE TABLE SCOTT.TMP_DBC (
+	    ID NUMBER NOT NULL ENABLE,
+	    INTN NUMBER (*, 0),
+	    UINT NUMBER,
+	    STR VARCHAR2 (255),
+	    MDATE DATE,
+	    SHORT NUMBER (*, 0),
+	    PRIMARY KEY (ID) USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS STORAGE (
 		    INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645 PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
 	    ) TABLESPACE "USERS" ENABLE
     ) SEGMENT CREATION IMMEDIATE PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING STORAGE (
 	    INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645 PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
     ) TABLESPACE "USERS";
 
-    CREATE UNIQUE INDEX "SCOTT"."TMP_DBC_IDX_ID" ON "SCOTT"."TMP_DBC" ("ID") PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS STORAGE (
+    CREATE UNIQUE INDEX SCOTT.TMP_DBC_IDX_ID ON SCOTT.TMP_DBC (ID) PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS STORAGE (
 	    INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645 PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
     ) TABLESPACE "USERS";
     */
@@ -39,40 +39,51 @@
     using namespace rx_dbc_mysql;
 #endif
 
-//---------------------------------------------------------
-//基于底层功能对象进行连接与数据库操作测试
-//---------------------------------------------------------
-//测试使用的对象容器
-typedef struct ut_dbc
-{
-    conn_param_t conn_param;
-    conn_t conn;
-
-    ut_dbc()
+    //---------------------------------------------------------
+    //基于底层功能对象进行连接与数据库操作测试
+    //---------------------------------------------------------
+    //测试使用的对象容器
+    typedef struct ut_dbc
     {
-        strcpy(conn_param.host, "20.0.2.106");
-        strcpy(conn_param.user, "system");
-        strcpy(conn_param.pwd, "sysdba");
-        strcpy(conn_param.db, "oradb");
-    }
-}ut_dbc;
+        conn_param_t conn_param;
+        conn_t conn;
 
-//---------------------------------------------------------
-//数据库连接
-inline bool ut_dbc_base_conn(rx_tdd_t &rt, ut_dbc &dbc)
-{
-    try {
-        dbc.conn.open(dbc.conn_param);
-        dbc.conn.schema_to("SCOTT");
-        return true;
-    }
-    catch (error_info_t &e)
+        ut_dbc()
+        {
+#if UT_DB==DB_ORA
+            strcpy(conn_param.host, "20.0.2.106");
+            strcpy(conn_param.user, "system");
+            strcpy(conn_param.pwd, "sysdba");
+            strcpy(conn_param.db, "oradb");
+#elif UT_DB==DB_MYSQL
+            strcpy(conn_param.host, "20.0.3.130");
+            strcpy(conn_param.user, "root");
+            strcpy(conn_param.pwd, "root");
+            strcpy(conn_param.db, "mysql");
+            conn_param.port = 3306;
+#endif
+        }
+    }ut_dbc;
+
+    //---------------------------------------------------------
+    //数据库连接
+    inline bool ut_dbc_base_conn(rx_tdd_t &rt, ut_dbc &dbc)
     {
-        printf(e.c_str(dbc.conn_param));
-        printf("\n");
-        return false;
+        try {
+            dbc.conn.open(dbc.conn_param);
+#if UT_DB==DB_ORA
+            dbc.conn.schema_to("SCOTT");
+#endif
+            return true;
+        }
+        catch (error_info_t &e)
+        {
+            printf(e.c_str(dbc.conn_param));
+            printf("\n");
+            return false;
+        }
     }
-}
+/*
 
 //---------------------------------------------------------
 //简单查询
@@ -134,7 +145,7 @@ inline bool ut_dbc_base_insert_1(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         query_t q(dbc.conn);
 
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
         q(":nID", 20)(":nINT", -155905152)(":nUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         q.exec();
         dbc.conn.trans_commit();
@@ -157,7 +168,7 @@ inline bool ut_dbc_base_insert_2(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //预处理解析
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定单条参数
         q(":nID", 21)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //执行语句
@@ -183,7 +194,7 @@ inline bool ut_dbc_base_insert_2b(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //预处理解析
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定参数
         q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
         //绑定数据
@@ -215,7 +226,7 @@ inline bool ut_dbc_base_insert_2c(rx_tdd_t &rt, ut_dbc &dbc)
 
         stmt_t q(dbc.conn);
         //预处理解析
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定参数
         q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
         //绑定数据
@@ -233,7 +244,7 @@ inline bool ut_dbc_base_insert_2c(rx_tdd_t &rt, ut_dbc &dbc)
     }
     catch (error_info_t &e)
     {
-        sword ec = 0;
+        int32_t ec = 0;
         dbc.conn.trans_rollback(&ec);
         printf(e.c_str(dbc.conn_param));
         printf("\n");
@@ -249,7 +260,7 @@ inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
 
         //给每个块深度对应的参数进行绑定与赋值
         q.bulk(0)(":nID", 25)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
@@ -286,7 +297,7 @@ inline bool ut_dbc_base_insert_4(rx_tdd_t &rt, ut_dbc &dbc)
         stmt_t q(dbc.conn);
 
         //预处理解析并进行参数的自动绑定
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind();
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind();
         q << 26 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;   //顺序给参数进行数据赋值
         q.exec().conn().trans_commit();                     //执行语句并提交
 
@@ -309,7 +320,7 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
-        q.prepare("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
 
         //给每个块深度对应的参数进行赋值
         q.bulk(0) << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
@@ -440,7 +451,7 @@ inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     dbc_t dbc(conn, ut_dbc_event_func_1);
 
     //执行sql语句,使用给定的数据
-    int rc=dbc("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)",&dat);
+    int rc=dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)",&dat);
     rt.tdd_assert(rc > 0);
 
     //更换数据对象后再次执行
@@ -449,7 +460,7 @@ inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     rt.tdd_assert(rc>0);
 
     //解析sql语句,不操作数据
-    rc = dbc("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+    rc = dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
     rt.tdd_assert(rc >= 0);
 
     //更换数据对象后再次执行
@@ -462,7 +473,7 @@ inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 class mydbc :public dbc_t
 {
     //告知待执行的业务SQL语句
-    virtual const char* on_sql() { return "insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)"; }
+    virtual const char* on_sql() { return "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)"; }
     //处理数据绑定;返回值:<0错误;0用户要求放弃;>0绑定批量块的深度
     virtual int32_t on_bind_data(query_t &q, void *usrdat)
     {
@@ -481,7 +492,7 @@ inline void ut_dbc_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     //定义数据库功能对象,告知数据绑定函数与数据对象
     mydbc dbc(conn);
     //首次执行sql语句,不告知数据
-    int rc = dbc("insert into tmp_dbc(id,int,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+    int rc = dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
     rt.tdd_assert(rc>=0);
 
     //更换数据对象后再次执行
@@ -546,7 +557,7 @@ inline void ut_dbc_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 inline void ut_dbc_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     ++dat.ID;
-    const char* sql = "insert into tmp_dbc(id,int,uint,str,mdate,short) values(123456789,-123,123,'insert',to_date('2000-01-01 13:14:20','yyyy-MM-dd HH24:mi:ss'),1)";
+    const char* sql = "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(123456789,-123,123,'insert',to_date('2000-01-01 13:14:20','yyyy-MM-dd HH24:mi:ss'),1)";
     rt.tdd_assert(tiny_dbc_t(conn).action(sql) > 0);
 }
 //---------------------------------------------------------
@@ -571,7 +582,7 @@ inline void ut_dbc_ext_a(rx_tdd_t &rt)
 //---------------------------------------------------------
 //db测试用例的入口
 //---------------------------------------------------------
-rx_tdd(ut_dtl_array)
+rx_tdd(ut_dbc_base)
 {
     //进行上层封装的测试
     ut_dbc_ext_a(*this);
@@ -585,6 +596,30 @@ rx_tdd(ut_dtl_array)
     //循环进行底层功能的测试
     for(int i=0;i<10;++i)
         ut_dbc_base_1(*this);
+}
+*/
+
+void tmp_ut(rx_tdd_t &rt)
+{
+    ut_dbc utdb;
+    try {
+        if (ut_dbc_base_conn(rt, utdb))
+        {
+            utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')","\xe5\x93\x88");
+            //utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')", "哈");
+            utdb.conn.trans_commit();
+        }
+    }
+    catch (error_info_t &e)
+    {
+        printf(e.c_str(utdb.conn_param));
+        printf("\n");
+    }
+}
+
+rx_tdd(ut_dbc_tmp)
+{
+    tmp_ut(*this);
 }
 
 #endif
