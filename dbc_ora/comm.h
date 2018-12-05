@@ -62,24 +62,6 @@ namespace rx_dbc_ora
     };
 
     //-----------------------------------------------------
-    //错误类别
-    enum error_class_t
-    {
-        ET_UNKNOWN = 0,
-        ET_OCI,
-        ET_DBC,
-    };
-    inline const char* error_class_name(int ErrType)
-    {
-        switch (ErrType)
-        {
-        case ET_OCI:return "oci";
-        case ET_DBC:return "dbc";
-        case ET_UNKNOWN:
-        default:return "unknown";
-        }
-    }
-    //-----------------------------------------------------
     //DBC封装操作错误码
     enum dbc_error_code_t
     {
