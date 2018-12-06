@@ -41,8 +41,7 @@ namespace rx_dbc_mysql
         ST_DROP   = 6,
         ST_ALTER  = 7,
         ST_BEGIN  = 8,
-        ST_DECLARE = 9,
-        ST_SET = 10
+        ST_SET = 9
     };
 
     //-----------------------------------------------------
@@ -139,13 +138,13 @@ namespace rx_dbc_mysql
             db[0] = 0;
             user[0] = 0;
             pwd[0] = 0;
-            port = 1521;
+            port = 3306;
             conn_timeout = 3;
         }
     }conn_param_t;
 
     //-------------------------------------------------
-    //根据OCI返回值,获取更详细的错误信息
+    //获取MYSQL更详细的错误信息
     inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size,MYSQL *handle)
     {
         bool get_details = false;
@@ -164,7 +163,25 @@ namespace rx_dbc_mysql
         }
         return true;
     }
+    //获取MYSQL/STMT更详细的错误信息
+    inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size, MYSQL_STMT *handle)
+    {
+        bool get_details = false;
+        rx::tiny_string_t<> desc(max_size, buff);
 
+        if (handle)
+        {
+            ec = mysql_stmt_errno(handle);
+            desc << "(DB_ERROR)<" << rx::n2s_t((uint32_t)ec) << ':';
+            desc << mysql_stmt_error(handle) << '>';
+        }
+        else
+        {
+            ec = 0;
+            desc = "(UNKNOWN_ERROR)";
+        }
+        return true;
+    }
     //-----------------------------------------------------
     //记录错误信息的功能类
     class error_info_t
@@ -238,10 +255,10 @@ namespace rx_dbc_mysql
         //构造函数,通过环境句柄得到Oracle的详细错误信息
         error_info_t(MYSQL *handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
-            int32_t oci_ec;
+            int32_t db_ec;
             char msg[1024];
-            get_last_error(oci_ec, msg, sizeof(msg),handle);
-            make_db_error_info(oci_ec, msg);
+            get_last_error(db_ec, msg, sizeof(msg),handle);
+            make_db_error_info(db_ec, msg);
 
             va_list	va;
             va_start(va, format);
@@ -249,6 +266,19 @@ namespace rx_dbc_mysql
             va_end(va);
         }
         //-------------------------------------------------
+        //构造函数,通过环境句柄得到Oracle的详细错误信息
+        error_info_t(MYSQL_STMT *handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
+        {
+            int32_t db_ec;
+            char msg[1024];
+            get_last_error(db_ec, msg, sizeof(msg), handle);
+            make_db_error_info(db_ec, msg);
+
+            va_list	va;
+            va_start(va, format);
+            make_attached_msg(format, va, source_name, line_number);
+            va_end(va);
+        }        //-------------------------------------------------
         //构造函数,记录库内部错误
         error_info_t(int32_t dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
@@ -291,6 +321,40 @@ namespace rx_dbc_mysql
         bool is_unique_constraint() { return m_mysql_ec == ER_DUP_ENTRY; }
     };
 
+    //-------------------------------------------------
+    //获取语句类型
+    inline sql_stmt_t get_sql_type(const char* SQL)
+    {
+        if (is_empty(SQL))
+            return ST_UNKNOWN;
+
+        while (*SQL)
+        {
+            if (*SQL == ' ')
+                ++SQL;
+            else
+                break;
+        }
+
+        char tmp[5]; tmp[4] = 0;
+        rx::st::strncpy(tmp, SQL, 4);
+        rx::st::strupr(tmp);
+
+        switch (*(uint32_t*)tmp)
+        {
+        case 0x454c4553:return ST_SELECT;
+        case 0x41445055:return ST_UPDATE;
+        case 0x45535055:return ST_UPDATE;
+        case 0x454c4544:return ST_DELETE;
+        case 0x45534e49:return ST_INSERT;
+        case 0x41455243:return ST_CREATE;
+        case 0x504f5244:return ST_DROP;
+        case 0x45544c41:return ST_ALTER;
+        case 0x49474542:return ST_BEGIN;
+        case 0x20544553:return ST_SET;
+        default:return ST_UNKNOWN;
+        }
+    }
 
     //-----------------------------------------------------
     //操作mysql格式的日期时间的功能类

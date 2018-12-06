@@ -12,85 +12,70 @@ namespace rx_dbc_mysql
         stmt_t& operator = (const stmt_t&);
         friend class field_t;
         typedef rx::alias_array_t<sql_param_t, FIELD_NAME_LENGTH> param_array_t;
+        typedef rx::array_t<MYSQL_BIND> mi_array_t;
+        typedef rx::tiny_string_t<char, MAX_SQL_LENGTH> sql_string_t;
     protected:
-        conn_t		                        &m_conn;		//该语句对象关联的数据库连接对象
-        param_array_t		                m_params;	    //带有名称绑定的参数数组
-        OCIStmt			                    *m_stmt_handle; //该语句对象的OCI句柄
-        sql_stmt_t	                        m_sql_type;     //该语句对象当前sql语句的类型
-        rx::tiny_string_t<char,MAX_SQL_LENGTH>  m_SQL;      //预解析时记录的待执行的sql语句
-        uint16_t                            m_max_bulk_deep;//参数批量数据提交的最大数
-        uint16_t                            m_cur_bulk_idx; //当前操作的块深度索引
-        bool			                    m_executed;     //标记当前语句是否已经被正确执行过了
-        uint16_t                            m_cur_param_idx;//当前正在绑定处理的参数顺序
-        uint16_t                            m_last_bulk_deep;//记录最后一次exec时处理的块深度,便于掌握最后的数据深度
+        conn_t		           &m_conn;		                //该语句对象关联的数据库连接对象
+        mi_array_t              m_metainfos;                //mysql需要的绑定信息结构数组
+        param_array_t	        m_params;	                //带有名称绑定的参数数组
+        sql_stmt_t	            m_sql_type;                 //该语句对象当前sql语句的类型
+        sql_string_t            m_SQL;                      //预解析时记录的待执行的sql语句
+        sql_string_t            m_SQL_BAK;                  //预解析时记录的原始的sql语句
+        MYSQL_STMT	           *m_stmt_handle;              //该语句对象的mysql句柄
+        uint32_t                m_cur_param_idx;            //绑定数据的时候用于顺序处理参数序号
+        bool			        m_executed;                 //标记当前语句是否已经被正确执行过了
         //-------------------------------------------------
         //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定了
         void m_prepare()
         {
-            rx_assert(m_SQL.size()!=0);
-            int16_t result;
+            rx_assert(!is_empty(m_SQL));
+            
             close(true);                                    //语句可能都变了,复位后重来
+            m_stmt_handle = mysql_stmt_init(&m_conn.m_handle);
 
-            if (result != OCI_SUCCESS)
+            if (!m_stmt_handle)
             {
                 close(true);
-                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__,m_SQL.c_str()));
+                throw (error_info_t(&m_conn.m_handle, __FILE__, __LINE__,m_SQL));
             }
-        }
-        //-------------------------------------------------
-        sql_stmt_t m_get_sql_type()
-        {
-            char tmp[5];
-            rx::st::strncpy(tmp, m_SQL.c_str(), 4);
-            rx::st::strupr(tmp);
-            switch (*(uint32_t*)tmp)
+
+            if (mysql_stmt_prepare(m_stmt_handle,m_SQL,m_SQL.size()))
             {
-                case 'SELE':return ST_SELECT;
-                case 'UPDA':return ST_UPDATE;
-                case 'DELE':return ST_DELETE;
-                case 'INSE':return ST_INSERT;
-                case 'CREA':return ST_CREATE;
-                case 'DROP':return ST_DROP  ;
-                case 'ALTE':return ST_ALTER ;
-                case 'BEGI':return ST_BEGIN ;
-                case 'DECL':return ST_DECLARE;
-                case 'SET ':return ST_SET;
-                default:return ST_UNKNOWN;
+                close(true);
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
             }
+
+            m_sql_type = get_sql_type(m_SQL);
         }
         //-------------------------------------------------
-        //绑定参数初始化:批量数据数的最大数量(在exec的时候可以告知实际数量);参数的数量(如果不告知,则自动根据sql语句分析获取);
-        //如果要使用Bulk模式批量插入,那么必须先调用此函数,告知每个Bulk的最大元素数量
-        void m_param_make(uint16_t max_bulk_deep, uint16_t ParamCount = 0)
+        //绑定参数初始化:参数的数量(如果不告知,则自动根据sql语句分析获取);
+        void m_param_make(uint16_t ParamCount = 0)
         {
-            rx_assert(max_bulk_deep != 0);
+            if (ParamCount == 0)
+                ParamCount = rx::st::count(m_SQL.c_str(), '?');
 
-            if (ParamCount == 0)    //尝试根据sql中的参数数量进行初始化.判断参数数量就简单的依据':'的数量,这样只多不少,是可以的
-                ParamCount = rx::st::count(m_SQL.c_str(), ':');
+            if (!ParamCount) return;
 
-            if (ParamCount && !m_params.make_ex(ParamCount,true))    //生成绑定参数对象的数组
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
+            if (!m_params.make(ParamCount,true))            //生成绑定参数对象的数组
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
 
-            m_cur_bulk_idx = 0;
-            m_max_bulk_deep = max_bulk_deep;
+            if (!m_metainfos.make(ParamCount, true))        //生成绑定参数元信息数组
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
         }
         //-------------------------------------------------
-        //如果批量数为1(默认情况),则可以直接调用bind
-        //绑定一个命名变量给当前的语句,如果变量类型是DT_UNKNOWN,则根据变量名前缀进行自动分辨.对于字符串类型,可以设置参数缓存的尺寸
-        //参数的数量在首个参数绑定时可以根据sql语句中的':'的数量来确定
-        sql_param_t& m_param_bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        //绑定一个命名变量给当前的语句
+        sql_param_t& m_param_bind(const char *name)
         {
             rx_assert(!is_empty(name));
-            rx_assert(rx::st::strstr(m_SQL.c_str(), name) != NULL);
 
             char Tmp[200];
             rx::st::strlwr(name, Tmp);
 
             if (m_params.capacity() == 0)
-                m_param_make(m_max_bulk_deep);              //尝试分配参数块资源
+                m_param_make();                             //尝试分配参数块资源
 
             if (m_params.capacity() == 0)
-                throw (error_info_t(DBEC_NOT_PARAM, __FILE__, __LINE__, m_SQL.c_str()));
+                throw (error_info_t(DBEC_NOT_PARAM, __FILE__, __LINE__, m_SQL));
 
             uint32_t ParamIdx = m_params.index(Tmp);
             if (ParamIdx != m_params.capacity())
@@ -103,7 +88,7 @@ namespace rx_dbc_mysql
 
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
             sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
-            Ret.bind_param(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_deep);  //对参数对象进行必要的初始化
+            Ret.make(name, &m_metainfos.at(ParamIdx),true);    //对参数对象进行必要的初始化
             return Ret;
         }
     public:
@@ -122,8 +107,22 @@ namespace rx_dbc_mysql
         stmt_t& prepare(const char *sql,va_list arg)
         {
             rx_assert(!is_empty(sql));
-            if (!m_SQL.fmt(sql, arg))
+            if (!m_SQL_BAK.fmt(sql, arg))                   //先将待执行语句放入备份缓冲区
                 throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, sql));
+            
+            //再尝试进行ora绑定变量语句的转换
+            sql_param_parse_t<> sp;
+            sp.ora_sql(m_SQL_BAK.c_str());
+            if (sp.count)
+            {
+                rx::tiny_string_t<> dst(m_SQL.capacity(), m_SQL.ptr());
+                sp.ora2mysql(m_SQL_BAK.c_str(), dst);
+                m_SQL.end(dst.size());
+            }
+            else
+                m_SQL = m_SQL_BAK;
+
+            //最后再执行预处理
             m_prepare();
             return *this;
         }
@@ -137,25 +136,38 @@ namespace rx_dbc_mysql
             return *this;
         }
         //-------------------------------------------------
-        //在预解析完成后,可以直接进行参数的自动绑定,默认max_bulk_deep为0则使用预解析初始化时的默认值1.
+        //在预解析完成后,可以直接进行参数的自动绑定
         //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
-        stmt_t& auto_bind(uint16_t max_bulk_deep = 0)
+        stmt_t& auto_bind()
         {
             if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
+            //先尝试解析ora模式的命名参数
             sql_param_parse_t<> sp;
-            const char* err = sp.ora_sql(m_SQL.c_str());
+            const char* err = sp.ora_sql(m_SQL);
             if (err)
                 throw (error_info_t(DBEC_PARSE_PARAM, __FILE__, __LINE__, "sql param parse error!| %s |",err));
 
-            if (max_bulk_deep == 0) max_bulk_deep = m_max_bulk_deep;
-            m_param_make(max_bulk_deep, sp.count);           //不管解析得到了几个参数,都可尝试进行参数数组的生成
+            bool unnamed = false;
+            if (sp.count == 0)
+            {//再尝试解析mysql模式的未命名参数
+                sp.count = rx::st::count(m_SQL.c_str(), '?');
+                if (sp.count)
+                    unnamed = true;
+            }
+            if (!sp.count)                                  //如果确实没有参数绑定的需求,则返回
+                return *this;
+
+            m_param_make(sp.count);
 
             char name[FIELD_NAME_LENGTH];
             for (uint16_t i = 0; i < sp.count; ++i)
             {//循环进行参数数组的自动绑定
-                rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].name_len);
+                if (unnamed)
+                    rx::st::itoa(i + 1, name);              //未命名的时候,使用序号当作名字,序号从1开始
+                else
+                    rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].name_len);
                 m_param_bind(name);
             }
             return *this;
@@ -163,30 +175,29 @@ namespace rx_dbc_mysql
         //-------------------------------------------------
         //在预解析完成后,如果不进行自动绑定则可以尝试进行手动参数绑定,告知的深度值.
         //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
-        stmt_t& manual_bind(uint16_t max_bulk_deep, uint16_t params = 0)
+        stmt_t& manual_bind(uint16_t params = 0)
         {
             if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
-            if (max_bulk_deep == 0) max_bulk_deep = m_max_bulk_deep;
-            m_param_make(max_bulk_deep, params);            //尝试进行参数数组的生成
+            m_param_make(params);                           //尝试进行参数数组的生成
 
             return *this;
         }
         //-------------------------------------------------
         //对指定参数的绑定与当前深度的数据赋值同时进行,便于应用层操作
         template<class DT>
-        stmt_t& operator()(const char* name, const DT& data, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        stmt_t& operator()(const char* name, const DT& data)
         {
-            sql_param_t &param = m_param_bind(name, type, MaxStringSize);
+            sql_param_t &param = m_param_bind(name);
             param = data;
             return *this;
         }
         //-------------------------------------------------
         //手动进行参数的绑定
-        stmt_t& operator()(const char* name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        stmt_t& operator()(const char* name)
         {
-            m_param_bind(name, type, MaxStringSize);
+            m_param_bind(name);
             return *this;
         }
         //-------------------------------------------------
@@ -202,20 +213,25 @@ namespace rx_dbc_mysql
         sql_stmt_t	sql_type() { return m_sql_type; }
         //-------------------------------------------------
         //得到解析过的sql语句
-        const char* sql_string() { return m_SQL.c_str(); }
+        const char* sql_string() { return m_SQL; }
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
-        //入口:当前实际绑定参数的批量深度.
         stmt_t& exec (bool auto_commit=false)
         {
+            rx_assert(m_stmt_handle != NULL);
             m_executed = false;
-            rx_assert_if(m_cur_param_idx, m_cur_param_idx == m_params.size());//要求自动调整参数列序号的时候,必须与参数数量相同,避免<<的时候漏掉数据
             m_cur_param_idx = 0;
+            
+            if (m_params.size() && mysql_stmt_bind_param(m_stmt_handle, m_metainfos.array()))
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
 
-            if (result == OCI_SUCCESS)
-                m_executed = true;
-            else
-                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__,m_SQL.c_str()));
+            if (mysql_stmt_execute(m_stmt_handle))
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
+            
+            if (auto_commit)
+                m_conn.trans_commit();
+
+            m_executed = true;
             return *this;
         }
         //-------------------------------------------------
@@ -233,11 +249,9 @@ namespace rx_dbc_mysql
         //得到上一条语句执行后被影响的行数(select无效)
         uint32_t rows()
         {
-            if (!m_executed)
+            if (!m_executed||!m_stmt_handle)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Executed!"));
-            uint32_t RC=0;
-
-            return RC;
+            return (uint32_t)mysql_stmt_affected_rows(m_stmt_handle);
         }
         //-------------------------------------------------
         //绑定过的参数数量
@@ -265,34 +279,19 @@ namespace rx_dbc_mysql
         void close (bool reset_only=false)
         {
             m_params.clear(reset_only);
-            m_last_bulk_deep = 0;
-            m_max_bulk_deep = 1;
-            m_cur_bulk_idx = 0;
+            if (!reset_only) 
+                m_metainfos.clear();
             m_executed = false;
             m_cur_param_idx = 0;
             m_sql_type = ST_UNKNOWN;
 
             if (m_stmt_handle)
             {//释放sql语句句柄
-                OCIStmtRelease(m_stmt_handle, m_conn.m_handle_err,NULL,0, OCI_DEFAULT);
+                mysql_stmt_close(m_stmt_handle);
                 m_stmt_handle = NULL;
             }
         }
     };
-
-    //-----------------------------------------------------
-    //让数据库连接对象可以直接执行sql语句的方法,用到了HOStmt对象,所以需要放在HOStmt定义的后面
-    inline void conn_t::exec (const char *sql,...)
-    {
-        rx_assert(!is_empty(sql));
-        va_list	arg;
-        va_start(arg, sql);
-        stmt_t st (*this);
-        st.prepare(sql,arg);
-        va_end(arg);
-        st.exec ();
-    }
-
 }
 
 

@@ -60,7 +60,6 @@
             strcpy(conn_param.user, "root");
             strcpy(conn_param.pwd, "root");
             strcpy(conn_param.db, "mysql");
-            conn_param.port = 3306;
 #endif
         }
     }ut_dbc;
@@ -598,16 +597,56 @@ rx_tdd(ut_dbc_base)
         ut_dbc_base_1(*this);
 }
 */
+//参数绑定插入示例(使用stmt_t)
+inline bool ut_dbc_base_insert_2(rx_tdd_t &rt, ut_dbc &dbc)
+{
+    char cur_time_str[20];
+    rx_iso_datetime(cur_time_str);
+    try {
+        stmt_t q(dbc.conn);
+        //预处理解析
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        //绑定单条参数
+        q(":nID", 21)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        //执行语句
+        q.exec();
+        //提交
+        dbc.conn.trans_commit();
+        rt.tdd_assert(q.rows() == 1);
+        return true;
+    }
+    catch (error_info_t &e)
+    {
+        printf(e.c_str(dbc.conn_param));
+        printf("\n");
+        return false;
+    }
+}
+
+
 
 void tmp_ut(rx_tdd_t &rt)
 {
+    rt.tdd_assert(get_sql_type("SELECT") == ST_SELECT);
+    rt.tdd_assert(get_sql_type("UPDATE") == ST_UPDATE);
+    rt.tdd_assert(get_sql_type("UPSERT") == ST_UPDATE);
+    rt.tdd_assert(get_sql_type("DELETE") == ST_DELETE);
+    rt.tdd_assert(get_sql_type("CREATE") == ST_CREATE);
+    rt.tdd_assert(get_sql_type("DROP") == ST_DROP);
+    rt.tdd_assert(get_sql_type("ALTER") == ST_ALTER);
+    rt.tdd_assert(get_sql_type("BEGIN") == ST_BEGIN);
+    rt.tdd_assert(get_sql_type("SET ") == ST_SET);
+    rt.tdd_assert(get_sql_type("INSERT") == ST_INSERT);
+
     ut_dbc utdb;
     try {
         if (ut_dbc_base_conn(rt, utdb))
         {
-            utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')","\xe5\x93\x88");
+            //utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')","\xe5\x93\x88");
             //utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')", "哈");
-            utdb.conn.trans_commit();
+            //utdb.conn.trans_commit();
+
+            ut_dbc_base_insert_2(rt,utdb);
         }
     }
     catch (error_info_t &e)

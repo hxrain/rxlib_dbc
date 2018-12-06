@@ -120,26 +120,28 @@
         //返回值:buffsize缓冲器不足;其他为缓冲器结果串长度
         uint32_t ora2mysql(const char* sql,char* buff,uint32_t buffsize)
         {
+            rx::tiny_string_t<> dst(buffsize, buff);
+            return ora2mysql(sql,dst)?dst.size(): buffsize;
+        }
+        bool ora2mysql(const char* sql, rx::tiny_string_t<>& dst)
+        {
             ora_sql(sql);                                   //先进行ora模式的参数解析
-            uint32_t rc=0;
-            if (count==0)
-            {//如果解析后没有发现参数,则将原串直接返回,作为mysql的语句
-                rc=rx::st::strcpy(buff,buffsize,sql);
-                return rc==0?buffsize:rc;
-            }
+            uint32_t sql_len = rx::st::strlen(sql);
+            uint32_t rc = 0;
+            if (count == 0)
+                return dst.assign(sql, sql_len) == sql_len; //如果解析后没有发现参数,则将原串直接返回,作为mysql的语句
 
             //现在需要将ora的sql参数绑定格式转换为mysql格式
-            rx::tiny_string_t<> cat(buffsize, buff);        //绑定输出缓冲区
-            for(uint32_t i=0;i<count;++i)
+            for (uint32_t i = 0; i<count; ++i)
             {//对参数段进行循环
-                uint32_t len=uint32_t(segs[i].name-sql);    //获取参数段之前的串长度
-                cat(sql,len);                               //复制参数段之前的内容
-                cat<<'?';                                   //参数段的部分用?代替
-                sql+=len+segs[i].name_len;                  //原语句跳过当前段,准备处理下一段
+                uint32_t len = uint32_t(segs[i].name - sql);//获取参数段之前的串长度
+                dst(len, sql);                              //复制参数段之前的内容
+                dst << '?';                                 //参数段的部分用?代替
+                sql += len + segs[i].name_len;              //原语句跳过当前段,准备处理下一段
             }
 
-            cat<<sql;                                       //全部参数段都处理完成后,拼装最后剩余的部分
-            return cat.size() == cat.capacity() ? buffsize : cat.size();
+            dst << sql;                                     //全部参数段都处理完成后,拼装最后剩余的部分
+            return dst.size() != dst.capacity();
         }
     };
 

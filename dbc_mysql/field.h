@@ -22,12 +22,12 @@ namespace rx_dbc_mysql
         char                m_working_buff[64];             // 临时存放转换字符串的缓冲区
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void make(const char *name, uint32_t name_len, MYSQL_BIND *bind,bool is_param=true)
+        void make(const char *name, MYSQL_BIND *bind,bool is_param=true)
         {
             rx_assert(!is_empty(name));
             reset();
 
-            m_name.assign(name, name_len);
+            m_name.assign(name);
             
             m_metainfo=bind;
             if (is_param)
@@ -35,46 +35,6 @@ namespace rx_dbc_mysql
                 memset(m_metainfo,0,sizeof(*m_metainfo));
                 m_metainfo->buffer = m_buff;
                 m_metainfo->buffer_length = sizeof(m_buff);
-                m_metainfo->buffer_type;
-            }
-
-            switch(m_metainfo->buffer_type)
-            {
-            case MYSQL_TYPE_TINY:
-            case MYSQL_TYPE_SHORT:
-            case MYSQL_TYPE_INT24:
-            case MYSQL_TYPE_LONG:
-            case MYSQL_TYPE_LONGLONG:
-            case MYSQL_TYPE_FLOAT:
-            case MYSQL_TYPE_DOUBLE:
-            case MYSQL_TYPE_DECIMAL:
-            case MYSQL_TYPE_NEWDECIMAL:
-                m_dbc_data_type=DT_NUMBER;
-                break;
-            case MYSQL_TYPE_DATE:
-            case MYSQL_TYPE_NEWDATE:
-            case MYSQL_TYPE_TIME:
-            case MYSQL_TYPE_TIME2:
-            case MYSQL_TYPE_DATETIME:
-            case MYSQL_TYPE_DATETIME2:
-            case MYSQL_TYPE_TIMESTAMP:
-            case MYSQL_TYPE_TIMESTAMP2:
-                m_dbc_data_type=DT_DATE;
-                break;
-            case MYSQL_TYPE_VARCHAR:
-            case MYSQL_TYPE_TINY_BLOB:
-            case MYSQL_TYPE_MEDIUM_BLOB:
-            case MYSQL_TYPE_LONG_BLOB:
-            case MYSQL_TYPE_BLOB:
-            case MYSQL_TYPE_VAR_STRING:
-            case MYSQL_TYPE_STRING:
-                m_dbc_data_type=DT_TEXT;
-                break;
-            case MYSQL_TYPE_NULL:
-            default:
-                m_dbc_data_type=DT_UNKNOWN;
-                break;
-
             }
         }
         //-------------------------------------------------
@@ -133,7 +93,6 @@ namespace rx_dbc_mysql
                 return m_metainfo->is_unsigned? rx::st::ultoa(*(uint32_t*)m_buff,(char*)m_working_buff) :rx::st::itoa(*(int32_t*)m_buff,(char*)m_working_buff);
             case MYSQL_TYPE_LONGLONG:
                 return m_metainfo->is_unsigned? rx::st::utoa64(*(uint64_t*)m_buff,(char*)m_working_buff) :rx::st::utoa64(*(uint32_t*)m_buff,(char*)m_working_buff);
-                break;
             case MYSQL_TYPE_FLOAT:
                 return rx::st::ftoa(*(float*)m_buff,(char*)m_working_buff);
             case MYSQL_TYPE_DOUBLE:
@@ -141,7 +100,6 @@ namespace rx_dbc_mysql
             case MYSQL_TYPE_DECIMAL:
             case MYSQL_TYPE_NEWDECIMAL:
                 return (char*)m_buff;
-                break;
             case MYSQL_TYPE_DATE:
             case MYSQL_TYPE_NEWDATE:
             case MYSQL_TYPE_TIME:
@@ -150,7 +108,10 @@ namespace rx_dbc_mysql
             case MYSQL_TYPE_DATETIME2:
             case MYSQL_TYPE_TIMESTAMP:
             case MYSQL_TYPE_TIMESTAMP2:
-                break;
+            {
+                datetime_t dt = *(MYSQL_TIME*)m_buff;
+                return dt.to((char*)m_working_buff);
+            }
             case MYSQL_TYPE_VARCHAR:
             case MYSQL_TYPE_TINY_BLOB:
             case MYSQL_TYPE_MEDIUM_BLOB:
@@ -158,7 +119,7 @@ namespace rx_dbc_mysql
             case MYSQL_TYPE_BLOB:
             case MYSQL_TYPE_VAR_STRING:
             case MYSQL_TYPE_STRING:
-                break;            
+                return (char*)m_buff;
             default:
                 throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
@@ -201,40 +162,61 @@ namespace rx_dbc_mysql
             if (m_is_null()) return NULL;
             return comm_as_string( ConvFmt);
         }
-        //-------------------------------------------------
-        //尝试获取内部数据为浮点数
-        double as_double(double DefValue = 0) const
+        field_t& to(char* buff, uint32_t max_size = 0)
         {
-            if (m_is_null()) return DefValue;
-            return comm_as_double();
+            if (max_size)
+                rx::st::strcpy(buff, max_size, as_string());
+            else
+                rx::st::strcpy(buff, as_string());
+            return *this;
         }
         //-------------------------------------------------
-        //尝试获取内部数据为高精度浮点数
-        long double as_real(long double DefValue = 0) const
+        //尝试获取内部数据为浮点数
+        double as_double(double def_val = 0) const
         {
-            if (m_is_null()) return DefValue;
-            return comm_as_real();
+            if (m_is_null()) return def_val;
+            return comm_as_double();
+        }
+        field_t& to(double &buff, double def_val = 0)
+        {
+            buff = as_double(def_val);
+            return *this;
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_bigint(int64_t DefValue = 0) const 
+        int64_t as_bigint(int64_t def_val = 0) const 
         { 
-            if (m_is_null()) return DefValue;
+            if (m_is_null()) return def_val;
             return comm_as_longlong(); 
+        }
+        field_t& to(int64_t &buff, int64_t def_val = 0)
+        {
+            buff = as_bigint(def_val);
+            return *this;
         }
         //-------------------------------------------------
         //尝试获取内部数据为带符号整数
-        int32_t as_long(int32_t DefValue = 0) const
+        int32_t as_long(int32_t def_val = 0) const
         {
-            if (m_is_null()) return DefValue;
+            if (m_is_null()) return def_val;
             return comm_as_long();
+        }
+        field_t& to(int32_t &buff, int32_t def_val = 0)
+        {
+            buff = as_long(def_val);
+            return *this;
         }
         //-------------------------------------------------
         //尝试获取内部数据为无符号整数
-        uint32_t as_ulong(uint32_t DefValue = 0) const
+        uint32_t as_ulong(uint32_t def_val = 0) const
         {
-            if (m_is_null()) return DefValue;
+            if (m_is_null()) return def_val;
             return comm_as_long(false);
+        }
+        field_t& to(uint32_t &buff, uint32_t def_val = 0)
+        {
+            buff = as_ulong(def_val);
+            return *this;
         }
         //-------------------------------------------------
         //尝试获取内部数据为日期时间
@@ -242,6 +224,11 @@ namespace rx_dbc_mysql
         {
             if (m_is_null()) return datetime_t();
             return comm_as_datetime();
+        }
+        field_t& to(datetime_t &buff)
+        {
+            buff = as_datetime();
+            return *this;
         }
     };
 }

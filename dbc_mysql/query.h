@@ -43,7 +43,7 @@ namespace rx_dbc_mysql
             uint32_t			count=0;
             int16_t result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_handle_err);
             if (result != OCI_SUCCESS)
-                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
+                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
 
             if (count == 0)
                 return 0;
@@ -51,7 +51,7 @@ namespace rx_dbc_mysql
             //动态生成字段对象数组
             rx_assert(m_fields.size()==0);
             if (!m_fields.make_ex(count,true))              //分配字段数组
-                throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
+                throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
 
             //循环获取字段属性信息
             char Tmp[200];
@@ -79,7 +79,7 @@ namespace rx_dbc_mysql
                     OCIDescriptorFree (param_handle,OCI_DTYPE_PARAM);
 
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
+                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
 
                 rx::st::strncpy(Tmp,(char*)param_name,name_len);    //转换字段名,将字段对象与其名字进行关联
                 Tmp[name_len]=0;
@@ -127,13 +127,13 @@ namespace rx_dbc_mysql
             {//正常完成了,或有条件完成了,则取出实际提取结果数;返回OCI_NO_DATA代表本批次结束了,但批次内的具体结果数量仍需要正常处理.
                 result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
-                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
+                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
                 //如果本次提取的结果数量与前次提取数量的差小于要求提取的数量,则说明遇到结果集的尾部了.
                 if (m_fetched_count - old_rows_count != (uint32_t)m_fetch_bat_size)
                     m_is_eof = true;                        //标记结果集提取结束
             }
             else
-                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
+                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
         }
         //-------------------------------------------------
         //根据序号访问字段
