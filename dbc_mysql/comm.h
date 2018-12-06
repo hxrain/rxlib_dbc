@@ -278,7 +278,8 @@ namespace rx_dbc_mysql
             va_start(va, format);
             make_attached_msg(format, va, source_name, line_number);
             va_end(va);
-        }        //-------------------------------------------------
+        }        
+        //-------------------------------------------------
         //构造函数,记录库内部错误
         error_info_t(int32_t dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {

@@ -12,17 +12,16 @@ namespace rx_dbc_mysql
     {
     protected:
         typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
+        friend class query_t;
 
         col_name_t          m_name;		                    // 对象名字
-        data_type_t	        m_dbc_data_type;		        // 期待的数据类型
-
         MYSQL_BIND         *m_metainfo;                     // 指向mysql绑定需要的元信息结构
         uint8_t             m_buff[MAX_TEXT_BYTES];         // 数据缓冲区
-
         char                m_working_buff[64];             // 临时存放转换字符串的缓冲区
+
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void make(const char *name, MYSQL_BIND *bind,bool is_param=true)
+        void make(const char *name, MYSQL_BIND *bind)
         {
             rx_assert(!is_empty(name));
             reset();
@@ -30,69 +29,39 @@ namespace rx_dbc_mysql
             m_name.assign(name);
             
             m_metainfo=bind;
-            if (is_param)
-            {
-                memset(m_metainfo,0,sizeof(*m_metainfo));
-                m_metainfo->buffer = m_buff;
-                m_metainfo->buffer_length = sizeof(m_buff);
-            }
+            memset(m_metainfo,0,sizeof(*m_metainfo));
+            //绑定元信息结构的初始化
+            m_metainfo->buffer = m_buff;
+            m_metainfo->buffer_length = sizeof(m_buff);
+            m_metainfo->is_null = &m_metainfo->is_null_value;
+            m_metainfo->length = &m_metainfo->length_value;
+            m_metainfo->error = &m_metainfo->error_value;
         }
         //-------------------------------------------------
         void reset()
         {
-            m_dbc_data_type = DT_UNKNOWN;
             m_metainfo = NULL;
             m_buff[0] = 0;
             m_name.assign();
         }
-        
-        /*
-                MYSQL_TYPE_NULL
 
-                MYSQL_TYPE_TINY
-                MYSQL_TYPE_SHORT
-                MYSQL_TYPE_INT24
-                MYSQL_TYPE_LONG
-                MYSQL_TYPE_LONGLONG
-
-                MYSQL_TYPE_FLOAT
-                MYSQL_TYPE_DOUBLE
-
-                MYSQL_TYPE_DECIMAL
-                MYSQL_TYPE_NEWDECIMAL
-
-                MYSQL_TYPE_DATE
-                MYSQL_TYPE_NEWDATE
-                MYSQL_TYPE_TIME
-                MYSQL_TYPE_TIME2
-                MYSQL_TYPE_DATETIME
-                MYSQL_TYPE_DATETIME2
-                MYSQL_TYPE_TIMESTAMP
-                MYSQL_TYPE_TIMESTAMP2
-
-                MYSQL_TYPE_VARCHAR
-                MYSQL_TYPE_TINY_BLOB
-                MYSQL_TYPE_MEDIUM_BLOB
-                MYSQL_TYPE_LONG_BLOB
-                MYSQL_TYPE_BLOB
-                MYSQL_TYPE_VAR_STRING
-                MYSQL_TYPE_STRING
-        */
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为字符串:错误句柄;原始数据缓冲区;原始数据类型;临时字符串缓冲区;临时缓冲区尺寸;转换格式
         PStr comm_as_string(const char* ConvFmt = NULL) const
         {
+            #define NUM2STR(sfunc,ufunc,stype,utype) m_metainfo->is_unsigned? rx::st::ufunc(*(utype*)m_buff,(char*)m_working_buff) :rx::st::sfunc(*(stype*)m_buff,(char*)m_working_buff)
+
             switch(m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_TINY:
-                return m_metainfo->is_unsigned? rx::st::ultoa(*(uint8_t*)m_buff,(char*)m_working_buff) :rx::st::itoa(*(int8_t*)m_buff,(char*)m_working_buff);
+                return NUM2STR(itoa, ultoa, int8_t, uint8_t);
             case MYSQL_TYPE_SHORT:
-                return m_metainfo->is_unsigned? rx::st::ultoa(*(uint16_t*)m_buff,(char*)m_working_buff) :rx::st::itoa(*(int16_t*)m_buff,(char*)m_working_buff);
+                return NUM2STR(itoa, ultoa, int16_t, uint16_t);
             case MYSQL_TYPE_INT24:
             case MYSQL_TYPE_LONG:
-                return m_metainfo->is_unsigned? rx::st::ultoa(*(uint32_t*)m_buff,(char*)m_working_buff) :rx::st::itoa(*(int32_t*)m_buff,(char*)m_working_buff);
+                return NUM2STR(itoa, ultoa, int32_t, uint32_t);
             case MYSQL_TYPE_LONGLONG:
-                return m_metainfo->is_unsigned? rx::st::utoa64(*(uint64_t*)m_buff,(char*)m_working_buff) :rx::st::utoa64(*(uint32_t*)m_buff,(char*)m_working_buff);
+                return NUM2STR(itoa64, utoa64, int64_t, uint64_t);
             case MYSQL_TYPE_FLOAT:
                 return rx::st::ftoa(*(float*)m_buff,(char*)m_working_buff);
             case MYSQL_TYPE_DOUBLE:
@@ -123,27 +92,151 @@ namespace rx_dbc_mysql
             default:
                 throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
+            #undef NUM2STR
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为浮点数:错误句柄;原始数据缓冲区;原始数据类型;
         double comm_as_double() const
         {
-        }
-        long double comm_as_real() const
-        {
+            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
+            switch (m_metainfo->buffer_type)
+            {
+            case MYSQL_TYPE_TINY:
+                return NUM2NUM(int8_t, uint8_t);
+            case MYSQL_TYPE_SHORT:
+                return NUM2NUM(int16_t, uint16_t);
+            case MYSQL_TYPE_INT24:
+            case MYSQL_TYPE_LONG:
+                return NUM2NUM(int32_t, uint32_t);
+            case MYSQL_TYPE_LONGLONG:
+                return (double)(NUM2NUM(int64_t, uint64_t));
+            case MYSQL_TYPE_FLOAT:
+                return *(float*)m_buff;
+            case MYSQL_TYPE_DOUBLE:
+                return *(double*)m_buff;
+            case MYSQL_TYPE_DECIMAL:
+            case MYSQL_TYPE_NEWDECIMAL:
+                return rx::st::atof((char*)m_buff);
+            case MYSQL_TYPE_VARCHAR:
+            case MYSQL_TYPE_TINY_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_STRING:
+                return rx::st::atof((char*)m_buff);
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+            #undef NUM2NUM
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
         int32_t comm_as_long(bool is_signed = true) const
         {
+            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
+            switch (m_metainfo->buffer_type)
+            {
+            case MYSQL_TYPE_TINY:
+                return NUM2NUM(int8_t, uint8_t);
+            case MYSQL_TYPE_SHORT:
+                return NUM2NUM(int16_t, uint16_t);
+            case MYSQL_TYPE_INT24:
+            case MYSQL_TYPE_LONG:
+                return NUM2NUM(int32_t, uint32_t);
+            case MYSQL_TYPE_LONGLONG:
+                return int32_t(NUM2NUM(int64_t, uint64_t));
+            case MYSQL_TYPE_FLOAT:
+                return int32_t(*(float*)m_buff);
+            case MYSQL_TYPE_DOUBLE:
+                return int32_t(*(double*)m_buff);
+            case MYSQL_TYPE_DECIMAL:
+            case MYSQL_TYPE_NEWDECIMAL:
+                return int32_t(rx::st::atoi((char*)m_buff));
+            case MYSQL_TYPE_VARCHAR:
+            case MYSQL_TYPE_TINY_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_STRING:
+                return int32_t(rx::st::atoi((char*)m_buff));
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+            #undef NUM2NUM
         }
+        //-----------------------------------------------------
         int64_t comm_as_longlong() const
         {
+            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
+            switch (m_metainfo->buffer_type)
+            {
+            case MYSQL_TYPE_TINY:
+                return NUM2NUM(int8_t, uint8_t);
+            case MYSQL_TYPE_SHORT:
+                return NUM2NUM(int16_t, uint16_t);
+            case MYSQL_TYPE_INT24:
+            case MYSQL_TYPE_LONG:
+                return NUM2NUM(int32_t, uint32_t);
+            case MYSQL_TYPE_LONGLONG:
+                return NUM2NUM(int64_t, uint64_t);
+            case MYSQL_TYPE_FLOAT:
+                return int64_t(*(float*)m_buff);
+            case MYSQL_TYPE_DOUBLE:
+                return int64_t(*(double*)m_buff);
+            case MYSQL_TYPE_DECIMAL:
+            case MYSQL_TYPE_NEWDECIMAL:
+                return rx::st::atoi64((char*)m_buff);
+            case MYSQL_TYPE_VARCHAR:
+            case MYSQL_TYPE_TINY_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_STRING:
+                return rx::st::atoi64((char*)m_buff);
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+            #undef NUM2NUM
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为日期:错误句柄;原始数据缓冲区;原始数据类型;
         datetime_t comm_as_datetime() const
         {
+            switch (m_metainfo->buffer_type)
+            {
+            case MYSQL_TYPE_DATE:
+            case MYSQL_TYPE_NEWDATE:
+            case MYSQL_TYPE_TIME:
+            case MYSQL_TYPE_TIME2:
+            case MYSQL_TYPE_DATETIME:
+            case MYSQL_TYPE_DATETIME2:
+            case MYSQL_TYPE_TIMESTAMP:
+            case MYSQL_TYPE_TIMESTAMP2:
+            {
+                datetime_t dt = *(MYSQL_TIME*)m_buff;
+                return dt;
+            }
+            case MYSQL_TYPE_VARCHAR:
+            case MYSQL_TYPE_TINY_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_STRING:
+            {
+                struct tm st;
+                if (!rx_iso_datetime((char*)m_buff, st))
+                    throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                datetime_t dt;
+                dt.set(st);
+                return dt;
+            }
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
         }
         //-------------------------------------------------
         bool m_is_null() const { return m_metainfo==NULL||m_metainfo->is_null_value; }
@@ -152,7 +245,46 @@ namespace rx_dbc_mysql
         virtual ~field_t() { reset(); }
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
-        data_type_t dbc_data_type() { return m_dbc_data_type; }
+        //-------------------------------------------------
+        data_type_t dbc_data_type() 
+        {
+            if (m_is_null()) return DT_UNKNOWN;
+            switch (m_metainfo->buffer_type)
+            {
+            case MYSQL_TYPE_TINY:
+            case MYSQL_TYPE_SHORT:
+            case MYSQL_TYPE_INT24:
+            case MYSQL_TYPE_LONG:
+            case MYSQL_TYPE_LONGLONG:
+            case MYSQL_TYPE_FLOAT:
+            case MYSQL_TYPE_DOUBLE:
+            case MYSQL_TYPE_DECIMAL:
+            case MYSQL_TYPE_NEWDECIMAL:
+                return DT_NUMBER;
+
+            case MYSQL_TYPE_DATE:
+            case MYSQL_TYPE_NEWDATE:
+            case MYSQL_TYPE_TIME:
+            case MYSQL_TYPE_TIME2:
+            case MYSQL_TYPE_DATETIME:
+            case MYSQL_TYPE_DATETIME2:
+            case MYSQL_TYPE_TIMESTAMP:
+            case MYSQL_TYPE_TIMESTAMP2:
+                return DT_DATE;
+
+            case MYSQL_TYPE_VARCHAR:
+            case MYSQL_TYPE_TINY_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_STRING:
+                return DT_TEXT;
+            case MYSQL_TYPE_NULL:
+            default:
+                return DT_UNKNOWN;
+            }
+        }
         //-------------------------------------------------
         bool is_null(void) const { return m_is_null(); }
         //-------------------------------------------------

@@ -34,16 +34,10 @@ namespace rx_dbc_mysql
             m_stmt_handle = mysql_stmt_init(&m_conn.m_handle);
 
             if (!m_stmt_handle)
-            {
-                close(true);
                 throw (error_info_t(&m_conn.m_handle, __FILE__, __LINE__,m_SQL));
-            }
 
             if (mysql_stmt_prepare(m_stmt_handle,m_SQL,m_SQL.size()))
-            {
-                close(true);
                 throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
-            }
 
             m_sql_type = get_sql_type(m_SQL);
         }
@@ -88,7 +82,7 @@ namespace rx_dbc_mysql
 
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
             sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
-            Ret.make(name, &m_metainfos.at(ParamIdx),true);    //对参数对象进行必要的初始化
+            Ret.make(name, &m_metainfos.at(ParamIdx));      //对参数对象进行必要的初始化
             return Ret;
         }
     public:
@@ -145,7 +139,7 @@ namespace rx_dbc_mysql
 
             //先尝试解析ora模式的命名参数
             sql_param_parse_t<> sp;
-            const char* err = sp.ora_sql(m_SQL);
+            const char* err = sp.ora_sql(m_SQL_BAK);
             if (err)
                 throw (error_info_t(DBEC_PARSE_PARAM, __FILE__, __LINE__, "sql param parse error!| %s |",err));
 

@@ -72,6 +72,17 @@
             dbc.conn.open(dbc.conn_param);
 #if UT_DB==DB_ORA
             dbc.conn.schema_to("SCOTT");
+#else
+            rt.tdd_assert(get_sql_type("SELECT") == ST_SELECT);
+            rt.tdd_assert(get_sql_type("UPDATE") == ST_UPDATE);
+            rt.tdd_assert(get_sql_type("UPSERT") == ST_UPDATE);
+            rt.tdd_assert(get_sql_type("DELETE") == ST_DELETE);
+            rt.tdd_assert(get_sql_type("CREATE") == ST_CREATE);
+            rt.tdd_assert(get_sql_type("DROP") == ST_DROP);
+            rt.tdd_assert(get_sql_type("ALTER") == ST_ALTER);
+            rt.tdd_assert(get_sql_type("BEGIN") == ST_BEGIN);
+            rt.tdd_assert(get_sql_type("SET ") == ST_SET);
+            rt.tdd_assert(get_sql_type("INSERT") == ST_INSERT);
 #endif
             return true;
         }
@@ -82,7 +93,6 @@
             return false;
         }
     }
-/*
 
 //---------------------------------------------------------
 //简单查询
@@ -93,8 +103,8 @@ inline bool ut_dbc_base_query_1(rx_tdd_t &rt, ut_dbc &dbc)
 
         for (q.exec("select * from tmp_dbc"); !q.eof(); q.next())
         {
-            printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
-                q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(),
+            printf("id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+                q["id"].as_long(), q["intn"].as_long(), q["uint"].as_ulong(),
                 q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
 
@@ -119,8 +129,8 @@ inline bool ut_dbc_base_query_2(rx_tdd_t &rt, ut_dbc &dbc)
 
         for (q.exec(); !q.eof(); q.next())
         {
-            printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
-                q["id"].as_long(), q["int"].as_long(), q["uint"].as_ulong(),
+            printf("id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+                q["id"].as_long(), q["intn"].as_long(), q["uint"].as_ulong(),
                 q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
 
@@ -254,6 +264,7 @@ inline bool ut_dbc_base_insert_2c(rx_tdd_t &rt, ut_dbc &dbc)
 //批量插入手动绑定示例
 inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
 {
+#if UT_DB==DB_ORA
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
     try {
@@ -285,6 +296,9 @@ inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
         printf("\n");
         return false;
     }
+#else
+    return true;
+#endif
 }
 //---------------------------------------------------------
 //进行自动参数绑定的插入示例
@@ -314,6 +328,7 @@ inline bool ut_dbc_base_insert_4(rx_tdd_t &rt, ut_dbc &dbc)
 //进行自动参数绑定的批量插入示例
 inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
 {
+#if UT_DB==DB_ORA
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
     try {
@@ -340,6 +355,9 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
         printf("\n");
         return false;
     }
+#else
+    return true;
+#endif
 }
 
 //---------------------------------------------------------
@@ -431,7 +449,12 @@ typedef struct ut_ins_dat_t
 //扩展应用层连接对象,在连接建立后需要切换用户模式
 class my_conn_t :public dbc_conn_t
 {
-    virtual void on_connect(conn_t& conn, const conn_param_t &param) { conn.schema_to("SCOTT"); }
+    virtual void on_connect(conn_t& conn, const conn_param_t &param) 
+    { 
+#if UT_DB==DB_ORA
+        conn.schema_to("SCOTT"); 
+#endif
+    }
 };
 
 //---------------------------------------------------------
@@ -478,8 +501,12 @@ class mydbc :public dbc_t
     {
         if (!usrdat) return 0;
         ut_ins_dat_t &dat = *(ut_ins_dat_t*)usrdat;
+#if UT_DB==DB_ORA
         q.bulk(0) << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
         q.bulk(1) << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
+#else
+        q << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
+#endif
         return 2;
     }
 public:
@@ -512,7 +539,7 @@ inline void ut_dbc_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 
     //极简模式,使用业务功能的临时对象执行业务定义的语句并处理数据
     rt.tdd_assert( mydbc(conn).action(&dat) < 0);
-    rt.tdd_assert(conn.last_err()==DBEC_OCI_UNIQUECONST);
+    rt.tdd_assert(conn.last_err()==DBEC_DB_UNIQUECONST);
 }
 //---------------------------------------------------------
 //使用dbc_t作为基类进行业务处理,测试查询提取结果
@@ -534,8 +561,8 @@ class mydbc4 :public dbc_t
     //获取到结果,访问当前行数据;返回值:<0错误;0用户要求放弃;>0完成
     virtual int32_t on_row(query_t &q, void *usrdat)
     {
-        printf("id(%d),int(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
-            q["id"].as_ulong(), q["int"].as_long(), q["uint"].as_ulong(),
+        printf("id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+            q["id"].as_ulong(), q["intn"].as_long(), q["uint"].as_ulong(),
             q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         return 1;
     }
@@ -556,19 +583,25 @@ inline void ut_dbc_ext_a4(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 inline void ut_dbc_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     ++dat.ID;
+#if UT_DB==DB_ORA
     const char* sql = "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(123456789,-123,123,'insert',to_date('2000-01-01 13:14:20','yyyy-MM-dd HH24:mi:ss'),1)";
+#else
+    const char* sql = "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(123456789,-123,123,'insert','2000-01-01 13:14:20',1)";
+#endif
     rt.tdd_assert(tiny_dbc_t(conn).action(sql) > 0);
 }
 //---------------------------------------------------------
 //对上层封装的db操作进行真正的驱动测试
 inline void ut_dbc_ext_a(rx_tdd_t &rt)
 {
+    ut_dbc cp;
+
     //定义待处理数据
     ut_ins_dat_t dat;
 
     //定义数据库连接
     my_conn_t conn;
-    conn.set_conn_param("20.0.2.106", "system", "sysdba");
+    conn.set_conn_param(cp.conn_param);
 
     //执行测试过程
     ut_dbc_ext_a1(rt, conn, dat);
@@ -596,69 +629,6 @@ rx_tdd(ut_dbc_base)
     for(int i=0;i<10;++i)
         ut_dbc_base_1(*this);
 }
-*/
-//参数绑定插入示例(使用stmt_t)
-inline bool ut_dbc_base_insert_2(rx_tdd_t &rt, ut_dbc &dbc)
-{
-    char cur_time_str[20];
-    rx_iso_datetime(cur_time_str);
-    try {
-        stmt_t q(dbc.conn);
-        //预处理解析
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
-        //绑定单条参数
-        q(":nID", 21)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
-        //执行语句
-        q.exec();
-        //提交
-        dbc.conn.trans_commit();
-        rt.tdd_assert(q.rows() == 1);
-        return true;
-    }
-    catch (error_info_t &e)
-    {
-        printf(e.c_str(dbc.conn_param));
-        printf("\n");
-        return false;
-    }
-}
 
-
-
-void tmp_ut(rx_tdd_t &rt)
-{
-    rt.tdd_assert(get_sql_type("SELECT") == ST_SELECT);
-    rt.tdd_assert(get_sql_type("UPDATE") == ST_UPDATE);
-    rt.tdd_assert(get_sql_type("UPSERT") == ST_UPDATE);
-    rt.tdd_assert(get_sql_type("DELETE") == ST_DELETE);
-    rt.tdd_assert(get_sql_type("CREATE") == ST_CREATE);
-    rt.tdd_assert(get_sql_type("DROP") == ST_DROP);
-    rt.tdd_assert(get_sql_type("ALTER") == ST_ALTER);
-    rt.tdd_assert(get_sql_type("BEGIN") == ST_BEGIN);
-    rt.tdd_assert(get_sql_type("SET ") == ST_SET);
-    rt.tdd_assert(get_sql_type("INSERT") == ST_INSERT);
-
-    ut_dbc utdb;
-    try {
-        if (ut_dbc_base_conn(rt, utdb))
-        {
-            //utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')","\xe5\x93\x88");
-            //utdb.conn.exec("insert into tmp_dbc(id,str)values(8,'hello%s')", "哈");
-            //utdb.conn.trans_commit();
-
-            ut_dbc_base_insert_2(rt,utdb);
-        }
-    }
-    catch (error_info_t &e)
-    {
-        printf(e.c_str(utdb.conn_param));
-        printf("\n");
-    }
-}
-
-rx_tdd(ut_dbc_tmp)
-{
-    tmp_ut(*this);
-}
 
 #endif

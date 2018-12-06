@@ -11,11 +11,11 @@ namespace rx_dbc_mysql
         friend class field_t;
 
         typedef rx::alias_array_t<field_t, FIELD_NAME_LENGTH> field_array_t;
-        field_array_t   m_fields;                           //字段数组
-        uint16_t		m_fetch_bat_size;	                //每批次获取的记录数量
-        uint32_t		m_fetched_count;	                //已经获取过的记录数量
-        uint32_t		m_cur_row_idx;	                    //当前处理的记录在全部结果集中的行号
-        uint16_t    	m_is_eof;			                //当前记录集是否已经完全获取完成
+        field_array_t           m_fields;                   //字段数组
+        uint16_t		        m_fetch_bat_size;	        //每批次获取的记录数量
+        uint32_t		        m_fetched_count;	        //已经获取过的记录数量
+        uint32_t                m_cur_field_idx;            //提取字段的时候用于顺序处理的序号
+        bool    	            m_is_eof;			        //当前记录集是否已经完全获取完成
 
         //-------------------------------------------------
         //被禁止的操作
@@ -26,7 +26,7 @@ namespace rx_dbc_mysql
         void m_clear (bool reset_only=false)
         {
             m_fetched_count = 0;
-            m_cur_row_idx = 0;
+            m_cur_field_idx = 0;
             m_is_eof = false;
             for (uint32_t i = 0; i < m_fields.capacity(); ++i)
                 m_fields[i].reset();
@@ -38,74 +38,49 @@ namespace rx_dbc_mysql
         uint32_t m_make_fields ()
         {
             m_clear(true);                                  //状态归零,先不释放字段数组
+            rx_assert(m_stmt_handle != NULL);
+            
+            uint32_t count = mysql_stmt_field_count(m_stmt_handle);
+            if (!count)
+                return 0;                                   //获取结果集字段数量
 
-            //获取当前结果集的字段数量
-            uint32_t			count=0;
-            int16_t result = OCIAttrGet(m_stmt_handle, OCI_HTYPE_STMT, &count, NULL, OCI_ATTR_PARAM_COUNT, m_conn.m_handle_err);
-            if (result != OCI_SUCCESS)
-                throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
+            //生成字段对象数组与元信息数组
+            if (!m_fields.make(count,true)||!m_metainfos.make(count, true))
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
 
-            if (count == 0)
-                return 0;
+            //获取字段信息
+            MYSQL_RES *cols = mysql_stmt_result_metadata(m_stmt_handle);
+            if (!cols)
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
 
-            //动态生成字段对象数组
-            rx_assert(m_fields.size()==0);
-            if (!m_fields.make_ex(count,true))              //分配字段数组
-                throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
-
-            //循环获取字段属性信息
-            char Tmp[200];
-            for (uint32_t i=0; i<count; i++)
+            //绑定字段对象与元信息
+            rx_assert(cols->field_count == count);
+            for (uint32_t i = 0; i < count; ++i)
             {
-                OCIParam	*param_handle = NULL;
-                text		*param_name = NULL;
-                uint32_t			name_len = 0;
-                uint16_t			oci_data_type = 0;
-                uint32_t			size = 0;
+                MYSQL_BIND  &mi = m_metainfos.at(i);        //字段绑定的元信息
+                MYSQL_FIELD &mf = cols->fields[i];          //字段元信息
+                
+                char Tmp[200];
+                rx::st::strlwr(mf.name, Tmp);
 
-                //从结果集中获取参数句柄
-                result = OCIParamGet (m_stmt_handle,OCI_HTYPE_STMT,m_conn.m_handle_err,reinterpret_cast <void **> (&param_handle),i + 1);	// first is 1
+                m_fields.bind(i, Tmp);                      //进行字段对象的名字绑定
 
-                if (result == OCI_SUCCESS)                          //根据参数句柄得到字段名字
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&param_name,&name_len,OCI_ATTR_NAME,m_conn.m_handle_err);
-
-                if (result == OCI_SUCCESS)                          //根据参数句柄得到ORACLE数据类型
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&oci_data_type,NULL,OCI_ATTR_DATA_TYPE,m_conn.m_handle_err);
-
-                if (result == OCI_SUCCESS)                          //根据参数句柄得到该字段的数据最大尺寸
-                    result = OCIAttrGet (param_handle,OCI_DTYPE_PARAM,&size,NULL,OCI_ATTR_DATA_SIZE,m_conn.m_handle_err);
-
-                if (param_handle)                                   //释放OCIParamGet生成的参数句柄
-                    OCIDescriptorFree (param_handle,OCI_DTYPE_PARAM);
-
-                if (result != OCI_SUCCESS)
-                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
-
-                rx::st::strncpy(Tmp,(char*)param_name,name_len);    //转换字段名,将字段对象与其名字进行关联
-                Tmp[name_len]=0;
-
-                rx_assert(m_fields.size()==i);
-                //绑定并初始化字段对象
-                field_t	&Field = m_fields[i];
-                m_fields.bind(i,rx::st::strlwr(Tmp));
-
-                //进行OCI数据类型的归一化处理并构造对应的缓冲区
-                oci_data_type=Field.bind_data_type (this,reinterpret_cast <const char *> (param_name),name_len,oci_data_type,size,m_fetch_bat_size);
-
-                //进行字段缓冲区的绑定,缓冲区的行深度是m_fetch_bat_size,便于在OCIStmtFetch2的时候进行多行批量获取
-                OCIDefine *field_handle=NULL;
-                result = OCIDefineByPos(m_stmt_handle, &field_handle, m_conn.m_handle_err,
-                    i+1,                                //跳过0,rowid列
-                    Field.m_col_databuff.ptr(),         //数据缓冲区指针
-                    Field.m_max_data_size,			    //每行字段数据的最大尺寸
-                    oci_data_type,                      //字段类型
-                    Field.m_col_dataempty.ptr(),        //数据是否为空的指示数组指针
-                    Field.m_col_datasize.ptr<uint16_t>(),	//文本字段每行数据的实际尺寸数组,非文本应该为NULL
-                    NULL,				                // ptr to array of field_t-level return codes
-                    OCI_DEFAULT);
-                if (result != OCI_SUCCESS)
-                    throw (error_info_t(result, m_conn.m_handle_err, __FILE__, __LINE__, Field.m_name.c_str()));
+                field_t &col = m_fields[i];                 //得到字段对象
+                col.make(mf.name, &m_metainfos.at(i));      //字段对象初始化
+                mi.is_unsigned = (mf.flags&NUM_FLAG) && (mf.flags&UNSIGNED_FLAG);
+                mi.buffer_type = mf.type;                   //修正字段绑定元信息中的字段类型
             }
+
+            mysql_free_result(cols);                        //释放mysql_stmt_result_metadata返回的结果集元信息
+
+            //绑定元信息数组
+            if (mysql_stmt_bind_result(m_stmt_handle, m_metainfos.array()))
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
+
+            //设置预取数量
+            uint32_t v = m_fetch_bat_size;
+            if (mysql_stmt_attr_set(m_stmt_handle, STMT_ATTR_PREFETCH_ROWS,&v))
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
 
             return count;
         }
@@ -114,26 +89,33 @@ namespace rx_dbc_mysql
         //批量提取记录,等待访问
         void m_bat_fetch (void)
         {
-            int16_t	result;
-            //记录之前已经提取过的结果数
-            uint32_t		old_rows_count = m_fetched_count;
-            //尝试批量获取一次结果集;我们使用了显示的批量提取方式,就不能使用内置OCI_ATTR_PREFETCH_ROWS预取模式.
-#if RX_DBC_ORA_USE_OLD_STMT
-            result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_fetch_bat_size,OCI_FETCH_NEXT,OCI_DEFAULT);
-#else
-            result = OCIStmtFetch2(m_stmt_handle, m_conn.m_handle_err, m_fetch_bat_size, OCI_FETCH_NEXT,0, OCI_DEFAULT);
-#endif
-            if (result == OCI_SUCCESS || result == OCI_NO_DATA || result == OCI_SUCCESS_WITH_INFO)
-            {//正常完成了,或有条件完成了,则取出实际提取结果数;返回OCI_NO_DATA代表本批次结束了,但批次内的具体结果数量仍需要正常处理.
-                result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
-                if (result != OCI_SUCCESS)
-                    throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
-                //如果本次提取的结果数量与前次提取数量的差小于要求提取的数量,则说明遇到结果集的尾部了.
-                if (m_fetched_count - old_rows_count != (uint32_t)m_fetch_bat_size)
-                    m_is_eof = true;                        //标记结果集提取结束
+            rx_assert(m_stmt_handle != NULL);
+            int rc = mysql_stmt_fetch(m_stmt_handle);
+            switch (rc)
+            {
+            case 0:
+                ++m_fetched_count; 
+                m_cur_field_idx = 0;
+                return;
+            case MYSQL_NO_DATA:
+                m_is_eof = true; 
+                break;
+            case MYSQL_DATA_TRUNCATED:
+                //需要处理,看哪个字段的数据被截断了
+                for (uint32_t i = 0; i < m_fields.size(); ++i)
+                {
+                    MYSQL_BIND &mi = m_metainfos.at(i);
+                    field_t &field = m_fields[i];
+                    rx_assert_msg(mi.error_value == 0, field.name());
+                }
+                    
+                ++m_fetched_count;
+                m_cur_field_idx = 0;
+                return;
+            case 1:
+            default:
+                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
             }
-            else
-                throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL));
         }
         //-------------------------------------------------
         //根据序号访问字段
@@ -166,9 +148,9 @@ namespace rx_dbc_mysql
         //-------------------------------------------------
         //执行解析后的sql语句,并尝试得到结果(入口为每次获取的批量数量,默认0为最大深度)
         //执行后如果没有异常,就可以尝试访问结果集了
-        query_t& exec(uint16_t BulkCount=0)
+        query_t& exec()
         {
-            stmt_t::exec(BulkCount);
+            stmt_t::exec();
             if (m_make_fields())
                 m_bat_fetch();
             return *this;
@@ -192,23 +174,18 @@ namespace rx_dbc_mysql
         }
         //-------------------------------------------------
         //判断当前是否为结果集真正的结束状态(exec/eof/next构成了结果集遍历原语)
-        bool eof(void) const { return (m_cur_row_idx >= m_fetched_count && m_is_eof); }
+        bool eof(void) const { return m_is_eof; }
         //-------------------------------------------------
         //跳转到下一行,返回值为false说明到结尾了
         //返回值:是否还有记录
         bool next(void)
         {
-            m_cur_row_idx++;
-            if (m_cur_row_idx >= m_fetched_count)
-            {
-                if (m_is_eof) return false;
-                m_bat_fetch();
-            }
-            if (m_cur_row_idx >= m_fetched_count)
-                return false;
-
-            return true;
+            if (m_is_eof) return false;
+            m_bat_fetch();
+            return !m_is_eof;
         }
+        //-------------------------------------------------
+        uint32_t fetched() { return m_fetched_count; }
         //-------------------------------------------------
         //得到当前结果集中字段的数量
         uint32_t fields() { return m_fields.size(); }
@@ -227,15 +204,16 @@ namespace rx_dbc_mysql
         //运算符重载,访问字段
         field_t& operator[](const uint32_t field_idx) { return field(field_idx); }
         field_t& operator[](const char *name) { return field(name); }
+        //-------------------------------------------------
+        //顺序提取字段的值
+        template<typename DT>
+        query_t& operator >> (DT &value)
+        {
+            rx_assert(m_cur_field_idx<m_fields.size());
+            m_fields[field_idx].to(value);
+            return *this;
+        }
     };
-
-    //-----------------------------------------------------
-    //由于field_t需要访问query_t中的信息,所以将其放在这里
-    inline uint16_t field_t::bulk_row_idx()const
-    {
-        rx_assert (m_query!=NULL);
-        return static_cast <uint16_t> (m_query->m_cur_row_idx % m_query->m_fetch_bat_size);
-    }
 }
 
 #endif

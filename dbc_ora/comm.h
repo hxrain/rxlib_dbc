@@ -87,7 +87,7 @@ namespace rx_dbc_ora
         DBEC_OCI_CONNTIMEOUT,                               //OCI错误细分:连接超时
         DBEC_OCI_CONNLOST,                                  //OCI错误细分:已经建立的连接断开了.
         DBEC_OCI_CONNFAIL,                                  //OCI错误细分:连接失败,无法建立连接
-        DBEC_OCI_UNIQUECONST,                               //OCI错误细分:唯一约束导致的错误
+        DBEC_DB_UNIQUECONST,                                //OCI错误细分:唯一约束导致的错误
     };
 
     inline const char* dbc_error_code_info(sword dbc_err)
@@ -114,7 +114,7 @@ namespace rx_dbc_ora
         case    DBEC_OCI_CONNTIMEOUT:   return "(DBEC_OCI_CONNTIMEOUT)";
         case    DBEC_OCI_CONNLOST:      return "(DBEC_OCI_CONNLOST)";
         case    DBEC_OCI_CONNFAIL:      return "(DBEC_OCI_CONNFAIL)";
-        case    DBEC_OCI_UNIQUECONST:   return "(DBEC_OCI_UNIQUECONST)";
+        case    DBEC_DB_UNIQUECONST:   return "(DBEC_OCI_UNIQUECONST)";
         default:                        return "(unknown DBC Error)";
         }
     }
@@ -235,7 +235,7 @@ namespace rx_dbc_ora
             //进行OCI错误细分,映射到DBEC错误码
             switch (m_ora_ec)
             {
-                case 1      :m_dbc_ec = DBEC_OCI_UNIQUECONST; break;
+                case 1      :m_dbc_ec = DBEC_DB_UNIQUECONST; break;
                 case 1017   :m_dbc_ec = DBEC_OCI_BADPWD; break;
                 case 12170  :m_dbc_ec = DBEC_OCI_CONNTIMEOUT; break;
                 case 28002  :m_dbc_ec = DBEC_OCI_PWD_WILLEXPIRE; break;

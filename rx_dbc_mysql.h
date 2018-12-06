@@ -25,10 +25,6 @@
 #include "dbc_mysql/field.h"                                //实现记录字段操作对象
 #include "dbc_mysql/param.h"                                //实现语句段绑定参数
 #include "dbc_mysql/stmt.h"                                 //实现sql语句段
-
-/*
-
-
 #include "dbc_mysql/query.h"                                //实现记录查询访问对象
 
 //---------------------------------------------------------
@@ -142,10 +138,7 @@ namespace rx_dbc_mysql
                 bool is_opened = m_conn.is_valid();
                 int16_t rc=m_conn.open(m_conn_param);
                 if (rc)
-                {
                     log_warn("connect with error code[%d]:host(%s),port(%d),user(%s),db(%s)", rc, m_conn_param.host, m_conn_param.port, m_conn_param.user, m_conn_param.db);
-                    set_last_error(DBEC_OCI_PWD_WILLEXPIRE);
-                }
                     
                 on_connect(m_conn, m_conn_param);           //给出连接完成动作事件
                 return is_opened?3:2;
@@ -172,21 +165,17 @@ namespace rx_dbc_mysql
 
             rx::tiny_string_t<char, 1024> str;              //定义局部小串对象,准备拼装参数的值
             try {
-                uint32_t bulks = q->bulks(false);
                 uint32_t params = q->params();
-                for (uint32_t bi = 0; bi < bulks; ++bi)
-                {//对最后的批量深度进行遍历
-                    q->bulk(bi);                            //设置块深度
-                    str.assign();                           //缓冲区复位
+                str.assign();                               //缓冲区复位
 
-                    for (uint32_t i = 0; i < params; ++i)   //循环拼装当前块深度的参数值
-                    {
-                        str << q->param(i).name() << '=' << q->param(i).as_string();
-                        if (i + 1 < params) str << ' ';
-                    }
-                        
-                    log_info("bulk[%d/%d]params(%d)<%s>", bi+1, bulks, q->params(),str.c_str());
+                for (uint32_t i = 0; i < params; ++i)       //循环拼装当前块深度的参数值
+                {
+                    sql_param_t &sp = q->param(i);
+                    str << sp.name() << '=' << sp.as_string();
+                    if (i + 1 < params) str << ' ';
                 }
+                        
+                log_info("params(%d)<%s>", q->params(),str.c_str());
             }
             catch (...) {}
         }
@@ -385,10 +374,10 @@ namespace rx_dbc_mysql
         virtual int32_t on_exec(query_t &q, void *usrdat)
         { 
             if (!q.params())
-                q.auto_bind(BAT_BULKS_SIZE);                //尝试自动绑定,告知最大批量深度
+                q.auto_bind();                              //尝试自动绑定,告知最大批量深度
             int rc= on_bind_data(q, usrdat);                //驱动on_bind_data事件
             if (rc <= 0) return rc;
-            q.exec(rc);                                     //执行真正的OCI/ORA动作
+            q.exec();                                       //执行真正的OCI/ORA动作
             return 1; 
         }
         //-------------------------------------------------
@@ -421,6 +410,6 @@ namespace rx_dbc_mysql
         }
     };
 }
-*/
+
 
 #endif
