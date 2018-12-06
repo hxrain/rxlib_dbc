@@ -37,6 +37,17 @@
 #if UT_DB==DB_MYSQL
     #include "../rx_dbc_mysql.h"
     using namespace rx_dbc_mysql;
+    /*
+    CREATE TABLE `tmp_dbc` (
+      `ID` bigint(20) unsigned NOT NULL,
+      `INTN` int(10) DEFAULT NULL,
+      `UINT` int(10) unsigned DEFAULT NULL,
+      `STR` varchar(255) DEFAULT NULL,
+      `MDATE` datetime DEFAULT NULL,
+      `SHORT` smallint(6) DEFAULT NULL,
+      PRIMARY KEY (`ID`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    */
 #endif
 
     //---------------------------------------------------------
