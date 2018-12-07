@@ -30,9 +30,10 @@
 //---------------------------------------------------------
 namespace rx_dbc_mysql
 {
-    #define BAT_BULKS_SIZE 1
-    #include "rx_dbc_comm.h"
+    static const uint16_t BAT_BULKS_SIZE = 1;
 }
+#define RX_DBC_NAMESPACE rx_dbc_mysql
+#include "rx_dbc_comm.h"
 
 
 #endif
