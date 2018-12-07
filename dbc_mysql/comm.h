@@ -144,7 +144,7 @@ namespace rx_dbc_mysql
     }conn_param_t;
 
     //-------------------------------------------------
-    //获取MYSQL更详细的错误信息
+    //获取db更详细的错误信息
     inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size,MYSQL *handle)
     {
         bool get_details = false;
@@ -163,7 +163,7 @@ namespace rx_dbc_mysql
         }
         return true;
     }
-    //获取MYSQL/STMT更详细的错误信息
+    //获取DB/STMT更详细的错误信息
     inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size, MYSQL_STMT *handle)
     {
         bool get_details = false;
@@ -193,7 +193,7 @@ namespace rx_dbc_mysql
         char	            m_err_desc[MAX_BUF_SIZE];	    //错误内容
 
         //--------------------------------------------------
-        //得到Oracle的错误详细信息
+        //得到dn的错误详细信息
         void make_db_error_info(int32_t ec, const char *msg)
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
@@ -252,7 +252,7 @@ namespace rx_dbc_mysql
         error_info_t& operator = (const error_info_t&);
     public:
         //-------------------------------------------------
-        //构造函数,通过环境句柄得到Oracle的详细错误信息
+        //构造函数,通过环境句柄得到db的详细错误信息
         error_info_t(MYSQL *handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
             int32_t db_ec;
@@ -266,7 +266,7 @@ namespace rx_dbc_mysql
             va_end(va);
         }
         //-------------------------------------------------
-        //构造函数,通过环境句柄得到Oracle的详细错误信息
+        //构造函数,通过环境句柄得到db的详细错误信息
         error_info_t(MYSQL_STMT *handle, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
             int32_t db_ec;
@@ -358,7 +358,7 @@ namespace rx_dbc_mysql
     }
 
     //-----------------------------------------------------
-    //操作mysql格式的日期时间的功能类
+    //操作db格式的日期时间的功能类
     class datetime_t
     {
         MYSQL_TIME m_Date;

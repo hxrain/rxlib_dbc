@@ -116,7 +116,7 @@
             return NULL;
         }
         //-------------------------------------------------
-        //解析oracle的sql绑定语句并转化为mysql的?格式.绑定参数的格式为":name"
+        //解析oracle的sql绑定语句并转化为mysql的?格式到buff[buffsize]中.绑定参数的格式为":name"
         //返回值:buffsize缓冲器不足;其他为缓冲器结果串长度
         uint32_t ora2mysql(const char* sql,char* buff,uint32_t buffsize)
         {

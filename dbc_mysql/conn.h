@@ -41,8 +41,8 @@ namespace rx_dbc_mysql
         //-------------------------------------------------
         bool is_valid(){return m_is_valid;}
         //-------------------------------------------------
-        //连接到Oracle服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
-        //返回值:0正常;其他出现了可控问题(比如密码即将过期的提示)
+        //连接到db服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
+        //返回值:0正常;
         int16_t open(const conn_param_t& dst, const env_option_t &op = env_option_t(),uint32_t rw_timeout_sec=10)
         {
             if (is_empty(dst.host) || is_empty(dst.user) || is_empty(dst.db))
@@ -75,7 +75,7 @@ namespace rx_dbc_mysql
             return 0;
         }
         //-------------------------------------------------
-        //关闭当前的连接,不会抛出异常
+        //关闭当前的连接(不会抛出异常)
         bool close (void)
         {
             if (m_is_valid)
@@ -103,7 +103,7 @@ namespace rx_dbc_mysql
         //切换到指定的用户专属库
         void schema_to(const char *schema) { exec("use %s", schema); }
         //-------------------------------------------------
-        //当前连接启动事务
+        //当前连接启动事务.本封装使用了非自动提交模式,显式事务的启动就无需特殊处理.
         void trans_begin() { rx_assert(m_is_valid); }
         //-------------------------------------------------
         //提交当前事务
@@ -129,7 +129,7 @@ namespace rx_dbc_mysql
             return rc;
         }
         //-------------------------------------------------
-        //进行服务器ping检查,真实的判断连接是否有效.不会抛出异常
+        //进行服务器ping检查,真实的判断连接是否有效(不会抛出异常)
         bool ping()
         {
             rx_assert(m_is_valid);
