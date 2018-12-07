@@ -141,7 +141,7 @@ namespace rx_dbc_ora
         stmt_t& auto_bind(ub2 max_bulk_deep = 0)
         {
             if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
-                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql not prepared!"));
 
             sql_param_parse_t<> sp;
             const char* err = sp.ora_sql(m_SQL.c_str());

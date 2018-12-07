@@ -71,6 +71,17 @@
             strcpy(conn_param.user, "root");
             strcpy(conn_param.pwd, "root");
             strcpy(conn_param.db, "mysql");
+
+            rx_assert(get_sql_type("SELECT") == ST_SELECT);
+            rx_assert(get_sql_type("UPDATE") == ST_UPDATE);
+            rx_assert(get_sql_type("UPSERT") == ST_UPDATE);
+            rx_assert(get_sql_type("DELETE") == ST_DELETE);
+            rx_assert(get_sql_type("CREATE") == ST_CREATE);
+            rx_assert(get_sql_type("DROP") == ST_DROP);
+            rx_assert(get_sql_type("ALTER") == ST_ALTER);
+            rx_assert(get_sql_type("BEGIN") == ST_BEGIN);
+            rx_assert(get_sql_type("SET ") == ST_SET);
+            rx_assert(get_sql_type("INSERT") == ST_INSERT);
 #endif
         }
         bool check_conn()
@@ -125,36 +136,6 @@
             }
         }
     }ut_dbc;
-
-    //---------------------------------------------------------
-    //数据库连接
-    inline bool ut_dbc_base_conn(rx_tdd_t &rt, ut_dbc &dbc)
-    {
-        try {
-            dbc.conn.open(dbc.conn_param);
-#if UT_DB==DB_ORA
-            dbc.conn.schema_to("SCOTT");
-#else
-            rt.tdd_assert(get_sql_type("SELECT") == ST_SELECT);
-            rt.tdd_assert(get_sql_type("UPDATE") == ST_UPDATE);
-            rt.tdd_assert(get_sql_type("UPSERT") == ST_UPDATE);
-            rt.tdd_assert(get_sql_type("DELETE") == ST_DELETE);
-            rt.tdd_assert(get_sql_type("CREATE") == ST_CREATE);
-            rt.tdd_assert(get_sql_type("DROP") == ST_DROP);
-            rt.tdd_assert(get_sql_type("ALTER") == ST_ALTER);
-            rt.tdd_assert(get_sql_type("BEGIN") == ST_BEGIN);
-            rt.tdd_assert(get_sql_type("SET ") == ST_SET);
-            rt.tdd_assert(get_sql_type("INSERT") == ST_INSERT);
-#endif
-            return true;
-        }
-        catch (error_info_t &e)
-        {
-            printf(e.c_str(dbc.conn_param));
-            printf("\n");
-            return false;
-        }
-    }
 
 //---------------------------------------------------------
 //简单查询
@@ -490,7 +471,8 @@ inline void ut_dbc_base_sql_parse_1(rx_tdd_t &rt)
 inline void ut_dbc_base_1(rx_tdd_t &rt)
 {
     ut_dbc utdb;
-    if (ut_dbc_base_conn(rt, utdb))
+    rt.tdd_assert(utdb.check_conn());
+    if (utdb.check_conn())
     {
         rt.tdd_assert(ut_dbc_base_query_1(rt, utdb));
         
