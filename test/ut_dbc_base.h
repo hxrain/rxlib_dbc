@@ -38,14 +38,14 @@
     #include "../rx_dbc_mysql.h"
     using namespace rx_dbc_mysql;
     /*
-    CREATE TABLE `tmp_dbc` (
-      `ID` bigint(20) unsigned NOT NULL,
-      `INTN` int(10) DEFAULT NULL,
-      `UINT` int(10) unsigned DEFAULT NULL,
-      `STR` varchar(255) DEFAULT NULL,
-      `MDATE` datetime DEFAULT NULL,
-      `SHORT` smallint(6) DEFAULT NULL,
-      PRIMARY KEY (`ID`)
+    CREATE TABLE tmp_dbc (
+      ID bigint(20) unsigned NOT NULL,
+      INTN int(10) DEFAULT NULL,
+      UINT int(10) unsigned DEFAULT NULL,
+      STR varchar(255) DEFAULT NULL,
+      MDATE datetime DEFAULT NULL,
+      SHORT smallint(6) DEFAULT NULL,
+      PRIMARY KEY (ID)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     */
 #endif
@@ -72,6 +72,57 @@
             strcpy(conn_param.pwd, "root");
             strcpy(conn_param.db, "mysql");
 #endif
+        }
+        bool check_conn()
+        {
+            try {
+                if (!conn.is_valid())
+                {
+                    conn.open(conn_param);
+#if UT_DB==DB_ORA
+                    conn.schema_to("SCOTT");
+#endif
+                }
+                return true;
+            }
+            catch (error_info_t &e)
+            {
+                printf(e.c_str(conn_param));
+                printf("\n");
+                return false;
+            }
+        }
+
+        int records()
+        {
+            try {
+                if (!check_conn())
+                    return -2;
+                return query_t(conn).query_records("tmp_dbc");
+            }
+            catch (error_info_t &e)
+            {
+                printf(e.c_str(conn_param));
+                printf("\n");
+                return -1;
+            }
+        }
+        int exec(const char* sql)
+        {
+            try {
+                if (!check_conn())
+                    return -2;
+                conn.exec(sql);
+                conn.trans_commit();
+                return 1;
+            }
+            catch (error_info_t &e)
+            {
+                conn.trans_rollback();
+                printf(e.c_str(conn_param));
+                printf("\n");
+                return -1;
+            }
         }
     }ut_dbc;
 
@@ -114,7 +165,7 @@ inline bool ut_dbc_base_query_1(rx_tdd_t &rt, ut_dbc &dbc)
 
         for (q.exec("select * from tmp_dbc"); !q.eof(); q.next())
         {
-            printf("id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+            printf("fetch_count=%d:id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",q.fetched(),
                 q["id"].as_long(), q["intn"].as_long(), q["uint"].as_ulong(),
                 q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
@@ -140,12 +191,12 @@ inline bool ut_dbc_base_query_2(rx_tdd_t &rt, ut_dbc &dbc)
 
         for (q.exec(); !q.eof(); q.next())
         {
-            printf("id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+            printf("fc=%d:id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",q.fetched(),
                 q["id"].as_long(), q["intn"].as_long(), q["uint"].as_ulong(),
                 q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         }
 
-        q.exec("delete from tmp_dbc where str!='str'").conn().trans_commit();
+        //q.exec("delete from tmp_dbc where str!='str'").conn().trans_commit();
 
         return true;
     }
@@ -275,14 +326,13 @@ inline bool ut_dbc_base_insert_2c(rx_tdd_t &rt, ut_dbc &dbc)
 //批量插入手动绑定示例
 inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
 {
-#if UT_DB==DB_ORA
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
         q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
-
+#if UT_DB==DB_ORA
         //给每个块深度对应的参数进行绑定与赋值
         q.bulk(0)(":nID", 25)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         q.bulk(1)(":nID", 35)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769);
@@ -297,7 +347,21 @@ inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
         //告知真正绑定的数据深度并执行操作
         q.exec(1);
         rt.tdd_assert(q.rows() == 1);
-        //必须对默认事务进行提交
+#else
+        q(":nID", 25)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
+        rt.tdd_assert(q.rows() == 1);
+
+        q(":nID", 35)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
+        rt.tdd_assert(q.rows() == 1);
+        //先对默认事务进行提交
+        dbc.conn.trans_commit();
+
+        //继续进行批量数据的绑定
+        q(":nID", 45)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
+        rt.tdd_assert(q.rows() == 1);
+
+#endif
+        //再对默认事务进行提交
         dbc.conn.trans_commit();
         return true;
     }
@@ -307,9 +371,8 @@ inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
         printf("\n");
         return false;
     }
-#else
+
     return true;
-#endif
 }
 //---------------------------------------------------------
 //进行自动参数绑定的插入示例
@@ -339,13 +402,13 @@ inline bool ut_dbc_base_insert_4(rx_tdd_t &rt, ut_dbc &dbc)
 //进行自动参数绑定的批量插入示例
 inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
 {
-#if UT_DB==DB_ORA
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
         q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
+#if UT_DB==DB_ORA
 
         //给每个块深度对应的参数进行赋值
         q.bulk(0) << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
@@ -357,7 +420,21 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
         q.bulk(0) << 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         q.exec(1, true);                                    //告知真正绑定的数据深度,执行并提交
         rt.tdd_assert(q.rows() == 1);
+#else
+        //给每个块深度对应的参数进行赋值
+        q << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q.exec().conn().trans_commit();                     //执行本次批量操作,并进行提交
+        rt.tdd_assert(q.rows() == 1);
 
+        q << 37 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32769;
+        q.exec().conn().trans_commit();                     //执行本次批量操作,并进行提交
+        rt.tdd_assert(q.rows() == 1);
+
+        //继续进行批量数据的绑定
+        q<< 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q.exec(true);                                    //告知真正绑定的数据深度,执行并提交
+        rt.tdd_assert(q.rows() == 1);
+#endif
         return true;
     }
     catch (error_info_t &e)
@@ -366,9 +443,7 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
         printf("\n");
         return false;
     }
-#else
     return true;
-#endif
 }
 
 //---------------------------------------------------------
@@ -418,14 +493,31 @@ inline void ut_dbc_base_1(rx_tdd_t &rt)
     if (ut_dbc_base_conn(rt, utdb))
     {
         rt.tdd_assert(ut_dbc_base_query_1(rt, utdb));
+        
+        //先清空测试表
+        rt.tdd_assert(utdb.exec("delete from tmp_dbc")==1);
+        rt.tdd_assert(utdb.records() == 0);
 
         rt.tdd_assert(ut_dbc_base_insert_1(rt, utdb));
+        rt.tdd_assert(utdb.records() == 1);
+
         rt.tdd_assert(ut_dbc_base_insert_2(rt, utdb));
+        rt.tdd_assert(utdb.records() == 2);
+
         rt.tdd_assert(ut_dbc_base_insert_2b(rt, utdb));
+        rt.tdd_assert(utdb.records() == 3);
+
         rt.tdd_assert(ut_dbc_base_insert_2c(rt, utdb));
+        rt.tdd_assert(utdb.records() == 5);
+
         rt.tdd_assert(ut_dbc_base_insert_3(rt, utdb));
+        rt.tdd_assert(utdb.records() == 8);
+
         rt.tdd_assert(ut_dbc_base_insert_4(rt, utdb));
+        rt.tdd_assert(utdb.records() == 9);
+
         rt.tdd_assert(ut_dbc_base_insert_5(rt, utdb));
+        rt.tdd_assert(utdb.records() == 12);
 
         for (int i = 0; i < 10; ++i)
             rt.tdd_assert(ut_dbc_base_query_1(rt, utdb));
@@ -512,13 +604,8 @@ class mydbc :public dbc_t
     {
         if (!usrdat) return 0;
         ut_ins_dat_t &dat = *(ut_ins_dat_t*)usrdat;
-#if UT_DB==DB_ORA
-        q.bulk(0) << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
-        q.bulk(1) << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
-#else
         q << dat.ID++ << dat.INT << dat.UINT << dat.STR << dat.DATE << dat.SHORT;
-#endif
-        return 2;
+        return 1;
     }
 public:
     mydbc(dbc_conn_t  &c) :dbc_t(c) {}
@@ -572,7 +659,7 @@ class mydbc4 :public dbc_t
     //获取到结果,访问当前行数据;返回值:<0错误;0用户要求放弃;>0完成
     virtual int32_t on_row(query_t &q, void *usrdat)
     {
-        printf("id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",
+        printf("fetcount=%d:id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",q.fetched(),
             q["id"].as_ulong(), q["intn"].as_long(), q["uint"].as_ulong(),
             q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
         return 1;
@@ -605,6 +692,7 @@ inline void ut_dbc_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 //对上层封装的db操作进行真正的驱动测试
 inline void ut_dbc_ext_a(rx_tdd_t &rt)
 {
+    //借用连接参数
     ut_dbc cp;
 
     //定义待处理数据
@@ -614,12 +702,24 @@ inline void ut_dbc_ext_a(rx_tdd_t &rt)
     my_conn_t conn;
     conn.set_conn_param(cp.conn_param);
 
+    //先清空测试表
+    rt.tdd_assert(conn.exec("delete from tmp_dbc"));
+
     //执行测试过程
     ut_dbc_ext_a1(rt, conn, dat);
+    rt.tdd_assert(cp.records() == 3);
+
     ut_dbc_ext_a2(rt, conn, dat);
+    rt.tdd_assert(cp.records() == 5);
+
     ut_dbc_ext_a3(rt, conn, dat);
+    rt.tdd_assert(cp.records() == 5);
+
     ut_dbc_ext_a4(rt, conn, dat);
+    rt.tdd_assert(cp.records() == 5);
+
     ut_dbc_ext_a5(rt, conn, dat);
+    rt.tdd_assert(cp.records() == 6);
 }
 
 //---------------------------------------------------------
