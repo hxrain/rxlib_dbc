@@ -150,7 +150,50 @@ namespace rx_dbc_ora
                 return 0;
             }
         }
+        //-------------------------------------------------
+        //获取表中记录的数量,可指定查询条件(where之后的部分)
+        //返回值:<0错误;>=0为结果
+        int query_records(const char* tblname, const char* cond = NULL)
+        {
+            if (!connect())
+                return -1;
 
+            query_t q(m_conn);
+            try {
+                return q.query_records(tblname, cond);
+            }
+            catch (error_info_t &e)
+            {
+                do_error(e, &q);
+                return -2;
+            }
+        }
+        //-------------------------------------------------
+        //执行没有返回结果的语句
+        bool exec(const char *sql,...)
+        {
+            if (!connect())
+                return false;
+
+            query_t q(m_conn);
+
+            va_list arg;
+            va_start(arg, sql);
+            bool rc = true;
+
+            try {
+                q.exec(sql, arg);
+                q.conn().trans_commit();
+            }
+            catch (error_info_t &e)
+            {
+                q.conn().trans_rollback();
+                do_error(e, &q);
+                rc = false;
+            }
+            va_end(arg);
+            return rc;
+        }
         //-------------------------------------------------
     protected:
         //-------------------------------------------------

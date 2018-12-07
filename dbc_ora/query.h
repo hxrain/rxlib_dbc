@@ -12,10 +12,10 @@ namespace rx_dbc_ora
 
         typedef rx::alias_array_t<field_t, FIELD_NAME_LENGTH> field_array_t;
         field_array_t   m_fields;                           //字段数组
-        ub2				m_fetch_bat_size;	                //每批次获取的记录数量
-        ub4				m_fetched_count;	                //已经获取过的记录数量
-        ub4				m_cur_row_idx;	                    //当前处理的记录在全部结果集中的行号
-        ub2  			m_is_eof;			                //当前记录集是否已经完全获取完成
+        ub2  			m_bat_fetch_eof;			        //当前记录集批量提取是否结束(逐条提取未必结束)
+        ub2				m_bat_fetch_size;	                //每批次获取的记录数量
+        ub4				m_bat_fetch_total;                  //已经获取过的批量记录数量
+        ub4				m_cur_fetch_idx;                    //当前处理的记录在全部结果集中的行号
 
         //-------------------------------------------------
         //被禁止的操作
@@ -25,9 +25,9 @@ namespace rx_dbc_ora
         //清理本子类中使用的状态与相关资源
         void m_clear (bool reset_only=false)
         {
-            m_fetched_count = 0;
-            m_cur_row_idx = 0;
-            m_is_eof = false;
+            m_bat_fetch_total = 0;
+            m_cur_fetch_idx = 0;
+            m_bat_fetch_eof = false;
             for (uint32_t i = 0; i < m_fields.capacity(); ++i)
                 m_fields[i].reset();
             m_fields.clear(reset_only);
@@ -90,9 +90,9 @@ namespace rx_dbc_ora
                 m_fields.bind(i,rx::st::strlwr(Tmp));
 
                 //进行OCI数据类型的归一化处理并构造对应的缓冲区
-                oci_data_type=Field.bind_data_type (this,reinterpret_cast <const char *> (param_name),name_len,oci_data_type,size,m_fetch_bat_size);
+                oci_data_type=Field.bind_data_type (this,reinterpret_cast <const char *> (param_name),name_len,oci_data_type,size,m_bat_fetch_size);
 
-                //进行字段缓冲区的绑定,缓冲区的行深度是m_fetch_bat_size,便于在OCIStmtFetch2的时候进行多行批量获取
+                //进行字段缓冲区的绑定,缓冲区的行深度是m_bat_fetch_size,便于在OCIStmtFetch2的时候进行多行批量获取
                 OCIDefine *field_handle=NULL;
                 result = OCIDefineByPos(m_stmt_handle, &field_handle, m_conn.m_handle_err,
                     i+1,                                //跳过0,rowid列
@@ -116,21 +116,21 @@ namespace rx_dbc_ora
         {
             sword	result;
             //记录之前已经提取过的结果数
-            ub4		old_rows_count = m_fetched_count;
+            ub4		old_fetch_total = m_bat_fetch_total;
             //尝试批量获取一次结果集;我们使用了显示的批量提取方式,就不能使用内置OCI_ATTR_PREFETCH_ROWS预取模式.
 #if RX_DBC_ORA_USE_OLD_STMT
-            result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_fetch_bat_size,OCI_FETCH_NEXT,OCI_DEFAULT);
+            result = OCIStmtFetch(m_stmt_handle,m_conn.m_handle_err,m_bat_fetch_size,OCI_FETCH_NEXT,OCI_DEFAULT);
 #else
-            result = OCIStmtFetch2(m_stmt_handle, m_conn.m_handle_err, m_fetch_bat_size, OCI_FETCH_NEXT,0, OCI_DEFAULT);
+            result = OCIStmtFetch2(m_stmt_handle, m_conn.m_handle_err, m_bat_fetch_size, OCI_FETCH_NEXT,0, OCI_DEFAULT);
 #endif
             if (result == OCI_SUCCESS || result == OCI_NO_DATA || result == OCI_SUCCESS_WITH_INFO)
             {//正常完成了,或有条件完成了,则取出实际提取结果数;返回OCI_NO_DATA代表本批次结束了,但批次内的具体结果数量仍需要正常处理.
-                result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_fetched_count,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
+                result = OCIAttrGet (m_stmt_handle,OCI_HTYPE_STMT,&m_bat_fetch_total,NULL,OCI_ATTR_ROW_COUNT,m_conn.m_handle_err);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
                 //如果本次提取的结果数量与前次提取数量的差小于要求提取的数量,则说明遇到结果集的尾部了.
-                if (m_fetched_count - old_rows_count != (ub4)m_fetch_bat_size)
-                    m_is_eof = true;                        //标记结果集提取结束
+                if (m_bat_fetch_total - old_fetch_total != (ub4)m_bat_fetch_size)
+                    m_bat_fetch_eof = true;       //标记结果集批量提取结束
             }
             else
                 throw (error_info_t (result, m_conn.m_handle_err, __FILE__, __LINE__, m_SQL.c_str()));
@@ -162,7 +162,7 @@ namespace rx_dbc_ora
         ~query_t (){close();}
         //-------------------------------------------------
         //设置结果集批量提取数
-        void set_fetch_bats(ub2 bats= BAT_FETCH_SIZE) { m_fetch_bat_size = rx::Max(bats,(ub2)1); }
+        void set_fetch_bats(ub2 bats= BAT_FETCH_SIZE) { m_bat_fetch_size = rx::Max(bats,(ub2)1); }
         //-------------------------------------------------
         //执行解析后的sql语句,并尝试得到结果(入口为每次获取的批量数量,默认0为最大深度)
         //执行后如果没有异常,就可以尝试访问结果集了
@@ -175,13 +175,20 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //直接执行一条sql语句,中间没有绑定参数的机会了
-        query_t& exec(const char *sql,...)
+        query_t& exec(const char *sql, va_list arg)
+        {
+            prepare(sql,arg);
+            return exec();
+        }
+        //-------------------------------------------------
+        //直接执行一条sql语句,中间没有绑定参数的机会了
+        query_t& exec(const char *sql, ...)
         {
             va_list arg;
             va_start(arg, sql);
-            prepare(sql,arg);
+            exec(sql, arg);
             va_end(arg);
-            return exec();
+            return *this;
         }
         //-------------------------------------------------
         //关闭当前的Query对象,释放全部资源
@@ -192,23 +199,27 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //判断当前是否为结果集真正的结束状态(exec/eof/next构成了结果集遍历原语)
-        bool eof(void) const { return (m_cur_row_idx >= m_fetched_count && m_is_eof); }
+        bool eof(void) const { return (m_cur_fetch_idx >= m_bat_fetch_total && m_bat_fetch_eof); }
         //-------------------------------------------------
         //跳转到下一行,返回值为false说明到结尾了
         //返回值:是否还有记录
         bool next(void)
         {
-            m_cur_row_idx++;
-            if (m_cur_row_idx >= m_fetched_count)
+            ++m_cur_fetch_idx;
+
+            if (m_cur_fetch_idx >= m_bat_fetch_total)
             {
-                if (m_is_eof) return false;
+                if (m_bat_fetch_eof) 
+                    return false;
                 m_bat_fetch();
             }
-            if (m_cur_row_idx >= m_fetched_count)
+            if (m_cur_fetch_idx >= m_bat_fetch_total)
                 return false;
 
             return true;
         }
+        //-------------------------------------------------
+        uint32_t fetched() { return m_bat_fetch_total ? m_cur_fetch_idx + 1 : 0; }
         //-------------------------------------------------
         //得到当前结果集中字段的数量
         ub4 fields() { return m_fields.size(); }
@@ -224,9 +235,31 @@ namespace rx_dbc_ora
             return &m_fields[field_idx];
         }
         //-------------------------------------------------
+        //查询指定表中给定条件下的记录数量(条件多变的情况不推荐,需要使用绑定变量模式)
+        int32_t query_records(const char* tblname, const char* cond = NULL)
+        {
+            if (is_empty(cond))
+                exec("select count(1) as c from %s", tblname);
+            else
+                exec("select count(1) as c from %s where %s", tblname, cond);
+
+            if (eof()) return 0;
+            return field("c").as_long();
+        }
+        //-------------------------------------------------
         //运算符重载,访问字段
         field_t& operator[](const ub4 field_idx) { return field(field_idx); }
         field_t& operator[](const char *name) { return field(name); }
+        //-------------------------------------------------
+        //顺序提取字段的值
+        template<typename DT>
+        query_t& operator >> (DT &value)
+        {
+            rx_assert(m_cur_field_idx<m_fields.size());
+            m_fields[field_idx].to(value);
+            return *this;
+        }
+
     };
 
     //-----------------------------------------------------
@@ -234,7 +267,7 @@ namespace rx_dbc_ora
     inline ub2 field_t::bulk_row_idx()const
     {
         rx_assert (m_query!=NULL);
-        return static_cast <ub2> (m_query->m_cur_row_idx % m_query->m_fetch_bat_size);
+        return static_cast <ub2> (m_query->m_cur_fetch_idx % m_query->m_bat_fetch_size);
     }
 }
 

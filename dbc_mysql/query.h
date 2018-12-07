@@ -157,13 +157,20 @@ namespace rx_dbc_mysql
         }
         //-------------------------------------------------
         //直接执行一条sql语句,中间没有绑定参数的机会了
-        query_t& exec(const char *sql,...)
+        query_t& exec(const char *sql, va_list arg)
+        {
+            prepare(sql,arg);
+            return exec();
+        }
+        //-------------------------------------------------
+        //直接执行一条sql语句,中间没有绑定参数的机会了
+        query_t& exec(const char *sql, ...)
         {
             va_list arg;
             va_start(arg, sql);
-            prepare(sql,arg);
+            exec(sql, arg);
             va_end(arg);
-            return exec();
+            return *this;
         }
         //-------------------------------------------------
         //关闭当前的Query对象,释放全部资源
@@ -199,6 +206,18 @@ namespace rx_dbc_mysql
             uint32_t field_idx = m_fields.index(Tmp);
             if (field_idx == m_fields.capacity()) return NULL;
             return &m_fields[field_idx];
+        }
+        //-------------------------------------------------
+        //查询指定表中给定条件下的记录数量(条件多变的情况不推荐,需要使用绑定变量模式)
+        int32_t query_records(const char* tblname, const char* cond = NULL)
+        {
+            if (is_empty(cond))
+                exec("select count(1) as c from %s", tblname);
+            else
+                exec("select count(1) as c from %s where %s", tblname, cond);
+
+            if (eof()) return 0;
+            return field("c").as_long();
         }
         //-------------------------------------------------
         //运算符重载,访问字段

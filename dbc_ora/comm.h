@@ -597,6 +597,14 @@ namespace rx_dbc_ora
             if (m_is_null(idx)) return NULL;
             return comm_as_string(get_data_buff(idx), ConvFmt);
         }
+        col_base_t& to(char* buff, uint32_t max_size = 0)
+        {
+            if (max_size)
+                rx::st::strcpy(buff, max_size, as_string());
+            else
+                rx::st::strcpy(buff, as_string());
+            return *this;
+        }
         //-------------------------------------------------
         //尝试获取内部数据为浮点数
         double as_double(double DefValue = 0) const
@@ -604,6 +612,11 @@ namespace rx_dbc_ora
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
             return comm_as_double<double>(get_data_buff(idx));
+        }
+        col_base_t& to(double &buff, double def_val = 0)
+        {
+            buff = as_double(def_val);
+            return *this;
         }
         //-------------------------------------------------
         //尝试获取内部数据为高精度浮点数
@@ -616,6 +629,11 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
         int64_t as_bigint(int64_t DefValue = 0) const { return int64_t(as_real((long double)DefValue)); }
+        col_base_t& to(int64_t &buff, int64_t def_val = 0)
+        {
+            buff = as_bigint(def_val);
+            return *this;
+        }
         //-------------------------------------------------
         //尝试获取内部数据为带符号整数
         int32_t as_long(int32_t DefValue = 0) const
@@ -623,6 +641,11 @@ namespace rx_dbc_ora
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
             return comm_as_long(get_data_buff(idx));
+        }
+        col_base_t& to(int32_t &buff, int32_t def_val = 0)
+        {
+            buff = as_long(def_val);
+            return *this;
         }
         //-------------------------------------------------
         //尝试获取内部数据为无符号整数
@@ -632,6 +655,11 @@ namespace rx_dbc_ora
             if (m_is_null(idx)) return DefValue;
             return comm_as_long(get_data_buff(idx), false);
         }
+        col_base_t& to(uint32_t &buff, uint32_t def_val = 0)
+        {
+            buff = as_ulong(def_val);
+            return *this;
+        }
         //-------------------------------------------------
         //尝试获取内部数据为日期时间
         datetime_t as_datetime(void) const
@@ -639,6 +667,11 @@ namespace rx_dbc_ora
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return datetime_t();
             return comm_as_datetime(get_data_buff(idx));
+        }
+        col_base_t& to(datetime_t &buff)
+        {
+            buff = as_datetime();
+            return *this;
         }
     };
 }
