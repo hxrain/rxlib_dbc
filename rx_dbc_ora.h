@@ -28,6 +28,11 @@
 //---------------------------------------------------------
 //OCI网络中断后的默认传输超时应该是在20sec左右,进行超时判断时需要注意
 namespace rx_dbc_ora {}
+
+#if defined (RX_DBC_NAMESPACE)
+    #undef RX_DBC_NAMESPACE
+#endif
+
 #define RX_DBC_NAMESPACE rx_dbc_ora
 #include "rx_dbc_comm.h"
 

@@ -32,6 +32,11 @@ namespace rx_dbc_mysql
 {
     static const uint16_t BAT_BULKS_SIZE = 1;
 }
+
+#if defined (RX_DBC_NAMESPACE)
+    #undef RX_DBC_NAMESPACE
+#endif
+
 #define RX_DBC_NAMESPACE rx_dbc_mysql
 #include "rx_dbc_comm.h"
 

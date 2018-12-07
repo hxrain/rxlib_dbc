@@ -95,8 +95,8 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>UT_DB=DB_MYSQL;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;UT_DB=DB_MYSQL;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\ora\include;D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -110,8 +110,8 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>UT_DB=DB_MYSQL;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;UT_DB=DB_MYSQL;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\ora\include;D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,8 +128,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>UT_DB=DB_MYSQL;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;UT_DB=DB_MYSQL;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\ora\include;D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -147,8 +147,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>UT_DB=DB_MYSQL;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;UT_DB=DB_MYSQL;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\ora\include;D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
