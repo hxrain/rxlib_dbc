@@ -146,9 +146,9 @@ namespace rx_dbc_mysql
         //设置结果集批量提取数
         void set_fetch_bats(uint16_t bats= BAT_FETCH_SIZE) { m_fetch_bat_size = rx::Max(bats,(uint16_t)1); }
         //-------------------------------------------------
-        //执行解析后的sql语句,并尝试得到结果(入口为每次获取的批量数量,默认0为最大深度)
+        //执行解析后的sql语句,并尝试得到结果
         //执行后如果没有异常,就可以尝试访问结果集了
-        query_t& exec()
+        query_t& exec(uint32_t dummy=-1)
         {
             stmt_t::exec();
             if (m_make_fields())
