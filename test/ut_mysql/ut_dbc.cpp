@@ -25,7 +25,7 @@ int main()
     getchar();
 
 #if RX_CC==RX_CC_VC
-    //_CrtDumpMemoryLeaks();
+    _CrtDumpMemoryLeaks();
 #endif
     return 0;
 }
