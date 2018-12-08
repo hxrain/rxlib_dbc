@@ -50,7 +50,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //连接到Oracle服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
         //返回值:0正常;其他出现了可控问题(比如密码即将过期的提示)
-        sword open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
+        sword open(const dbc_conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
         {
             char dblink[1024];
             sprintf(dblink, "(DESCRIPTION=(CONNECT_TIMEOUT=%d)(TRANSPORT_CONNECT_TIMEOUT=%d)(ADDRESS=(PROTOCOL=tcp) (HOST=%s) (PORT=%d))(CONNECT_DATA=(SERVICE_NAME=%s)))",dst.conn_timeout,dst.conn_timeout,dst.host, dst.port, dst.db);
@@ -59,20 +59,20 @@ namespace rx_dbc_ora
         sword open (const char *dblink,const char *login,const char *password,const env_option_t &op = env_option_t(),unsigned long env_mode = OCI_OBJECT|OCI_THREADED)
         {
             if (is_empty(dblink) || is_empty(login) || is_empty(password))
-                throw (error_info_t (type_t::DBEC_BAD_PARAM, __FILE__, __LINE__));
+                throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
                 
             //每次连接前都先尝试关闭之前的连接
             close();
             //初始化OCI环境,得到环境句柄
             sword result = OCIEnvNlsCreate (&m_handle_env,env_mode,NULL,DBC_ORA_Malloc,DBC_ORA_Realloc,DBC_ORA_Free,0,NULL,op.charset_id, op.charset_id);
-            if (result!=OCI_SUCCESS) throw (error_info_t (type_t::DBEC_ENV_FAIL, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (DBEC_ENV_FAIL, __FILE__, __LINE__));
 
             //分配得到服务器句柄
             OCIHandleAlloc (m_handle_env,(void **) &m_handle_svr,OCI_HTYPE_SERVER,0,NULL);
 
             //分配得到错误句柄
             result = OCIHandleAlloc (m_handle_env,(void **) &m_handle_err,OCI_HTYPE_ERROR,0,NULL);
-            if (result!=OCI_SUCCESS) throw (error_info_t (type_t::DBEC_ENV_FAIL, __FILE__, __LINE__));
+            if (result!=OCI_SUCCESS) throw (error_info_t (DBEC_ENV_FAIL, __FILE__, __LINE__));
 
             //!!连接到服务器!!
             result = OCIServerAttach (m_handle_svr,m_handle_err,(text *) dblink,(ub4)strlen (dblink),OCI_DEFAULT);

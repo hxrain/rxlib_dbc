@@ -44,7 +44,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //进行数据类型确认并进行数据初始化
         //返回值:归一化后的OCI数据类型
-        ub2 m_bind_data_type(const char *param_name,ub4 name_size, type_t::data_type_t type, int StringMaxSize, ub4 BulkCount)
+        ub2 m_bind_data_type(const char *param_name,ub4 name_size, dbc_data_type_t type, int StringMaxSize, ub4 BulkCount)
         {
             rx_assert(!is_empty(param_name));
             rx_assert(m_max_bulk_deep == (ub4)0);
@@ -52,35 +52,35 @@ namespace rx_dbc_ora
             m_max_bulk_deep = BulkCount;
 
             ub2 oci_data_type;
-            type_t::data_type_t	dbc_data_type;
+            dbc_data_type_t	dbc_data_type;
             int max_data_size;
 
-            char NamePreDateTypeChar = type_t::DT_UNKNOWN;          //前缀类型默认为无效
+            char NamePreDateTypeChar = DT_UNKNOWN;          //前缀类型默认为无效
             if (param_name[0] == ':')
                 NamePreDateTypeChar = param_name[1];        //以':'为前导的参数命名才进行前缀类型解析
 
             //根据外面告知的绑定数据类型,进行内部数据类型转换
-            if (type == type_t::DT_NUMBER || (type == type_t::DT_UNKNOWN && NamePreDateTypeChar == type_t::DT_NUMBER))
+            if (type == DT_NUMBER || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_NUMBER))
             {
-                dbc_data_type = type_t::DT_NUMBER;
+                dbc_data_type = DT_NUMBER;
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
             }
-            else if (type == type_t::DT_DATE || (type == type_t::DT_UNKNOWN && NamePreDateTypeChar == type_t::DT_DATE))
+            else if (type == DT_DATE || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_DATE))
             {
-                dbc_data_type = type_t::DT_DATE;
+                dbc_data_type = DT_DATE;
                 oci_data_type = SQLT_ODT;
                 max_data_size = sizeof(OCIDate);
             }
-            else if (type == type_t::DT_TEXT || (type == type_t::DT_UNKNOWN && NamePreDateTypeChar == type_t::DT_TEXT))
+            else if (type == DT_TEXT || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_TEXT))
             {
-                dbc_data_type = type_t::DT_TEXT;
+                dbc_data_type = DT_TEXT;
                 oci_data_type = SQLT_STR;
                 max_data_size = StringMaxSize;
             }
             else
                 //该类型当前还不能处理
-                throw (error_info_t(type_t::DBEC_BAD_TYPEPREFIX, __FILE__, __LINE__, "param(%s)",param_name));
+                throw (error_info_t(DBEC_BAD_TYPEPREFIX, __FILE__, __LINE__, "param(%s)",param_name));
 
 
             //分配参数数据内存,并初始清零
@@ -94,7 +94,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //初始化绑定到对应的语句句柄上
-        void bind_param(conn_t &conn, OCIStmt* StmtHandle, const char *name, type_t::data_type_t dbc_data_type, int StringMaxSize, int BulkCount)
+        void bind_param(conn_t &conn, OCIStmt* StmtHandle, const char *name, dbc_data_type_t dbc_data_type, int StringMaxSize, int BulkCount)
         {
             rx_assert(!is_empty(name));
             m_clear();
@@ -133,7 +133,7 @@ namespace rx_dbc_ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case type_t::DT_NUMBER:
+            case DT_NUMBER:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);   //得到可用缓冲区
@@ -143,7 +143,7 @@ namespace rx_dbc_ora
                 m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
-            case type_t::DT_TEXT:
+            case DT_TEXT:
             {
                 char tmp_buff[50];
                 if (is_signed)
@@ -153,7 +153,7 @@ namespace rx_dbc_ora
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(type_t::DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -163,7 +163,7 @@ namespace rx_dbc_ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case type_t::DT_NUMBER:
+            case DT_NUMBER:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
@@ -173,14 +173,14 @@ namespace rx_dbc_ora
                 m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
-            case type_t::DT_TEXT:
+            case DT_TEXT:
             {
                 char tmp_buff[50];
                 sprintf(tmp_buff, "%f", value);
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(type_t::DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         sql_param_t& set_real(long double value)
@@ -188,7 +188,7 @@ namespace rx_dbc_ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case type_t::DT_NUMBER:
+            case DT_NUMBER:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
@@ -198,7 +198,7 @@ namespace rx_dbc_ora
                 m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
-            case type_t::DT_TEXT:
+            case DT_TEXT:
             {//将real数字转换为文本,使用OCI函数
                 OCINumber num;
                 sword result = OCINumberFromReal(m_conn->m_handle_err, &value, sizeof(value), &num);
@@ -213,7 +213,7 @@ namespace rx_dbc_ora
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(type_t::DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
             
         }
@@ -224,21 +224,21 @@ namespace rx_dbc_ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case type_t::DT_DATE:
+            case DT_DATE:
             {
                 rx_assert(m_max_data_size == sizeof(OCIDate));
                 d.to(m_col_databuff.at<OCIDate>(m_bulk_idx));
                 m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
                 return (*this);
             }
-            case type_t::DT_TEXT:
+            case DT_TEXT:
             {
                 char tmp_buff[21];
                 d.to(tmp_buff);
                 return set_string(tmp_buff);
             }
             default:
-                throw (error_info_t(type_t::DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -254,7 +254,7 @@ namespace rx_dbc_ora
 
             switch (m_dbc_data_type)
             {
-            case type_t::DT_TEXT:
+            case DT_TEXT:
             {//当前实际数据类型是文本串,赋值的也是文本,那么就进行拷贝赋值吧
                 ub2 data_len = ub2(strlen(text));           //得到数据实际长度
                 ub1 *data_buff = m_col_databuff.ptr(m_bulk_idx*m_max_data_size);   //得到可用缓冲区
@@ -270,23 +270,23 @@ namespace rx_dbc_ora
                 m_set_data_size(data_len, m_bulk_idx);      //记录数据的实际长度
                 return (*this);
             }
-            case type_t::DT_DATE:
+            case DT_DATE:
             {//当前实际数据类型是日期,而给赋值的是文本串,那么就进行转换后处理吧;默认只处理"yyyy-mm-dd hh:mi:ss"的格式
                 datetime_t D;
                 struct tm ST;
 
                 if (!rx_iso_datetime(text, ST))             //转换日期格式
-                    throw (error_info_t(type_t::DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                    throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
                 D.set(ST);
                 return set_datetime(D);                     //交给实际的功能函数
             }
-            case type_t::DT_NUMBER:
+            case DT_NUMBER:
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
                 double Value = rx::st::atof(text);
                 return set_double(Value);                   //交给实际的功能函数
             }
             default:
-                throw (error_info_t(type_t::DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -299,7 +299,7 @@ namespace rx_dbc_ora
         void bulk(ub2 idx)
         {
             if (idx >= m_max_bulk_deep)
-                throw (error_info_t(type_t::DBEC_IDX_OVERSTEP, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             m_bulk_idx = idx;
         }
         //获取最大块深度

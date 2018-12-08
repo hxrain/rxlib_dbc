@@ -16,9 +16,10 @@
 
 #include "oci.h"                                            //引入OCI接口,默认在"3rd_deps\ora\include"
 
-#include "dbc_comm/sql_param_parse.h"                       //SQL绑定参数的名字解析功能
+#include "dbc_comm/dbc_parse.h"                             //SQL绑定参数的名字解析功能
+#include "dbc_comm/dbc_type.h"                              //基础公共类型定义
 
-#include "dbc_ora/comm.h"                                   //实现一些通用功能
+#include "dbc_ora/base.h"                                   //实现一些通用功能
 #include "dbc_ora/conn.h"                                   //实现数据库连接
 #include "dbc_ora/param.h"                                  //实现语句段绑定参数
 #include "dbc_ora/stmt.h"                                   //实现sql语句段

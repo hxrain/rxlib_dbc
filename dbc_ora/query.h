@@ -52,7 +52,7 @@ namespace rx_dbc_ora
             //动态生成字段对象数组
             rx_assert(m_fields.size()==0);
             if (!m_fields.make_ex(count,true))              //分配字段数组
-                throw (error_info_t (type_t::DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
+                throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
 
             //循环获取字段属性信息
             char Tmp[200];
@@ -142,7 +142,7 @@ namespace rx_dbc_ora
         {
             rx_assert(field_idx<m_fields.size());
             if (field_idx >= m_fields.capacity())
-                throw (error_info_t(type_t::DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
+                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
             return m_fields[field_idx];
         }
         //-------------------------------------------------
@@ -153,7 +153,7 @@ namespace rx_dbc_ora
             rx::st::strlwr(name, Tmp);
             ub4 field_idx = m_fields.index(Tmp);
             if (field_idx == m_fields.capacity())
-                throw (error_info_t(type_t::DBEC_FIELD_NOT_FOUND, __FILE__, __LINE__, name));
+                throw (error_info_t(DBEC_FIELD_NOT_FOUND, __FILE__, __LINE__, name));
             return m_fields[field_idx];
         }
 

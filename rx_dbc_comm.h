@@ -26,11 +26,7 @@ namespace rx_dbc
     class dbc_conn_t
     {
     public:
-        typedef typename TT::data_type_t     data_type_t;
-        typedef typename TT::sql_stmt_t      sql_stmt_t;
-        typedef typename TT::conn_param_t    conn_param_t;
         typedef typename TT::env_option_t    env_option_t;
-        typedef typename TT::dbc_error_code_t dbc_error_code_t;
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
@@ -40,9 +36,9 @@ namespace rx_dbc
         typedef typename TT::query_t         query_t;
     protected:
         conn_t              m_conn;
-        conn_param_t        m_conn_param;
+        dbc_conn_param_t    m_conn_param;
         env_option_t        m_env_param;
-        dbc_error_code_t    m_last_error;
+        dbc_err_type_t      m_last_error;
 
         template<typename T>
         friend class dbc_t;
@@ -55,7 +51,7 @@ namespace rx_dbc
         dbc_log_delegate_t  log_func;                       //日志输出方法,默认为default_dbc_log_func.
         dbc_conn_t() { log_func.bind(default_dbc_log_func); }
         dbc_conn_t(rx::mem_allotter_i& ma) :m_conn(ma) { log_func.bind(default_dbc_log_func); }
-        dbc_error_code_t last_err() { return m_last_error; }
+        dbc_err_type_t last_err() { return m_last_error; }
         virtual ~dbc_conn_t() {}
         //-------------------------------------------------
         //日志输出功能封装
@@ -111,7 +107,7 @@ namespace rx_dbc
             m_conn_param.port = port;
             m_conn_param.conn_timeout = conn_timeout_sec;
         }
-        void set_conn_param(const conn_param_t &p) { set_conn_param(p.host, p.user, p.pwd, p.db, p.port, p.conn_timeout); }
+        void set_conn_param(const dbc_conn_param_t &p) { set_conn_param(p.host, p.user, p.pwd, p.db, p.port, p.conn_timeout); }
         //-------------------------------------------------
         //进行连接动作,或检查连接是否成功
         //返回值:连接是否成功,0-连接失败;1连接正常;2连接建立;3重连完成.
@@ -125,7 +121,7 @@ namespace rx_dbc
             else if (m_conn.is_valid())
                 return 1;
 
-            set_last_error(TT::DBEC_OK);
+            set_last_error(DBEC_OK);
 
             //现在,连接无效,需要进行连接或重连动作
             try {
@@ -191,7 +187,7 @@ namespace rx_dbc
     protected:
         //-------------------------------------------------
         //单纯的记录最后的dbc错误号
-        void set_last_error(dbc_error_code_t e) { m_last_error = e; }
+        void set_last_error(dbc_err_type_t e) { m_last_error = e; }
         //-------------------------------------------------
         //对错误输出进行偏特化区分,对于ora的批量模式进行有效处理
         template<typename T,int>
@@ -202,7 +198,7 @@ namespace rx_dbc
             static void do_error(dbc_conn_t &conn,error_info_t &e, query_t *q)
             {
                 conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
-                conn.set_last_error((dbc_error_code_t)e.dbc_error_code());//记录最后的统一错误码
+                conn.set_last_error((dbc_err_type_t)e.dbc_error_code());//记录最后的统一错误码
                 if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
 
                 rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
@@ -231,7 +227,7 @@ namespace rx_dbc
             static void do_error(dbc_conn_t &conn, error_info_t &e, query_t *q)
             {
                 conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
-                conn.set_last_error((dbc_error_code_t)e.dbc_error_code());//记录最后的统一错误码
+                conn.set_last_error((dbc_err_type_t)e.dbc_error_code());//记录最后的统一错误码
                 if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
 
                 rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
@@ -264,7 +260,7 @@ namespace rx_dbc
         }
         //-------------------------------------------------
         //连接完成事件
-        virtual void on_connect(conn_t& conn, const conn_param_t &param) {}
+        virtual void on_connect(conn_t& conn, const dbc_conn_param_t &param) {}
     };
 
     //-----------------------------------------------------
@@ -274,11 +270,7 @@ namespace rx_dbc
     class tiny_dbc_t:public TT
     {
     public:
-        typedef typename TT::data_type_t     data_type_t;
-        typedef typename TT::sql_stmt_t      sql_stmt_t;
-        typedef typename TT::conn_param_t    conn_param_t;
         typedef typename TT::env_option_t    env_option_t;
-        typename TT::dbc_error_code_t dbc_error_code_t;
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
@@ -326,7 +318,7 @@ namespace rx_dbc
                     return rc;
                 }
 
-                if (m_query.sql_type() != TT::ST_SELECT)
+                if (m_query.sql_type() != ST_SELECT)
                     m_query.conn().trans_commit();          //如果不是查询语句,必须进行提交
 
                 return rc;
@@ -411,11 +403,11 @@ namespace rx_dbc
         //返回值:<0错误;0结束;>0本次提取的数量
         int fetch(uint32_t fetch_count = 0)
         {
-            m_dbconn.set_last_error(TT::DBEC_OK);
-            if (m_query.sql_type() != TT::ST_SELECT)
+            m_dbconn.set_last_error(DBEC_OK);
+            if (m_query.sql_type() != ST_SELECT)
             {
                 m_dbconn.log_err("non-select statements were fetched resultset! (%s)", m_query.sql_string());
-                m_dbconn.set_last_error(TT::DBEC_METHOD_CALL);
+                m_dbconn.set_last_error(DBEC_METHOD_CALL);
                 return -200;
             }
 
@@ -465,11 +457,7 @@ namespace rx_dbc
     class dbc_t :public tiny_dbc_t<TT>
     {
     public:
-        typedef typename TT::data_type_t     data_type_t;
-        typedef typename TT::sql_stmt_t      sql_stmt_t;
-        typedef typename TT::conn_param_t    conn_param_t;
         typedef typename TT::env_option_t    env_option_t;
-        typedef typename TT::dbc_error_code_t dbc_error_code_t;
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
