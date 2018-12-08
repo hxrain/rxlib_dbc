@@ -43,7 +43,7 @@ namespace rx_dbc_mysql
         //-------------------------------------------------
         //连接到db服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
         //返回值:0正常;
-        int16_t open(const conn_param_t& dst, const env_option_t &op = env_option_t(),uint32_t rw_timeout_sec=10)
+        int16_t open(const dbc_conn_param_t& dst, const env_option_t &op = env_option_t(),uint32_t rw_timeout_sec=10)
         {
             if (is_empty(dst.host) || is_empty(dst.user) || is_empty(dst.db))
                 throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));

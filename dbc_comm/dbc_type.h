@@ -2,13 +2,17 @@
 #define _RX_DBC_TYPE_H_
 
 //允许使用的字符串的最大长度
-const ub2 MAX_TEXT_BYTES = 1024 * 2;
+const unsigned short MAX_TEXT_BYTES = 1024 * 2;
 
 //每次批量FEATCH获取的结果集的数量
-const ub2 BAT_FETCH_SIZE = 20;
+const unsigned short BAT_FETCH_SIZE = 20;
 
 //sql语句的长度限制
 const int MAX_SQL_LENGTH = 1024 * 4;
+
+typedef const char* PStr;
+const int CHAR_SIZE = sizeof(char);
+
 //-----------------------------------------------------
 //DB类型
 typedef enum dbc_type_t
@@ -64,9 +68,10 @@ typedef enum dbc_sql_type_t
     ST_DROP     ,
     ST_ALTER    ,
     ST_BEGIN    ,
-    ST_DECLARE
+    ST_DECLARE  ,
+    ST_SET
 }dbc_sql_type_t;
-
+    
 //-----------------------------------------------------
 //DBC封装操作错误码
 typedef enum dbc_err_type_t

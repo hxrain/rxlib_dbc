@@ -1,4 +1,6 @@
-﻿/*
+﻿#ifndef _RX_DBC_COMM_H_
+#define _RX_DBC_COMM_H_
+/*
     在此文件中进行rx_dbc底层功能接口的封装;
     对不同的db接口,放在不同的名字空间中.
     外部文件中需要给出正确的rx_dbc_namespace宏定义
@@ -8,7 +10,7 @@ namespace rx_dbc
 {
     //日志输出函数的委托类型
     typedef rx::delegate3_t<const char*, const char*, va_list, void> dbc_log_delegate_t;
-    static inline void default_dbc_log_func(const char* type, const char* msg, va_list arg, void*)
+    inline void default_dbc_log_func(const char* type, const char* msg, va_list arg, void*)
     {
         static rx::atomic_t<uint32_t> msg_seq;
 
@@ -219,6 +221,7 @@ namespace rx_dbc
                 catch (...) {}
             }
         };
+#if defined(_RX_DBC_ORA_COMM_H_)
         template<int dummy>
         class err_log_t<rx_dbc_ora::type_t,dummy>
         {
@@ -252,6 +255,7 @@ namespace rx_dbc
                 catch (...) {}
             }
         };
+#endif
         //-------------------------------------------------
         //进行错误记录与日志输出
         void do_error(error_info_t &e, query_t *q)
@@ -545,3 +549,4 @@ namespace rx_dbc
 }
 
 
+#endif

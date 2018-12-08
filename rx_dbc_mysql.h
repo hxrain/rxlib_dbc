@@ -18,27 +18,16 @@
 #include "rx_datetime_ex.h"                                 //引入日期时间功能扩展
 #include "rx_cc_atomic.h"                                   //引入原子变量功能
 
-#include "dbc_comm/sql_param_parse.h"                       //SQL绑定参数的名字解析功能
+#include "dbc_comm/dbc_parse.h"                             //SQL绑定参数的名字解析功能
+#include "dbc_comm/dbc_type.h"                              //统一类型定义
 
-#include "dbc_mysql/comm.h"                                 //实现一些通用功能
+#include "dbc_mysql/base.h"                                 //实现一些通用功能
 #include "dbc_mysql/conn.h"                                 //实现数据库连接
 #include "dbc_mysql/field.h"                                //实现记录字段操作对象
 #include "dbc_mysql/param.h"                                //实现语句段绑定参数
 #include "dbc_mysql/stmt.h"                                 //实现sql语句段
 #include "dbc_mysql/query.h"                                //实现记录查询访问对象
 
-//---------------------------------------------------------
-namespace rx_dbc_mysql
-{
-    static const uint16_t BAT_BULKS_SIZE = 1;
-}
-
-#if defined (RX_DBC_NAMESPACE)
-    #undef RX_DBC_NAMESPACE
-#endif
-
-#define RX_DBC_NAMESPACE rx_dbc_mysql
-#include "rx_dbc_comm.h"
-
+#include "rx_dbc_comm.h"                                    //引入统一的上层功能封装
 
 #endif

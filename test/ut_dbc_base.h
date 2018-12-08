@@ -41,6 +41,9 @@
 
 #if UT_DB==DB_MYSQL
     #include "../rx_dbc_mysql.h"
+    typedef rx_dbc::dbc_conn_t<rx_dbc_mysql::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_t<rx_dbc_mysql::type_t> dbc_t;
+    typedef rx_dbc::tiny_dbc_t<rx_dbc_mysql::type_t> tiny_dbc_t;
     using namespace rx_dbc_mysql;
     /*
     CREATE TABLE tmp_dbc (

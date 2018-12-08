@@ -18,7 +18,7 @@ namespace rx_dbc_mysql
         conn_t		           &m_conn;		                //该语句对象关联的数据库连接对象
         mi_array_t              m_metainfos;                //mysql需要的绑定信息结构数组
         param_array_t	        m_params;	                //带有名称绑定的参数数组
-        sql_stmt_t	            m_sql_type;                 //该语句对象当前sql语句的类型
+        dbc_sql_type_t	        m_sql_type;                 //该语句对象当前sql语句的类型
         sql_string_t            m_SQL;                      //预解析时记录的待执行的sql语句
         sql_string_t            m_SQL_BAK;                  //预解析时记录的原始的sql语句
         MYSQL_STMT	           *m_stmt_handle;              //该语句对象的mysql句柄
@@ -204,7 +204,7 @@ namespace rx_dbc_mysql
         }
         //-------------------------------------------------
         //获取解析后的sql语句类型
-        sql_stmt_t	sql_type() { return m_sql_type; }
+        dbc_sql_type_t	sql_type() { return m_sql_type; }
         //-------------------------------------------------
         //得到解析过的sql语句
         const char* sql_string() { return m_SQL; }
