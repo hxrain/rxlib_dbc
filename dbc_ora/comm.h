@@ -20,8 +20,6 @@ namespace rx_dbc_ora
 
     //每次批量FEATCH获取的结果集的数量
     const ub2 BAT_FETCH_SIZE = 20;
-    //每次批量提交时的块数据最大深度
-    const ub2 BAT_BULKS_SIZE = 10;
 
     //字段名字最大长度
     const ub2 FIELD_NAME_LENGTH = 32;
@@ -35,87 +33,121 @@ namespace rx_dbc_ora
     //OCI数字格式:去除空格,最大允许x个整数位,小数点最小保留2位最大保留14位
     const char* NUMBER_FRM_FMT = "FM999999999999999999.00999999999999";
     const ub2 NUMBER_FRM_FMT_LEN = 35;
-    //-----------------------------------------------------
-    //dbc_ora可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
-    enum data_type_t
-    {
-        DT_UNKNOWN,
-        DT_NUMBER   = 'n',                                  //数字类型的字段或参数
-        DT_DATE     = 'd',                                  //日期类型
-        DT_TEXT     = 's'                                   //文本串类型
-    };
 
-    //-----------------------------------------------------
-    //sql语句类型
-    enum sql_stmt_t
+    //声明可以对外使用的类
+    class conn_t;
+    class stmt_t;
+    class query_t;
+    class sql_param_t;
+    class field_t;
+    struct conn_param_t;
+    struct env_option_t;
+    struct env_option_t;
+    class error_info_t;
+    class datetime_t;
+    //-------------------------------------------------
+    //将本命名空间中的对外开放类型进行统一声明
+    class type_t
     {
-        ST_UNKNOWN,
-        ST_SELECT = OCI_STMT_SELECT,
-        ST_UPDATE = OCI_STMT_UPDATE,
-        ST_DELETE = OCI_STMT_DELETE,
-        ST_INSERT = OCI_STMT_INSERT,
-        ST_CREATE = OCI_STMT_CREATE,
-        ST_DROP   = OCI_STMT_DROP,
-        ST_ALTER  = OCI_STMT_ALTER,
-        ST_BEGIN  = OCI_STMT_BEGIN,
-        ST_DECLARE = OCI_STMT_DECLARE
-    };
+    public:
 
-    //-----------------------------------------------------
-    //DBC封装操作错误码
-    enum dbc_error_code_t
-    {
-        DBEC_OK=0,
-        DBEC_ENV_FAIL = 1000,                               //OCI环境创建错误
-        DBEC_NO_MEMORY,                                     //内存不足
-        DBEC_NO_BUFFER,                                     //缓冲区不足
-        DBEC_IDX_OVERSTEP,                                  //下标越界
-        DBEC_BAD_PARAM,                                     //参数错误
-        DBEC_BAD_INPUT,                                     //待绑定参数的数据类型错误
-        DBEC_BAD_OUTPUT,                                    //不支持的输出数据类型
-        DBEC_BAD_TYPEPREFIX,                                //参数自动绑定时,名字前缀不准确
-        DBEC_UNSUP_TYPE,                                    //未支持的数据类型
-        DBEC_PARAM_NOT_FOUND,                               //访问的参数对象不存在
-        DBEC_FIELD_NOT_FOUND,                               //访问的列对象不存在
-        DBEC_METHOD_CALL,                                   //方法调用的顺序错误
-        DBEC_NOT_PARAM,                                     //sql语句中没有':'前缀的参数,但尝试绑定参数
-        DBEC_PARSE_PARAM,                                   //sql语句自动解析参数错误
+        //-----------------------------------------------------
+        //dbc_ora可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
+        typedef enum data_type_t
+        {
+            DT_UNKNOWN,
+            DT_NUMBER = 'n',                                  //数字类型的字段或参数
+            DT_DATE = 'd',                                  //日期类型
+            DT_TEXT = 's'                                   //文本串类型
+        }data_type_t;
 
-        DBEC_OCI,                                           //OCI错误
-        DBEC_OCI_BADPWD,                                    //OCI错误细分:账号口令错误
-        DBEC_OCI_PWD_WILLEXPIRE,                            //OCI错误细分:口令即将过期,不是致命错误但应该进行告警
-        DBEC_OCI_CONNTIMEOUT,                               //OCI错误细分:连接超时
-        DBEC_OCI_CONNLOST,                                  //OCI错误细分:已经建立的连接断开了.
-        DBEC_OCI_CONNFAIL,                                  //OCI错误细分:连接失败,无法建立连接
-        DBEC_DB_UNIQUECONST,                                //OCI错误细分:唯一约束导致的错误
+        //-----------------------------------------------------
+        //sql语句类型
+        typedef enum sql_stmt_t
+        {
+            ST_UNKNOWN,
+            ST_SELECT = OCI_STMT_SELECT,
+            ST_UPDATE = OCI_STMT_UPDATE,
+            ST_DELETE = OCI_STMT_DELETE,
+            ST_INSERT = OCI_STMT_INSERT,
+            ST_CREATE = OCI_STMT_CREATE,
+            ST_DROP = OCI_STMT_DROP,
+            ST_ALTER = OCI_STMT_ALTER,
+            ST_BEGIN = OCI_STMT_BEGIN,
+            ST_DECLARE = OCI_STMT_DECLARE
+        }sql_stmt_t;
+
+        //-----------------------------------------------------
+        //DBC封装操作错误码
+        typedef enum dbc_error_code_t
+        {
+            DBEC_OK = 0,
+            DBEC_ENV_FAIL = 1000,                               //OCI环境创建错误
+            DBEC_NO_MEMORY,                                     //内存不足
+            DBEC_NO_BUFFER,                                     //缓冲区不足
+            DBEC_IDX_OVERSTEP,                                  //下标越界
+            DBEC_BAD_PARAM,                                     //参数错误
+            DBEC_BAD_INPUT,                                     //待绑定参数的数据类型错误
+            DBEC_BAD_OUTPUT,                                    //不支持的输出数据类型
+            DBEC_BAD_TYPEPREFIX,                                //参数自动绑定时,名字前缀不准确
+            DBEC_UNSUP_TYPE,                                    //未支持的数据类型
+            DBEC_PARAM_NOT_FOUND,                               //访问的参数对象不存在
+            DBEC_FIELD_NOT_FOUND,                               //访问的列对象不存在
+            DBEC_METHOD_CALL,                                   //方法调用的顺序错误
+            DBEC_NOT_PARAM,                                     //sql语句中没有':'前缀的参数,但尝试绑定参数
+            DBEC_PARSE_PARAM,                                   //sql语句自动解析参数错误
+
+            DBEC_OCI,                                           //OCI错误
+            DBEC_OCI_BADPWD,                                    //OCI错误细分:账号口令错误
+            DBEC_OCI_PWD_WILLEXPIRE,                            //OCI错误细分:口令即将过期,不是致命错误但应该进行告警
+            DBEC_OCI_CONNTIMEOUT,                               //OCI错误细分:连接超时
+            DBEC_OCI_CONNLOST,                                  //OCI错误细分:已经建立的连接断开了.
+            DBEC_OCI_CONNFAIL,                                  //OCI错误细分:连接失败,无法建立连接
+            DBEC_DB_UNIQUECONST,                                //OCI错误细分:唯一约束导致的错误
+        }dbc_error_code_t;
+
+        //typename data_type_t     data_type_t;
+        //typedef sql_stmt_t      sql_stmt_t;
+        typedef conn_param_t    conn_param_t;
+        typedef env_option_t    env_option_t;
+        //typedef dbc_error_code_t dbc_error_code_t;
+        typedef error_info_t    error_info_t;
+        typedef datetime_t      datetime_t;
+
+        typedef conn_t          conn_t;
+        typedef sql_param_t     sql_param_t;
+        typedef stmt_t          stmt_t;
+
+        typedef field_t         field_t;
+        typedef query_t         query_t;
     };
 
     inline const char* dbc_error_code_info(sword dbc_err)
     {
         switch (dbc_err)
         {
-        case	DBEC_ENV_FAIL:          return "(DBEC_ENV_FAIL):environment handle creation failed";
-        case	DBEC_NO_MEMORY:         return "(DBEC_NO_MEMORY):memory allocation request has failed";
-        case	DBEC_NO_BUFFER:         return "(DBEC_NO_BUFFER):memory buffer not enough";
-        case	DBEC_IDX_OVERSTEP:      return "(DBEC_IDX_OVERSTEP):index access overstep the boundary";
-        case	DBEC_BAD_PARAM:         return "(DBEC_BAD_PARAM):func param is incorrect";
-        case	DBEC_BAD_INPUT:         return "(DBEC_BAD_INPUT):input bind data doesn't have expected type";
-        case	DBEC_BAD_OUTPUT:        return "(DBEC_BAD_OUTPUT):output convert type incorrect";
-        case	DBEC_BAD_TYPEPREFIX:    return "(DBEC_BAD_TYPEPREFIX):input bind parameter prefix incorrect";
-        case	DBEC_UNSUP_TYPE:        return "(DBEC_UNSUP_TYPE):unsupported Oracle type - cannot be converted";
-        case	DBEC_PARAM_NOT_FOUND:   return "(DBEC_PARAM_NOT_FOUND):name not found in statement's parameters";
-        case	DBEC_FIELD_NOT_FOUND:   return "(DBEC_FIELD_NOT_FOUND):resultset doesn't contain field_t with such name";
-        case    DBEC_METHOD_CALL:       return "(DBEC_METHOD_CALL):func method called order error";
-        case    DBEC_NOT_PARAM:         return "(DBEC_NOT_PARAM):sql not parmas";
-        case    DBEC_PARSE_PARAM:       return "(DBEC_PARSE_PARAM): auto bind sql param error";
-        case    DBEC_OCI:               return "(DBEC_OCI_ERROR)";
-        case    DBEC_OCI_BADPWD:        return "(DBEC_OCI_BADPWD)";
-        case    DBEC_OCI_PWD_WILLEXPIRE:return "(DBEC_OCI_PWD_WILLEXPIRE)";
-        case    DBEC_OCI_CONNTIMEOUT:   return "(DBEC_OCI_CONNTIMEOUT)";
-        case    DBEC_OCI_CONNLOST:      return "(DBEC_OCI_CONNLOST)";
-        case    DBEC_OCI_CONNFAIL:      return "(DBEC_OCI_CONNFAIL)";
-        case    DBEC_DB_UNIQUECONST:   return "(DBEC_OCI_UNIQUECONST)";
-        default:                        return "(unknown DBC Error)";
+        case	type_t::DBEC_ENV_FAIL:          return "(type_t::DBEC_ENV_FAIL):environment handle creation failed";
+        case	type_t::DBEC_NO_MEMORY:         return "(type_t::DBEC_NO_MEMORY):memory allocation request has failed";
+        case	type_t::DBEC_NO_BUFFER:         return "(type_t::DBEC_NO_BUFFER):memory buffer not enough";
+        case	type_t::DBEC_IDX_OVERSTEP:      return "(type_t::DBEC_IDX_OVERSTEP):index access overstep the boundary";
+        case	type_t::DBEC_BAD_PARAM:         return "(type_t::DBEC_BAD_PARAM):func param is incorrect";
+        case	type_t::DBEC_BAD_INPUT:         return "(type_t::DBEC_BAD_INPUT):input bind data doesn't have expected type";
+        case	type_t::DBEC_BAD_OUTPUT:        return "(type_t::DBEC_BAD_OUTPUT):output convert type incorrect";
+        case	type_t::DBEC_BAD_TYPEPREFIX:    return "(type_t::DBEC_BAD_TYPEPREFIX):input bind parameter prefix incorrect";
+        case	type_t::DBEC_UNSUP_TYPE:        return "(type_t::DBEC_UNSUP_TYPE):unsupported Oracle type - cannot be converted";
+        case	type_t::DBEC_PARAM_NOT_FOUND:   return "(type_t::DBEC_PARAM_NOT_FOUND):name not found in statement's parameters";
+        case	type_t::DBEC_FIELD_NOT_FOUND:   return "(type_t::DBEC_FIELD_NOT_FOUND):resultset doesn't contain field_t with such name";
+        case    type_t::DBEC_METHOD_CALL:       return "(type_t::DBEC_METHOD_CALL):func method called order error";
+        case    type_t::DBEC_NOT_PARAM:         return "(type_t::DBEC_NOT_PARAM):sql not parmas";
+        case    type_t::DBEC_PARSE_PARAM:       return "(type_t::DBEC_PARSE_PARAM): auto bind sql param error";
+        case    type_t::DBEC_OCI:               return "(type_t::DBEC_OCI_ERROR)";
+        case    type_t::DBEC_OCI_BADPWD:        return "(type_t::DBEC_OCI_BADPWD)";
+        case    type_t::DBEC_OCI_PWD_WILLEXPIRE:return "(type_t::DBEC_OCI_PWD_WILLEXPIRE)";
+        case    type_t::DBEC_OCI_CONNTIMEOUT:   return "(type_t::DBEC_OCI_CONNTIMEOUT)";
+        case    type_t::DBEC_OCI_CONNLOST:      return "(type_t::DBEC_OCI_CONNLOST)";
+        case    type_t::DBEC_OCI_CONNFAIL:      return "(type_t::DBEC_OCI_CONNFAIL)";
+        case    type_t::DBEC_DB_UNIQUECONST:    return "(type_t::DBEC_OCI_UNIQUECONST)";
+        default:                                return "(unknown DBC Error)";
         }
     }
 
@@ -229,21 +261,21 @@ namespace rx_dbc_ora
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
             desc << "OCI::" << msg;
-            m_dbc_ec = DBEC_OCI;
+            m_dbc_ec = type_t::DBEC_OCI;
             m_ora_ec = ec;
             desc.repleace('\n','.');
             //进行OCI错误细分,映射到DBEC错误码
             switch (m_ora_ec)
             {
-                case 1      :m_dbc_ec = DBEC_DB_UNIQUECONST; break;
-                case 1017   :m_dbc_ec = DBEC_OCI_BADPWD; break;
-                case 12170  :m_dbc_ec = DBEC_OCI_CONNTIMEOUT; break;
-                case 28002  :m_dbc_ec = DBEC_OCI_PWD_WILLEXPIRE; break;
+                case 1      :m_dbc_ec = type_t::DBEC_DB_UNIQUECONST; break;
+                case 1017   :m_dbc_ec = type_t::DBEC_OCI_BADPWD; break;
+                case 12170  :m_dbc_ec = type_t::DBEC_OCI_CONNTIMEOUT; break;
+                case 28002  :m_dbc_ec = type_t::DBEC_OCI_PWD_WILLEXPIRE; break;
                 default:
                     if (is_connection_lost())
-                        m_dbc_ec = DBEC_OCI_CONNLOST;
+                        m_dbc_ec = type_t::DBEC_OCI_CONNLOST;
                     else if (is_connect_fail())
-                        m_dbc_ec = DBEC_OCI_CONNFAIL;
+                        m_dbc_ec = type_t::DBEC_OCI_CONNFAIL;
                     break;
             }
         }
@@ -303,8 +335,8 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //绑定发生错误的数据库连接信息后再获取完整的错误输出
-        const char* c_str(const conn_param_t &cp) 
-        { 
+        const char* c_str(const conn_param_t &cp)
+        {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc, rx::st::strlen(m_err_desc));
             desc << "::host[" << cp.host << "]db[" << cp.db << "]user[" << cp.user << ']';
             return m_err_desc;
@@ -411,7 +443,7 @@ namespace rx_dbc_ora
         typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
 
         col_name_t          m_name;		                    // 对象名字
-        data_type_t	        m_dbc_data_type;		        // 期待的数据类型
+        type_t::data_type_t	m_dbc_data_type;		        // 期待的数据类型
         int				    m_max_data_size;			    // 每个字段数据最大尺寸
 
         static const int    m_working_buff_size = 64;       // 临时存放转换字符串的缓冲区
@@ -423,7 +455,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void make(const char *name, ub4 name_len, data_type_t dbc_data_type, ub4 max_data_size, int bulk_row_count, bool make_datasize_array = false)
+        void make(const char *name, ub4 name_len, type_t::data_type_t dbc_data_type, ub4 max_data_size, int bulk_row_count, bool make_datasize_array = false)
         {
             rx_assert(!is_empty(name));
             reset();
@@ -435,7 +467,7 @@ namespace rx_dbc_ora
             if (make_datasize_array && !m_col_datasize.make<ub2>(bulk_row_count))
             {
                 reset();
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
 
             //生成字段数据缓冲区
@@ -445,7 +477,7 @@ namespace rx_dbc_ora
             if (!m_col_dataempty.capacity() || !m_col_databuff.capacity())
             {//判断是否内存不足
                 reset();
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_NO_MEMORY, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-------------------------------------------------
@@ -454,7 +486,7 @@ namespace rx_dbc_ora
             m_col_datasize.clear();
             m_col_databuff.clear();
             m_col_dataempty.clear();
-            m_dbc_data_type = DT_UNKNOWN;
+            m_dbc_data_type = type_t::DT_UNKNOWN;
             m_max_data_size = 0;
         }
         //-------------------------------------------------
@@ -464,14 +496,14 @@ namespace rx_dbc_ora
         {
             switch (m_dbc_data_type)
             {
-            case DT_TEXT:
+            case type_t::DT_TEXT:
                 return m_col_databuff.ptr(RowNo*m_max_data_size);
-            case DT_NUMBER:
+            case type_t::DT_NUMBER:
                 return (ub1*)m_col_databuff.ptr<OCINumber>(RowNo);
-            case DT_DATE:
+            case type_t::DT_DATE:
                 return (ub1*)m_col_databuff.ptr<OCIDate>(RowNo);
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -480,9 +512,9 @@ namespace rx_dbc_ora
         {
             switch (m_dbc_data_type)
             {
-            case DT_TEXT:
+            case type_t::DT_TEXT:
                 return (reinterpret_cast <PStr> (data_buff));
-            case DT_NUMBER:
+            case type_t::DT_NUMBER:
             {
                 ub4 FmtLen = 3;
                 if (ConvFmt == NULL) ConvFmt = "TM9";
@@ -494,14 +526,14 @@ namespace rx_dbc_ora
                 else
                     throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
-            case DT_DATE:
+            case type_t::DT_DATE:
             {
                 datetime_t DT(*reinterpret_cast <OCIDate *> (data_buff));
                 DT.to((char*)m_working_buff, ConvFmt);
                 return m_working_buff;
             }
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -511,7 +543,7 @@ namespace rx_dbc_ora
         {
             switch (m_dbc_data_type)
             {
-            case DT_TEXT:
+            case type_t::DT_TEXT:
             {//文本转换为double值
                 //借用oci的方法,先把文本串转换为OCI的number
                 OCINumber num;
@@ -527,7 +559,7 @@ namespace rx_dbc_ora
 
                 return value;
             }
-            case DT_NUMBER:
+            case type_t::DT_NUMBER:
             {//OCI数字转换为double
                 DT	value;
                 sword result = ::OCINumberToReal(oci_err_handle(), reinterpret_cast <OCINumber *>(data_buff), sizeof(DT), &value);
@@ -536,7 +568,7 @@ namespace rx_dbc_ora
                 return value;
             }
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
@@ -545,9 +577,9 @@ namespace rx_dbc_ora
         {
             switch (m_dbc_data_type)
             {
-            case DT_TEXT:
+            case type_t::DT_TEXT:
                 return rx::st::atoi((char*)data_buff);
-            case DT_NUMBER:
+            case type_t::DT_NUMBER:
             {
                 int32_t	value;
                 sword result = OCINumberToInt(oci_err_handle(), reinterpret_cast <OCINumber *> (data_buff), sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, &value);
@@ -557,17 +589,17 @@ namespace rx_dbc_ora
                     throw (error_info_t(result, oci_err_handle(), __FILE__, __LINE__,"col(%s)",m_name.c_str()));
             }
             default:
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为日期:错误句柄;原始数据缓冲区;原始数据类型;
         datetime_t comm_as_datetime(ub1* data_buff) const
         {
-            if (m_dbc_data_type == DT_DATE)
+            if (m_dbc_data_type == type_t::DT_DATE)
                 return (datetime_t(*(reinterpret_cast <OCIDate *> (data_buff))));
             else
-                throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+                throw (error_info_t(type_t::DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
         }
         //-------------------------------------------------
         //不可直接使用本功能类,必须被继承
@@ -585,7 +617,7 @@ namespace rx_dbc_ora
     public:
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
-        data_type_t dbc_data_type() { return m_dbc_data_type; }
+        type_t::data_type_t dbc_data_type() { return m_dbc_data_type; }
         int max_data_size() { return m_max_data_size; }
         //-------------------------------------------------
         bool is_null(void) const { return m_is_null(bulk_row_idx()); }

@@ -12,7 +12,12 @@
 
 #if UT_DB==DB_ORA
     #include "../rx_dbc_ora.h"
+    typedef rx_dbc::dbc_conn_t<rx_dbc_ora::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_t<rx_dbc_ora::type_t> dbc_t;
+    typedef rx_dbc::tiny_dbc_t<rx_dbc_ora::type_t> tiny_dbc_t;
     using namespace rx_dbc_ora;
+    
+
     /*
     CREATE TABLE SCOTT.TMP_DBC (
 	    ID NUMBER NOT NULL ENABLE,
@@ -534,7 +539,7 @@ typedef struct ut_ins_dat_t
 //扩展应用层连接对象,在连接建立后需要切换用户模式
 class my_conn_t :public dbc_conn_t
 {
-    virtual void on_connect(conn_t& conn, const conn_param_t &param) 
+    virtual void on_connect(dbc_conn_t::conn_t& conn, const dbc_conn_t::conn_param_t &param)
     { 
 #if UT_DB==DB_ORA
         conn.schema_to("SCOTT"); 
@@ -619,7 +624,7 @@ inline void ut_dbc_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 
     //极简模式,使用业务功能的临时对象执行业务定义的语句并处理数据
     rt.tdd_assert( mydbc(conn).action(&dat) < 0);
-    rt.tdd_assert(conn.last_err()==DBEC_DB_UNIQUECONST);
+    rt.tdd_assert(conn.last_err()== type_t::DBEC_DB_UNIQUECONST);
 }
 //---------------------------------------------------------
 //使用dbc_t作为基类进行业务处理,测试查询提取结果

@@ -109,7 +109,7 @@
                             ++seg.name_len; //如果处于分段处理中,则增加分段长度
                     }
                 }
-                
+
                 c=*(++sql);                 //取下一个字符
 
             } while (1);
@@ -121,13 +121,13 @@
         uint32_t ora2mysql(const char* sql,char* buff,uint32_t buffsize)
         {
             rx::tiny_string_t<> dst(buffsize, buff);
-            return ora2mysql(sql,dst)?dst.size(): buffsize;
+            return ora2mysql(sql,dst) ? dst.size(): buffsize;
         }
         bool ora2mysql(const char* sql, rx::tiny_string_t<>& dst)
         {
             ora_sql(sql);                                   //先进行ora模式的参数解析
             uint32_t sql_len = rx::st::strlen(sql);
-            uint32_t rc = 0;
+
             if (count == 0)
                 return dst.assign(sql, sql_len) == sql_len; //如果解析后没有发现参数,则将原串直接返回,作为mysql的语句
 

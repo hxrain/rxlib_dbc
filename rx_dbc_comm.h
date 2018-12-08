@@ -4,7 +4,7 @@
     外部文件中需要给出正确的rx_dbc_namespace宏定义
 */
 
-namespace RX_DBC_NAMESPACE
+namespace rx_dbc
 {
     //日志输出函数的委托类型
     typedef rx::delegate3_t<const char*, const char*, va_list, void> dbc_log_delegate_t;
@@ -22,14 +22,34 @@ namespace RX_DBC_NAMESPACE
     //-----------------------------------------------------
     //进行应用级dbc连接对象的功能封装,所有方法都不会抛出异常,便于应用层使用
     //-----------------------------------------------------
+    template<class TT>
     class dbc_conn_t
     {
+    public:
+        typedef typename TT::data_type_t     data_type_t;
+        typedef typename TT::sql_stmt_t      sql_stmt_t;
+        typedef typename TT::conn_param_t    conn_param_t;
+        typedef typename TT::env_option_t    env_option_t;
+        typedef typename TT::dbc_error_code_t dbc_error_code_t;
+        typedef typename TT::error_info_t    error_info_t;
+        typedef typename TT::datetime_t      datetime_t;
+        typedef typename TT::conn_t          conn_t;
+        typedef typename TT::sql_param_t     sql_param_t;
+        typedef typename TT::stmt_t          stmt_t;
+        typedef typename TT::field_t         field_t;
+        typedef typename TT::query_t         query_t;
+    protected:
         conn_t              m_conn;
         conn_param_t        m_conn_param;
         env_option_t        m_env_param;
         dbc_error_code_t    m_last_error;
+
+        template<typename T>
         friend class dbc_t;
+        template<typename T>
         friend class tiny_dbc_t;
+        template<typename T>
+        friend class err_log_t;
     public:
         //-------------------------------------------------
         dbc_log_delegate_t  log_func;                       //日志输出方法,默认为default_dbc_log_func.
@@ -105,19 +125,14 @@ namespace RX_DBC_NAMESPACE
             else if (m_conn.is_valid())
                 return 1;
 
-            set_last_error(DBEC_OK);
+            set_last_error(TT::DBEC_OK);
 
             //现在,连接无效,需要进行连接或重连动作
             try {
                 bool is_opened = m_conn.is_valid();
                 int32_t rc = m_conn.open(m_conn_param);
                 if (rc)
-                {
-                    log_warn("connect with error code[%d]:host(%s),port(%d),user(%s),db(%s)", rc, m_conn_param.host, m_conn_param.port, m_conn_param.user, m_conn_param.db);
-#if defined(_RX_DBC_ORA_H_)
-                    set_last_error(DBEC_OCI_PWD_WILLEXPIRE);
-#endif
-                }
+                    log_warn("connect OK with error code[%d]:host(%s),port(%d),user(%s),db(%s)", rc, m_conn_param.host, m_conn_param.port, m_conn_param.user, m_conn_param.db);
 
                 on_connect(m_conn, m_conn_param);           //给出连接完成动作事件
                 return is_opened ? 3 : 2;
@@ -178,47 +193,74 @@ namespace RX_DBC_NAMESPACE
         //单纯的记录最后的dbc错误号
         void set_last_error(dbc_error_code_t e) { m_last_error = e; }
         //-------------------------------------------------
-        //进行错误记录与日志输出
-        void do_error(error_info_t &e, query_t *q)
+        //对错误输出进行偏特化区分,对于ora的批量模式进行有效处理
+        template<typename T,int>
+        class err_log_t
         {
-            log_err(e.c_str(m_conn_param));                 //先输出异常内容
-            set_last_error((dbc_error_code_t)e.dbc_error_code());//记录最后的统一错误码
-            if (!q || !q->params()) return;                   //没有语句处理对象,或没有绑定的参数,返回
+        public:
+            //进行错误记录与日志输出
+            static void do_error(dbc_conn_t &conn,error_info_t &e, query_t *q)
+            {
+                conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
+                conn.set_last_error((dbc_error_code_t)e.dbc_error_code());//记录最后的统一错误码
+                if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
 
-            rx::tiny_string_t<char, 1024> str;              //定义局部小串对象,准备拼装参数的值
+                rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
 
-            try {
-#if defined(_RX_DBC_ORA_H_)
-                uint32_t bulks = q->bulks(false);
-                uint32_t params = q->params();
-                for (uint32_t bi = 0; bi < bulks; ++bi)
-                {//对最后的批量深度进行遍历
-                    q->bulk(bi);                            //设置块深度
+                try {
+                    uint32_t params = q->params();
                     str.assign();                           //缓冲区复位
 
                     for (uint32_t i = 0; i < params; ++i)   //循环拼装当前块深度的参数值
                     {
-                        str << q->param(i).name() << '=' << q->param(i).as_string();
+                        sql_param_t &sp = q->param(i);
+                        str << sp.name() << '=' << sp.as_string();
                         if (i + 1 < params) str << ' ';
                     }
 
-                    log_info("bulk[%d/%d]params(%d)<%s>", bi + 1, bulks, q->params(), str.c_str());
+                    conn.log_info("params(%d)<%s>", q->params(), str.c_str());
                 }
-#else
-                uint32_t params = q->params();
-                str.assign();                               //缓冲区复位
-
-                for (uint32_t i = 0; i < params; ++i)       //循环拼装当前块深度的参数值
-                {
-                    sql_param_t &sp = q->param(i);
-                    str << sp.name() << '=' << sp.as_string();
-                    if (i + 1 < params) str << ' ';
-                }
-
-                log_info("params(%d)<%s>", q->params(), str.c_str());
-#endif
+                catch (...) {}
             }
-            catch (...) {}
+        };
+        template<int dummy>
+        class err_log_t<rx_dbc_ora::type_t,dummy>
+        {
+        public:
+            //进行错误记录与日志输出
+            static void do_error(dbc_conn_t &conn, error_info_t &e, query_t *q)
+            {
+                conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
+                conn.set_last_error((dbc_error_code_t)e.dbc_error_code());//记录最后的统一错误码
+                if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
+
+                rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
+
+                try {
+                    uint32_t bulks = q->bulks(false);
+                    uint32_t params = q->params();
+                    for (uint32_t bi = 0; bi < bulks; ++bi)
+                    {//对最后的批量深度进行遍历
+                        q->bulk(bi);                        //设置块深度
+                        str.assign();                       //缓冲区复位
+
+                        for (uint32_t i = 0; i < params; ++i)   //循环拼装当前块深度的参数值
+                        {
+                            str << q->param(i).name() << '=' << q->param(i).as_string();
+                            if (i + 1 < params) str << ' ';
+                        }
+
+                        conn.log_info("bulk[%d/%d]params(%d)<%s>", bi + 1, bulks, q->params(), str.c_str());
+                    }
+                }
+                catch (...) {}
+            }
+        };
+        //-------------------------------------------------
+        //进行错误记录与日志输出
+        void do_error(error_info_t &e, query_t *q)
+        {
+            err_log_t<TT,0>::do_error(*this,e,q);
         }
         //-------------------------------------------------
         //连接完成事件
@@ -228,10 +270,29 @@ namespace RX_DBC_NAMESPACE
     //-----------------------------------------------------
     //对数据库访问功能进行轻量级封装,仅进行了连接重连与统一异常捕捉处理
     //-----------------------------------------------------
-    class tiny_dbc_t
+    template<typename TT>
+    class tiny_dbc_t:public TT
     {
+    public:
+        typedef typename TT::data_type_t     data_type_t;
+        typedef typename TT::sql_stmt_t      sql_stmt_t;
+        typedef typename TT::conn_param_t    conn_param_t;
+        typedef typename TT::env_option_t    env_option_t;
+        typename TT::dbc_error_code_t dbc_error_code_t;
+        typedef typename TT::error_info_t    error_info_t;
+        typedef typename TT::datetime_t      datetime_t;
+        typedef typename TT::conn_t          conn_t;
+        typedef typename TT::sql_param_t     sql_param_t;
+        typedef typename TT::stmt_t          stmt_t;
+        typedef typename TT::field_t         field_t;
+        typedef typename TT::query_t         query_t;
+
+        typedef dbc_conn_t<TT> dbc_conn_t;
+    protected:
         query_t                     m_query;                //实际语句的底层执行器
         dbc_conn_t                 &m_dbconn;               //连接器功能对象的引用
+
+        template<typename T>
         friend class dbc_t;
         //-------------------------------------------------
         //预处理语句
@@ -257,7 +318,7 @@ namespace RX_DBC_NAMESPACE
                 if (explicit_trans)
                     m_query.conn().trans_begin();           //回调函数里面要执行多条语句,需要进行手动事务处理
 
-                int rc = on_exec(m_query, usrdat);             //执行用户给定的语句
+                int rc = on_exec(m_query, usrdat);          //执行用户给定的语句
                 if (rc <= 0)
                 {
                     if (explicit_trans)
@@ -265,7 +326,7 @@ namespace RX_DBC_NAMESPACE
                     return rc;
                 }
 
-                if (m_query.sql_type() != ST_SELECT)
+                if (m_query.sql_type() != TT::ST_SELECT)
                     m_query.conn().trans_commit();          //如果不是查询语句,必须进行提交
 
                 return rc;
@@ -307,9 +368,26 @@ namespace RX_DBC_NAMESPACE
             }
             return -104;
         }
+        //-------------------------------------------------
+        //尝试提取fetch_count数量的结果行
+        //返回值:<0错误;0结束;>0本次提取的数量
+        int m_fetch(uint32_t fetch_count)
+        {
+            try {
+                uint32_t rc = 0;
+                for (; !m_query.eof() && rc<fetch_count; m_query.next(), ++rc)
+                    on_row(m_query, &rc);
+                return rc;
+            }
+            catch (error_info_t &e)
+            {
+                m_dbconn.do_error(e, &m_query);
+                return -201;
+            }
+        }
     public:
         //-------------------------------------------------
-        tiny_dbc_t(dbc_conn_t  &c) :m_query(c.m_conn), m_dbconn(c) {}
+        tiny_dbc_t(dbc_conn_t &c) :m_query(c.m_conn), m_dbconn(c) {}
         virtual ~tiny_dbc_t() {}
         //以下对外输出功能方法,都不会抛出异常且会输出错误日志,简化外部调用者的错误处理.
         //-------------------------------------------------
@@ -331,27 +409,36 @@ namespace RX_DBC_NAMESPACE
         //-------------------------------------------------
         //执行了select后,可以进行结果的提取;此方法可以反复多次调用,直到结果遍历完成
         //返回值:<0错误;0结束;>0本次提取的数量
-        int fetch(uint32_t loop_count = 100)
+        int fetch(uint32_t fetch_count = 0)
         {
-            m_dbconn.set_last_error(DBEC_OK);
-            if (m_query.sql_type() != ST_SELECT)
+            m_dbconn.set_last_error(TT::DBEC_OK);
+            if (m_query.sql_type() != TT::ST_SELECT)
             {
                 m_dbconn.log_err("non-select statements were fetched resultset! (%s)", m_query.sql_string());
-                m_dbconn.set_last_error(DBEC_METHOD_CALL);
+                m_dbconn.set_last_error(TT::DBEC_METHOD_CALL);
                 return -200;
             }
 
-            try {
-                uint32_t rc = 0;
-                for (; !m_query.eof() && rc<loop_count; m_query.next(), ++rc)
-                    on_row(m_query, &rc);
-                return rc;
-            }
-            catch (error_info_t &e)
-            {
-                m_dbconn.do_error(e, &m_query);
-                return -201;
-            }
+            int total = 0;
+            if (fetch_count == 0)
+                fetch_count = -1;
+
+            do {
+                uint32_t fc = rx::Min((uint32_t)100, fetch_count);
+                int rc = m_fetch(fc);
+                if (rc > 0)
+                {
+                    total += rc;
+                    fetch_count -= rc;
+                    if (!fetch_count)
+                        break;
+                }
+                else if (rc == 0)
+                    break;
+                else
+                    return -201;
+            } while (1);
+            return total;
         }
     protected:
         //-------------------------------------------------
@@ -372,22 +459,39 @@ namespace RX_DBC_NAMESPACE
 
 
     //-----------------------------------------------------
-    //定义dbc事件的委托类型
-    typedef rx::delegate1_t<query_t&, int32_t> dbc_delegate_t;
-    //DBC事件委托对应的函数指针类型;//返回值:<0错误; 0用户要求放弃; >0完成,批量深度
-    typedef int32_t(*dbc_event_func_t)(query_t &q, void *usrdat);
-
-    //-----------------------------------------------------
     //进行应用级dbc语句对象的功能封装,所有方法都不会抛出异常,便于应用层子类继承后用于实现具体业务
     //-----------------------------------------------------
-    class dbc_t :public tiny_dbc_t
+    template<typename TT>
+    class dbc_t :public tiny_dbc_t<TT>
     {
-        dbc_delegate_t              m_databind_dgt;         //数据绑定事件的委托类型
-        dbc_delegate_t              m_datafetch_dgt;        //数据提取事件的委托类型
+    public:
+        typedef typename TT::data_type_t     data_type_t;
+        typedef typename TT::sql_stmt_t      sql_stmt_t;
+        typedef typename TT::conn_param_t    conn_param_t;
+        typedef typename TT::env_option_t    env_option_t;
+        typedef typename TT::dbc_error_code_t dbc_error_code_t;
+        typedef typename TT::error_info_t    error_info_t;
+        typedef typename TT::datetime_t      datetime_t;
+        typedef typename TT::conn_t          conn_t;
+        typedef typename TT::sql_param_t     sql_param_t;
+        typedef typename TT::stmt_t          stmt_t;
+        typedef typename TT::field_t         field_t;
+        typedef typename TT::query_t         query_t;
+
+        typedef tiny_dbc_t<TT> super_t;
+        typedef typename super_t::dbc_conn_t dbc_conn_t;
+
+        //定义dbc事件的委托类型
+        typedef rx::delegate1_t<typename TT::query_t&, int32_t> dbc_delegate_t;
+        //DBC事件委托对应的函数指针类型;//返回值:<0错误; 0用户要求放弃; >0完成,批量深度
+        typedef int32_t(*dbc_event_func_t)(typename TT::query_t &q, void *usrdat);
+
+        dbc_delegate_t          m_databind_dgt;         //数据绑定事件的委托类型
+        dbc_delegate_t          m_datafetch_dgt;        //数据提取事件的委托类型
     public:
         //-------------------------------------------------
         //构造函数,绑定db连接与业务处理回调函数
-        dbc_t(dbc_conn_t  &c, dbc_event_func_t on_bind = NULL, dbc_event_func_t on_row = NULL) :tiny_dbc_t(c)
+        dbc_t(dbc_conn_t  &c, dbc_event_func_t on_bind = NULL, dbc_event_func_t on_row = NULL) :super_t(c)
         {
             if (on_bind) event_on_bind(on_bind);
             if (on_row) event_on_row(on_row);
@@ -398,10 +502,10 @@ namespace RX_DBC_NAMESPACE
         //返回值:<0错误;0用户要求放弃;>0完成
         int action(void *usrdat, bool explicit_trans = false, uint32_t retry = 1)
         {
-            if (is_empty(m_query.sql_string()))
-                return tiny_dbc_t::action(on_sql(), usrdat, explicit_trans, retry);  //首次执行,需要解析sql
+            if (is_empty(super_t::m_query.sql_string()))
+                return super_t::action(on_sql(), usrdat, explicit_trans, retry);  //首次执行,需要解析sql
             else
-                return tiny_dbc_t::action(NULL, usrdat, explicit_trans, retry);     //后续执行,不需要再解析sql
+                return super_t::action(NULL, usrdat, explicit_trans, retry);     //后续执行,不需要再解析sql
         }
         //-------------------------------------------------
         //关联数据绑定处理回调函数
@@ -415,8 +519,8 @@ namespace RX_DBC_NAMESPACE
         virtual int32_t on_exec(query_t &q, void *usrdat)
         {
             if (!q.params())
-                q.auto_bind(BAT_BULKS_SIZE);                //尝试自动绑定,告知最大批量深度
-            int rc = on_bind_data(q, usrdat);                //驱动on_bind_data事件
+                q.auto_bind(10);                            //尝试自动绑定,告知最大批量深度
+            int rc = on_bind_data(q, usrdat);               //驱动on_bind_data事件
             if (rc <= 0) return rc;
             q.exec(rc);                                     //执行真正的OCI/ORA动作
             return 1;
@@ -452,4 +556,4 @@ namespace RX_DBC_NAMESPACE
     };
 }
 
- 
+

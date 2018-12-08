@@ -16,7 +16,7 @@ namespace rx_dbc_ora
         ub2				m_bat_fetch_size;	                //每批次获取的记录数量
         ub4				m_bat_fetch_total;                  //已经获取过的批量记录数量
         ub4				m_cur_fetch_idx;                    //当前处理的记录在全部结果集中的行号
-
+        ub4             m_cur_field_idx;                    //使用>>运算符时操作的当前字段序号
         //-------------------------------------------------
         //被禁止的操作
         query_t (const query_t&);
@@ -25,6 +25,7 @@ namespace rx_dbc_ora
         //清理本子类中使用的状态与相关资源
         void m_clear (bool reset_only=false)
         {
+            m_cur_field_idx = 0;
             m_bat_fetch_total = 0;
             m_cur_fetch_idx = 0;
             m_bat_fetch_eof = false;
@@ -51,7 +52,7 @@ namespace rx_dbc_ora
             //动态生成字段对象数组
             rx_assert(m_fields.size()==0);
             if (!m_fields.make_ex(count,true))              //分配字段数组
-                throw (error_info_t (DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
+                throw (error_info_t (type_t::DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL.c_str()));
 
             //循环获取字段属性信息
             char Tmp[200];
@@ -141,7 +142,7 @@ namespace rx_dbc_ora
         {
             rx_assert(field_idx<m_fields.size());
             if (field_idx >= m_fields.capacity())
-                throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
+                throw (error_info_t(type_t::DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
             return m_fields[field_idx];
         }
         //-------------------------------------------------
@@ -152,7 +153,7 @@ namespace rx_dbc_ora
             rx::st::strlwr(name, Tmp);
             ub4 field_idx = m_fields.index(Tmp);
             if (field_idx == m_fields.capacity())
-                throw (error_info_t(DBEC_FIELD_NOT_FOUND, __FILE__, __LINE__, name));
+                throw (error_info_t(type_t::DBEC_FIELD_NOT_FOUND, __FILE__, __LINE__, name));
             return m_fields[field_idx];
         }
 
@@ -205,11 +206,14 @@ namespace rx_dbc_ora
         //返回值:是否还有记录
         bool next(void)
         {
+            rx_assert_if(m_cur_field_idx,m_cur_field_idx==m_fields.size());
+            m_cur_field_idx=0;
+
             ++m_cur_fetch_idx;
 
             if (m_cur_fetch_idx >= m_bat_fetch_total)
             {
-                if (m_bat_fetch_eof) 
+                if (m_bat_fetch_eof)
                     return false;
                 m_bat_fetch();
             }
@@ -256,7 +260,7 @@ namespace rx_dbc_ora
         query_t& operator >> (DT &value)
         {
             rx_assert(m_cur_field_idx<m_fields.size());
-            m_fields[field_idx].to(value);
+            m_fields[m_cur_field_idx++].to(value);
             return *this;
         }
 

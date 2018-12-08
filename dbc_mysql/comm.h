@@ -422,7 +422,32 @@ namespace rx_dbc_mysql
         }
     };
 
+    //声明可以对外使用的类
+    class conn_t;
+    class stmt_t;
+    class query_t;
+    class sql_param_t;
+    class field_t;
+    //-------------------------------------------------
+    //将本命名空间中的对外开放类型进行统一声明
+    class type_t
+    {
+    public:
+        typedef data_type_t     data_type_t;
+        typedef sql_stmt_t      sql_stmt_t;
+        typedef conn_param_t    conn_param_t;
+        typedef env_option_t    env_option_t;
+        typedef dbc_error_code_t dbc_error_code_t;
+        typedef error_info_t    error_info_t;
+        typedef datetime_t      datetime_t;
 
+        typedef conn_t          conn_t;
+        typedef sql_param_t     sql_param_t;
+        typedef stmt_t          stmt_t;
+
+        typedef field_t         field_t;
+        typedef query_t         query_t;
+    };
 }
 
 #endif
