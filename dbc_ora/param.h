@@ -140,7 +140,8 @@ namespace ora
         }
         //-------------------------------------------------
         //绑定数字值
-        sql_param_t& set_long(int32_t value, bool is_signed)
+        template<typename DT>
+        sql_param_t& set_long(DT value, bool is_signed)
         {
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
@@ -151,7 +152,7 @@ namespace ora
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);   //得到可用缓冲区
-                sword result = OCINumberFromInt(m_conn->m_handle_err, &value, sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED,data_buff);
+                sword result = OCINumberFromInt(m_conn->m_handle_err, &value, sizeof(value), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED,data_buff);
                 if (result != OCI_SUCCESS)
                     throw (error_info_t(result, m_conn->m_handle_err, __FILE__, __LINE__, "param(%s)",m_name.c_str()));
                 m_set_data_size(m_max_data_size, m_bulk_idx);   //记录数据的实际长度
@@ -160,10 +161,10 @@ namespace ora
             case DT_TEXT:
             {
                 char tmp_buff[50];
-                if (is_signed)
-                    sprintf(tmp_buff, "%d", value);
+                if (sizeof(DT)==4)
+                    is_signed ? rx::st::itoa((int32_t)value,tmp_buff) : rx::st::ultoa((uint32_t)value,tmp_buff);
                 else
-                    sprintf(tmp_buff, "%u", value);
+                    is_signed ? rx::st::itoa64(value,tmp_buff) : rx::st::utoa64(value,tmp_buff);
                 return set_string(tmp_buff);
             }
             default:
@@ -299,7 +300,15 @@ namespace ora
                 return set_datetime(D);                     //交给实际的功能函数
             }
             case DT_LONG:
+            {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
+                int32_t Value = rx::st::atoi(text);
+                return set_long(Value,true);                //交给实际的功能函数
+            }
             case DT_ULONG:
+            {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
+                uint32_t Value = rx::st::atoul(text);
+                return set_long(Value,false);               //交给实际的功能函数
+            }
             case DT_FLOAT:
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
                 double Value = rx::st::atof(text);
@@ -341,7 +350,7 @@ namespace ora
         sql_param_t& operator = (long double value) { return set_real(value); }
         //-------------------------------------------------
         //设置参数为大整数值(带符号)
-        sql_param_t& operator = (int64_t value) { return set_real((long double)value); }
+        sql_param_t& operator = (int64_t value) { return set_long(value,true); }
         //-------------------------------------------------
         //设置参数为整数值(带符号)
         sql_param_t& operator = (int32_t value) { return set_long(value, true); }

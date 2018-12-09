@@ -448,18 +448,22 @@ namespace ora
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
-        int32_t comm_as_long(ub1* data_buff,bool is_signed = true) const
+        template<typename DT>
+        DT comm_as_long(ub1* data_buff,bool is_signed = true) const
         {
             switch (m_dbc_data_type)
             {
             case DT_TEXT:
-                return rx::st::atoi((char*)data_buff);
+                if (sizeof(DT)==4)
+                    return is_signed?rx::st::atoi((char*)data_buff):rx::st::atoul((char*)data_buff);
+                else
+                    return (DT)rx::st::atoi64((char*)data_buff);
             case DT_LONG:
             case DT_ULONG:
             case DT_FLOAT:
             {
-                int32_t	value;
-                sword result = OCINumberToInt(oci_err_handle(), reinterpret_cast <OCINumber *> (data_buff), sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, &value);
+                DT	value;
+                sword result = OCINumberToInt(oci_err_handle(), reinterpret_cast <OCINumber *> (data_buff), sizeof(value), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, &value);
                 if (result == OCI_SUCCESS)
                     return (value);
                 else
@@ -469,6 +473,7 @@ namespace ora
                 throw (error_info_t(DBEC_BAD_OUTPUT, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
             }
         }
+
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为日期:错误句柄;原始数据缓冲区;原始数据类型;
         datetime_t comm_as_datetime(ub1* data_buff) const
@@ -537,7 +542,12 @@ namespace ora
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_bigint(int64_t DefValue = 0) const { return int64_t(as_real((long double)DefValue)); }
+        int64_t as_bigint(int64_t DefValue = 0) const 
+        { 
+            ub2 idx = bulk_row_idx();
+            if (m_is_null(idx)) return DefValue;
+            return comm_as_long<int64_t>(get_data_buff(idx));
+        }
         col_base_t& to(int64_t &buff, int64_t def_val = 0)
         {
             buff = as_bigint(def_val);
@@ -549,7 +559,7 @@ namespace ora
         {
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
-            return comm_as_long(get_data_buff(idx));
+            return comm_as_long<int32_t>(get_data_buff(idx));
         }
         col_base_t& to(int32_t &buff, int32_t def_val = 0)
         {
@@ -562,7 +572,7 @@ namespace ora
         {
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
-            return comm_as_long(get_data_buff(idx), false);
+            return comm_as_long<uint32_t>(get_data_buff(idx), false);
         }
         col_base_t& to(uint32_t &buff, uint32_t def_val = 0)
         {
