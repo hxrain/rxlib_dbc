@@ -60,9 +60,21 @@ namespace ora
                 NamePreDateTypeChar = param_name[1];        //以':'为前导的参数命名才进行前缀类型解析
 
             //根据外面告知的绑定数据类型,进行内部数据类型转换
-            if (type == DT_NUMBER || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_NUMBER))
+            if (type == DT_LONG || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_LONG))
             {
-                dbc_data_type = DT_NUMBER;
+                dbc_data_type = DT_LONG;
+                oci_data_type = SQLT_VNU;
+                max_data_size = sizeof(OCINumber);
+            }
+            else if (type == DT_ULONG || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_ULONG))
+            {
+                dbc_data_type = DT_ULONG;
+                oci_data_type = SQLT_VNU;
+                max_data_size = sizeof(OCINumber);
+            }
+            else if (type == DT_FLOAT || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_FLOAT))
+            {
+                dbc_data_type = DT_FLOAT;
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
             }
@@ -133,7 +145,9 @@ namespace ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);   //得到可用缓冲区
@@ -163,7 +177,9 @@ namespace ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
@@ -188,7 +204,9 @@ namespace ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
                 OCINumber* data_buff = m_col_databuff.ptr<OCINumber>(m_bulk_idx);
@@ -280,7 +298,9 @@ namespace ora
                 D.set(ST);
                 return set_datetime(D);                     //交给实际的功能函数
             }
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
                 double Value = rx::st::atof(text);
                 return set_double(Value);                   //交给实际的功能函数

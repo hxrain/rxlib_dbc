@@ -256,11 +256,12 @@ namespace mysql
             case MYSQL_TYPE_INT24:
             case MYSQL_TYPE_LONG:
             case MYSQL_TYPE_LONGLONG:
+                return m_metainfo->is_unsigned ? DT_ULONG : DT_LONG;
             case MYSQL_TYPE_FLOAT:
             case MYSQL_TYPE_DOUBLE:
             case MYSQL_TYPE_DECIMAL:
             case MYSQL_TYPE_NEWDECIMAL:
-                return DT_NUMBER;
+                return DT_FLOAT;
 
             case MYSQL_TYPE_DATE:
             case MYSQL_TYPE_NEWDATE:

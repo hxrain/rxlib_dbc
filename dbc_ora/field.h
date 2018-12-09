@@ -25,15 +25,24 @@ namespace ora
             switch (oci_data_type)
             {
             case	SQLT_UIN:	// unsigned int
+                oci_data_type = SQLT_VNU;
+                dbc_data_type = DT_ULONG;
+                max_data_size = sizeof(OCINumber);
+                break;
+
             case	SQLT_INT:	// integer
             case	SQLT_LNG:	// long
+                oci_data_type = SQLT_VNU;
+                dbc_data_type = DT_LONG;
+                max_data_size = sizeof(OCINumber);
+                break;
 
             case	SQLT_NUM:	// numeric
             case	SQLT_FLT:	// float
             case	SQLT_VNU:	// numeric with length
             case	SQLT_PDN:	// packed decimal
                 oci_data_type = SQLT_VNU;
-                dbc_data_type = DT_NUMBER;
+                dbc_data_type = DT_FLOAT;
                 max_data_size = sizeof(OCINumber);
                 break;
 

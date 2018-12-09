@@ -367,7 +367,9 @@ namespace ora
             {
             case DT_TEXT:
                 return m_col_databuff.ptr(RowNo*m_max_data_size);
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
                 return (ub1*)m_col_databuff.ptr<OCINumber>(RowNo);
             case DT_DATE:
                 return (ub1*)m_col_databuff.ptr<OCIDate>(RowNo);
@@ -383,7 +385,9 @@ namespace ora
             {
             case DT_TEXT:
                 return (reinterpret_cast <PStr> (data_buff));
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {
                 ub4 FmtLen = 3;
                 if (ConvFmt == NULL) ConvFmt = "TM9";
@@ -428,7 +432,9 @@ namespace ora
 
                 return value;
             }
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {//OCIÊý×Ö×ª»»Îªdouble
                 DT	value;
                 sword result = ::OCINumberToReal(oci_err_handle(), reinterpret_cast <OCINumber *>(data_buff), sizeof(DT), &value);
@@ -448,7 +454,9 @@ namespace ora
             {
             case DT_TEXT:
                 return rx::st::atoi((char*)data_buff);
-            case DT_NUMBER:
+            case DT_LONG:
+            case DT_ULONG:
+            case DT_FLOAT:
             {
                 int32_t	value;
                 sword result = OCINumberToInt(oci_err_handle(), reinterpret_cast <OCINumber *> (data_buff), sizeof(int32_t), is_signed ? OCI_NUMBER_SIGNED : OCI_NUMBER_UNSIGNED, &value);

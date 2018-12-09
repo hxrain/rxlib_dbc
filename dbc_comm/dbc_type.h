@@ -19,7 +19,7 @@ namespace rx_dbc
     //DB类型
     typedef enum db_type_t
     {
-        DBT_UNKNOWN,
+        DBT_UNKNOWN=-1,
         DBT_ORA,
         DBT_MYSQL,
         DBT_PGSQL,
@@ -51,17 +51,19 @@ namespace rx_dbc
     //dbc_ora可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
     typedef enum data_type_t
     {
-        DT_UNKNOWN,
-        DT_NUMBER = 'n',                                //数字类型的字段或参数
-        DT_DATE = 'd',                                  //日期类型
-        DT_TEXT = 's'                                   //文本串类型
+        DT_UNKNOWN=-1,
+        DT_LONG     = 'l',                                  //带符号整数,long/int32_t
+        DT_ULONG    = 'u',                                  //无符号整数,ulong/uint32_t
+        DT_FLOAT    = 'f',                                  //浮点数,double
+        DT_DATE     = 'd',                                  //日期类型
+        DT_TEXT     = 's'                                   //文本串类型
     }data_type_t;
 
     //-----------------------------------------------------
     //sql语句类型
     typedef enum sql_type_t
     {
-        ST_UNKNOWN  ,
+        ST_UNKNOWN=-1,
         ST_SELECT   ,
         ST_UPDATE   ,
         ST_DELETE   ,
@@ -101,6 +103,8 @@ namespace rx_dbc
         DBEC_DB_CONNLOST,                                   //DB错误细分:已经建立的连接断开了.
         DBEC_DB_CONNFAIL,                                   //DB错误细分:连接失败,无法建立连接
         DBEC_DB_UNIQUECONST,                                //DB错误细分:唯一约束导致的错误
+
+        DBEC_OTHER=-1,
     }err_type_t;
 
 

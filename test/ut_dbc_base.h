@@ -209,8 +209,8 @@ inline bool ut_dbc_base_insert_1(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         query_t q(dbc.conn);
 
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
-        q(":nID", 20)(":nINT", -155905152)(":nUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)");
+        q(":uID", 20)(":lINT", -155905152)(":uUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         q.exec();
         dbc.conn.trans_commit();
         rt.tdd_assert(q.rows() == 1);
@@ -232,9 +232,9 @@ inline bool ut_dbc_base_insert_2(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //预处理解析
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定单条参数
-        q(":nID", 21)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q(":uID", 21)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //执行语句
         q.exec();
         //提交
@@ -258,9 +258,9 @@ inline bool ut_dbc_base_insert_2b(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //预处理解析
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定参数
-        q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
+        q(":uID")(":lINT")(":uUINT")(":sSTR")(":dDATE")(":nSHORT");
         //绑定数据
         q << 24 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         //执行语句
@@ -290,9 +290,9 @@ inline bool ut_dbc_base_insert_2c(rx_tdd_t &rt, ut_dbc &dbc)
 
         stmt_t q(dbc.conn);
         //预处理解析
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)");
         //绑定参数
-        q(":nID")(":nINT")(":nUINT")(":sSTR")(":dDATE")(":nSHORT");
+        q(":uID")(":lINT")(":uUINT")(":sSTR")(":dDATE")(":nSHORT");
         //绑定数据
         q << 22 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
         //执行语句
@@ -324,11 +324,11 @@ inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)").manual_bind(2);
 #if UT_DB==DB_ORA
         //给每个块深度对应的参数进行绑定与赋值
-        q.bulk(0)(":nID", 25)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
-        q.bulk(1)(":nID", 35)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.bulk(0)(":uID", 25)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.bulk(1)(":uID", 35)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //执行本次批量操作
         q.exec();
         rt.tdd_assert(q.rows() == 2);
@@ -336,21 +336,21 @@ inline bool ut_dbc_base_insert_3(rx_tdd_t &rt, ut_dbc &dbc)
         dbc.conn.trans_commit();
 
         //继续进行批量数据的绑定
-        q.bulk(0)(":nID", 45)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
+        q.bulk(0)(":uID", 45)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769);
         //告知真正绑定的数据深度并执行操作
         q.exec(1);
         rt.tdd_assert(q.rows() == 1);
 #else
-        q(":nID", 25)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
+        q(":uID", 25)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
         rt.tdd_assert(q.rows() == 1);
 
-        q(":nID", 35)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
+        q(":uID", 35)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
         rt.tdd_assert(q.rows() == 1);
         //先对默认事务进行提交
         dbc.conn.trans_commit();
 
         //继续进行批量数据的绑定
-        q(":nID", 45)(":nINT", -155905152)(":nUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
+        q(":uID", 45)(":lINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":nSHORT", 32769).exec();
         rt.tdd_assert(q.rows() == 1);
 
 #endif
@@ -377,7 +377,7 @@ inline bool ut_dbc_base_insert_4(rx_tdd_t &rt, ut_dbc &dbc)
         stmt_t q(dbc.conn);
 
         //预处理解析并进行参数的自动绑定
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind();
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)").auto_bind();
         q << 26 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;   //顺序给参数进行数据赋值
         q.exec().conn().trans_commit();                     //执行语句并提交
 
@@ -400,7 +400,7 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
     try {
         stmt_t q(dbc.conn);
         //解析带有参数绑定的语句,同时告知最大批量块深度
-        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)").auto_bind(2);
 #if UT_DB==DB_ORA
 
         //给每个块深度对应的参数进行赋值
@@ -445,38 +445,38 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
 inline void ut_dbc_base_sql_parse_1(rx_tdd_t &rt)
 {
     rx_dbc::sql_param_parse_t<> sp;
-    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and UINT=:uUINT;") == NULL);
     rt.tdd_assert(sp.count == 2);
-    rt.tdd_assert(strncmp(sp.segs[0].name, ":nID", sp.segs[0].name_len) == 0);
+    rt.tdd_assert(strncmp(sp.segs[0].name, ":uID", sp.segs[0].name_len) == 0);
     rt.tdd_assert(sp.segs[0].name_len == 4);
-    rt.tdd_assert(strncmp(sp.segs[1].name, ":nUINT", sp.segs[1].name_len) == 0);
+    rt.tdd_assert(strncmp(sp.segs[1].name, ":uUINT", sp.segs[1].name_len) == 0);
     rt.tdd_assert(sp.segs[1].name_len == 6);
 
-    rt.tdd_assert(sp.ora_sql("select id,:se'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,:se'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and UINT=:uUINT;") != NULL);
 
-    rt.tdd_assert(sp.ora_sql("select id,'b':se,':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and (UINT=:nUINT)") != NULL);
-    rt.tdd_assert(sp.ora_sql("select id,'b' :se,':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and (UINT=:nUINT)") == NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b':se,':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and (UINT=:uUINT)") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b' :se,':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and (UINT=:uUINT)") == NULL);
     rt.tdd_assert(sp.count == 3);
 
-    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and UINT=:uUINT;") == NULL);
     rt.tdd_assert(sp.count == 3);
 
-    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se"",\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT") == NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se"",\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and UINT=:uUINT") == NULL);
     rt.tdd_assert(sp.count == 3);
 
-    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se\"\",\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',:se\"\",\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and UINT=:uUINT;") != NULL);
 
-    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT:se from tmp_dbc where id=:nID and UINT=:nUINT;") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT:se from tmp_dbc where id=:uID and UINT=:uUINT;") != NULL);
 
-    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT:se from tmp_dbc where id=:nID and UINT=: nUINT;") != NULL);
-    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT :se from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);   //解析通过,但不符合sql语法
+    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT:se from tmp_dbc where id=:uID and UINT=: nUINT;") != NULL);
+    rt.tdd_assert(sp.ora_sql("select id,'\"',UINT :se from tmp_dbc where id=:uID and UINT=:uUINT;") == NULL);   //解析通过,但不符合sql语法
     rt.tdd_assert(sp.ora_sql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1") == NULL);
     rt.tdd_assert(sp.count==0);
 
     char tmp[1024];
     rt.tdd_assert(sp.ora2mysql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1",tmp,sizeof(tmp)) != sizeof(tmp));
 
-    rt.tdd_assert(sp.ora2mysql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;",tmp,sizeof(tmp)) != sizeof(tmp));
+    rt.tdd_assert(sp.ora2mysql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uID and UINT=:uUINT;",tmp,sizeof(tmp)) != sizeof(tmp));
 }
 //---------------------------------------------------------
 //进行数据库基础动作测试
@@ -570,7 +570,7 @@ inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     dbc_t dbc(conn, ut_dbc_event_func_1);
 
     //执行sql语句,使用给定的数据
-    int rc=dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)",&dat);
+    int rc=dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)",&dat);
     rt.tdd_assert(rc > 0);
 
     //更换数据对象后再次执行
@@ -579,7 +579,7 @@ inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     rt.tdd_assert(rc>0);
 
     //解析sql语句,不操作数据
-    rc = dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+    rc = dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)");
     rt.tdd_assert(rc >= 0);
 
     //更换数据对象后再次执行
@@ -592,7 +592,7 @@ inline void ut_dbc_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 class mydbc :public dbc_t
 {
     //告知待执行的业务SQL语句
-    virtual const char* on_sql() { return "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)"; }
+    virtual const char* on_sql() { return "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)"; }
     //处理数据绑定;返回值:<0错误;0用户要求放弃;>0绑定批量块的深度
     virtual int32_t on_bind_data(query_t &q, void *usrdat)
     {
@@ -610,7 +610,7 @@ inline void ut_dbc_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     //定义数据库功能对象,告知数据绑定函数与数据对象
     mydbc dbc(conn);
     //首次执行sql语句,不告知数据
-    int rc = dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:nID,:nINT,:nUINT,:sSTR,:dDATE,:nSHORT)");
+    int rc = dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uID,:lINT,:uUINT,:sSTR,:dDATE,:nSHORT)");
     rt.tdd_assert(rc>=0);
 
     //更换数据对象后再次执行
