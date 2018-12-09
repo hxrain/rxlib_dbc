@@ -3,7 +3,7 @@
 
 #include "../../rx_dbc_mysql.h"
 #include "../../rx_dbc_ora.h"
-
+#include "../../rx_dbc_util.h"
 
 #include "../ut_dbc_base.h"
 

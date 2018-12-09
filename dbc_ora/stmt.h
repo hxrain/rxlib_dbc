@@ -2,7 +2,7 @@
 #define	_RX_DBC_ORA_STATEMENT_H_
 
 
-namespace rx_dbc_ora
+namespace ora
 {
     //-----------------------------------------------------
     //执行sql语句的功能类
@@ -16,7 +16,7 @@ namespace rx_dbc_ora
         conn_t		                        &m_conn;		//该语句对象关联的数据库连接对象
         param_array_t		                m_params;	    //带有名称绑定的参数数组
         OCIStmt			                    *m_stmt_handle; //该语句对象的OCI句柄
-        dbc_sql_type_t	                m_sql_type;     //该语句对象当前sql语句的类型
+        sql_type_t	                m_sql_type;     //该语句对象当前sql语句的类型
         rx::tiny_string_t<char,MAX_SQL_LENGTH>  m_SQL;      //预解析时记录的待执行的sql语句
         ub2                                 m_max_bulk_deep; //参数批量数据提交的最大数
         ub2                                 m_cur_bulk_idx; //当前操作的块深度索引
@@ -77,7 +77,7 @@ namespace rx_dbc_ora
         //如果批量数为1(默认情况),则可以直接调用bind
         //绑定一个命名变量给当前的语句,如果变量类型是DT_UNKNOWN,则根据变量名前缀进行自动分辨.对于字符串类型,可以设置参数缓存的尺寸
         //参数的数量在首个参数绑定时可以根据sql语句中的':'的数量来确定
-        sql_param_t& m_param_bind(const char *name, dbc_data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        sql_param_t& m_param_bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
         {
             rx_assert(!is_empty(name));
             rx_assert(rx::st::strstr(m_SQL.c_str(), name) != NULL);
@@ -193,7 +193,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //对指定参数的绑定与当前深度的数据赋值同时进行,便于应用层操作
         template<class DT>
-        stmt_t& operator()(const char* name, const DT& data, dbc_data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        stmt_t& operator()(const char* name, const DT& data, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
         {
             sql_param_t &param = m_param_bind(name, type, MaxStringSize);
             param = data;
@@ -201,7 +201,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //手动进行参数的绑定
-        stmt_t& operator()(const char* name, dbc_data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        stmt_t& operator()(const char* name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
         {
             m_param_bind(name, type, MaxStringSize);
             return *this;
@@ -216,7 +216,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //获取解析后的sql语句类型
-        dbc_sql_type_t	sql_type() { return m_sql_type; }
+        sql_type_t	sql_type() { return m_sql_type; }
         //-------------------------------------------------
         //得到解析过的sql语句
         const char* sql_string() { return m_SQL.c_str(); }

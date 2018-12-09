@@ -1,10 +1,6 @@
-﻿#ifndef _RX_DBC_COMM_H_
-#define _RX_DBC_COMM_H_
-/*
-    在此文件中进行rx_dbc底层功能接口的封装;
-    对不同的db接口,放在不同的名字空间中.
-    外部文件中需要给出正确的rx_dbc_namespace宏定义
-*/
+﻿#ifndef _RX_DBC_UTIL_H_
+#define _RX_DBC_UTIL_H_
+
 
 namespace rx_dbc
 {
@@ -38,9 +34,9 @@ namespace rx_dbc
         typedef typename TT::query_t         query_t;
     protected:
         conn_t              m_conn;
-        dbc_conn_param_t    m_conn_param;
+        conn_param_t        m_conn_param;
         env_option_t        m_env_param;
-        dbc_err_type_t      m_last_error;
+        err_type_t      m_last_error;
 
         template<typename T>
         friend class dbc_t;
@@ -53,7 +49,7 @@ namespace rx_dbc
         dbc_log_delegate_t  log_func;                       //日志输出方法,默认为default_dbc_log_func.
         dbc_conn_t() { log_func.bind(default_dbc_log_func); }
         dbc_conn_t(rx::mem_allotter_i& ma) :m_conn(ma) { log_func.bind(default_dbc_log_func); }
-        dbc_err_type_t last_err() { return m_last_error; }
+        err_type_t last_err() { return m_last_error; }
         virtual ~dbc_conn_t() {}
         //-------------------------------------------------
         //日志输出功能封装
@@ -109,7 +105,7 @@ namespace rx_dbc
             m_conn_param.port = port;
             m_conn_param.conn_timeout = conn_timeout_sec;
         }
-        void set_conn_param(const dbc_conn_param_t &p) { set_conn_param(p.host, p.user, p.pwd, p.db, p.port, p.conn_timeout); }
+        void set_conn_param(const conn_param_t &p) { set_conn_param(p.host, p.user, p.pwd, p.db, p.port, p.conn_timeout); }
         //-------------------------------------------------
         //进行连接动作,或检查连接是否成功
         //返回值:连接是否成功,0-连接失败;1连接正常;2连接建立;3重连完成.
@@ -189,7 +185,7 @@ namespace rx_dbc
     protected:
         //-------------------------------------------------
         //单纯的记录最后的dbc错误号
-        void set_last_error(dbc_err_type_t e) { m_last_error = e; }
+        void set_last_error(err_type_t e) { m_last_error = e; }
         //-------------------------------------------------
         //对错误输出进行偏特化区分,对于ora的批量模式进行有效处理
         template<typename T,int>
@@ -200,7 +196,7 @@ namespace rx_dbc
             static void do_error(dbc_conn_t &conn,error_info_t &e, query_t *q)
             {
                 conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
-                conn.set_last_error((dbc_err_type_t)e.dbc_error_code());//记录最后的统一错误码
+                conn.set_last_error((err_type_t)e.dbc_error_code());//记录最后的统一错误码
                 if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
 
                 rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
@@ -223,14 +219,14 @@ namespace rx_dbc
         };
 #if defined(_RX_DBC_ORA_COMM_H_)
         template<int dummy>
-        class err_log_t<rx_dbc_ora::type_t,dummy>
+        class err_log_t<ora::type_t,dummy>
         {
         public:
             //进行错误记录与日志输出
             static void do_error(dbc_conn_t &conn, error_info_t &e, query_t *q)
             {
                 conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
-                conn.set_last_error((dbc_err_type_t)e.dbc_error_code());//记录最后的统一错误码
+                conn.set_last_error((err_type_t)e.dbc_error_code());//记录最后的统一错误码
                 if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
 
                 rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
@@ -264,7 +260,7 @@ namespace rx_dbc
         }
         //-------------------------------------------------
         //连接完成事件
-        virtual void on_connect(conn_t& conn, const dbc_conn_param_t &param) {}
+        virtual void on_connect(conn_t& conn, const conn_param_t &param) {}
     };
 
     //-----------------------------------------------------

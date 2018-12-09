@@ -1,7 +1,7 @@
 #ifndef	_RX_DBC_MYSQL_FIELD_H_
 #define	_RX_DBC_MYSQL_FIELD_H_
 
-namespace rx_dbc_mysql
+namespace mysql
 {
     class query_t;
     //-----------------------------------------------------
@@ -246,7 +246,7 @@ namespace rx_dbc_mysql
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
         //-------------------------------------------------
-        dbc_data_type_t dbc_data_type() 
+        data_type_t dbc_data_type() 
         {
             if (m_is_null()) return DT_UNKNOWN;
             switch (m_metainfo->buffer_type)

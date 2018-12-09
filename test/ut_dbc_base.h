@@ -12,10 +12,12 @@
 
 #if UT_DB==DB_ORA
     #include "../rx_dbc_ora.h"
-    typedef rx_dbc::dbc_conn_t<rx_dbc_ora::type_t> dbc_conn_t;
-    typedef rx_dbc::dbc_t<rx_dbc_ora::type_t> dbc_t;
-    typedef rx_dbc::tiny_dbc_t<rx_dbc_ora::type_t> tiny_dbc_t;
-    using namespace rx_dbc_ora;
+    #include "../rx_dbc_util.h"
+
+    typedef rx_dbc::dbc_conn_t<rx_dbc::ora::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_t<rx_dbc::ora::type_t> dbc_t;
+    typedef rx_dbc::tiny_dbc_t<rx_dbc::ora::type_t> tiny_dbc_t;
+    using namespace rx_dbc::ora;
     
 
     /*
@@ -41,10 +43,12 @@
 
 #if UT_DB==DB_MYSQL
     #include "../rx_dbc_mysql.h"
-    typedef rx_dbc::dbc_conn_t<rx_dbc_mysql::type_t> dbc_conn_t;
-    typedef rx_dbc::dbc_t<rx_dbc_mysql::type_t> dbc_t;
-    typedef rx_dbc::tiny_dbc_t<rx_dbc_mysql::type_t> tiny_dbc_t;
-    using namespace rx_dbc_mysql;
+    #include "../rx_dbc_util.h"
+
+    typedef rx_dbc::dbc_conn_t<rx_dbc::mysql::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_t<rx_dbc::mysql::type_t> dbc_t;
+    typedef rx_dbc::tiny_dbc_t<rx_dbc::mysql::type_t> tiny_dbc_t;
+    using namespace rx_dbc::mysql;
     /*
     CREATE TABLE tmp_dbc (
       ID bigint(20) unsigned NOT NULL,
@@ -64,7 +68,7 @@
     //测试使用的对象容器
     typedef struct ut_dbc
     {
-        dbc_conn_param_t conn_param;
+        rx_dbc::conn_param_t conn_param;
         conn_t conn;
 
         ut_dbc()
@@ -440,7 +444,7 @@ inline bool ut_dbc_base_insert_5(rx_tdd_t &rt, ut_dbc &dbc)
 //---------------------------------------------------------
 inline void ut_dbc_base_sql_parse_1(rx_tdd_t &rt)
 {
-    sql_param_parse_t<> sp;
+    rx_dbc::sql_param_parse_t<> sp;
     rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:nID and UINT=:nUINT;") == NULL);
     rt.tdd_assert(sp.count == 2);
     rt.tdd_assert(strncmp(sp.segs[0].name, ":nID", sp.segs[0].name_len) == 0);
@@ -542,7 +546,7 @@ typedef struct ut_ins_dat_t
 //扩展应用层连接对象,在连接建立后需要切换用户模式
 class my_conn_t :public dbc_conn_t
 {
-    virtual void on_connect(dbc_conn_t::conn_t& conn, const dbc_conn_param_t &param)
+    virtual void on_connect(dbc_conn_t::conn_t& conn, const rx_dbc::conn_param_t &param)
     { 
 #if UT_DB==DB_ORA
         conn.schema_to("SCOTT"); 
@@ -627,7 +631,7 @@ inline void ut_dbc_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 
     //极简模式,使用业务功能的临时对象执行业务定义的语句并处理数据
     rt.tdd_assert( mydbc(conn).action(&dat) < 0);
-    rt.tdd_assert(conn.last_err()== DBEC_DB_UNIQUECONST);
+    rt.tdd_assert(conn.last_err()== rx_dbc::DBEC_DB_UNIQUECONST);
 }
 //---------------------------------------------------------
 //使用dbc_t作为基类进行业务处理,测试查询提取结果

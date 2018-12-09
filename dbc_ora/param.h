@@ -1,7 +1,7 @@
 #ifndef	_RX_DBC_ORA_PARAMETER_H_
 #define	_RX_DBC_ORA_PARAMETER_H_
 
-namespace rx_dbc_ora
+namespace ora
 {
     //-----------------------------------------------------
     //sql语句绑定参数,即可用于输入,也可用于输出
@@ -44,7 +44,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //进行数据类型确认并进行数据初始化
         //返回值:归一化后的OCI数据类型
-        ub2 m_bind_data_type(const char *param_name,ub4 name_size, dbc_data_type_t type, int StringMaxSize, ub4 BulkCount)
+        ub2 m_bind_data_type(const char *param_name,ub4 name_size, data_type_t type, int StringMaxSize, ub4 BulkCount)
         {
             rx_assert(!is_empty(param_name));
             rx_assert(m_max_bulk_deep == (ub4)0);
@@ -52,7 +52,7 @@ namespace rx_dbc_ora
             m_max_bulk_deep = BulkCount;
 
             ub2 oci_data_type;
-            dbc_data_type_t	dbc_data_type;
+            data_type_t	dbc_data_type;
             int max_data_size;
 
             char NamePreDateTypeChar = DT_UNKNOWN;          //前缀类型默认为无效
@@ -94,7 +94,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //初始化绑定到对应的语句句柄上
-        void bind_param(conn_t &conn, OCIStmt* StmtHandle, const char *name, dbc_data_type_t dbc_data_type, int StringMaxSize, int BulkCount)
+        void bind_param(conn_t &conn, OCIStmt* StmtHandle, const char *name, data_type_t dbc_data_type, int StringMaxSize, int BulkCount)
         {
             rx_assert(!is_empty(name));
             m_clear();

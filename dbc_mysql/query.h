@@ -1,7 +1,7 @@
 #ifndef	_RX_DBC_MYSQL_QUERY_H_
 #define	_RX_DBC_MYSQL_QUERY_H_
 
-namespace rx_dbc_mysql
+namespace mysql
 {
     //-----------------------------------------------------
     //从stmt_t类集成,增加了结果集遍历获取的能力

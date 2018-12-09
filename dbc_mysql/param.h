@@ -1,7 +1,7 @@
 #ifndef	_RX_DBC_MYSQL_PARAMETER_H_
 #define	_RX_DBC_MYSQL_PARAMETER_H_
 
-namespace rx_dbc_mysql
+namespace mysql
 {
     //-----------------------------------------------------
     //sql语句绑定参数,即可用于输入,也可用于输出

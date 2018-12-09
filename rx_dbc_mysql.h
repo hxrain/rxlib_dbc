@@ -21,13 +21,34 @@
 #include "dbc_comm/dbc_parse.h"                             //SQL绑定参数的名字解析功能
 #include "dbc_comm/dbc_type.h"                              //统一类型定义
 
-#include "dbc_mysql/base.h"                                 //实现一些通用功能
-#include "dbc_mysql/conn.h"                                 //实现数据库连接
-#include "dbc_mysql/field.h"                                //实现记录字段操作对象
-#include "dbc_mysql/param.h"                                //实现语句段绑定参数
-#include "dbc_mysql/stmt.h"                                 //实现sql语句段
-#include "dbc_mysql/query.h"                                //实现记录查询访问对象
+namespace rx_dbc
+{
+    #include "dbc_mysql/base.h"                                 //实现一些通用功能
+    #include "dbc_mysql/conn.h"                                 //实现数据库连接
+    #include "dbc_mysql/field.h"                                //实现记录字段操作对象
+    #include "dbc_mysql/param.h"                                //实现语句段绑定参数
+    #include "dbc_mysql/stmt.h"                                 //实现sql语句段
+    #include "dbc_mysql/query.h"                                //实现记录查询访问对象
 
-#include "rx_dbc_comm.h"                                    //引入统一的上层功能封装
+    namespace mysql
+    {
+        //-------------------------------------------------
+        //将本命名空间中的对外开放类型进行统一声明
+        class type_t
+        {
+        public:
+            typedef env_option_t    env_option_t;
+            typedef error_info_t    error_info_t;
+            typedef datetime_t      datetime_t;
+
+            typedef conn_t          conn_t;
+            typedef sql_param_t     sql_param_t;
+            typedef stmt_t          stmt_t;
+
+            typedef field_t         field_t;
+            typedef query_t         query_t;
+        };
+    }
+}
 
 #endif

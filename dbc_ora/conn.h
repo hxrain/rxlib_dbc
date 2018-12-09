@@ -2,7 +2,7 @@
 #ifndef	_RX_DBC_ORA_CONN_H_
 #define	_RX_DBC_ORA_CONN_H_
 
-namespace rx_dbc_ora
+namespace ora
 {
     //-----------------------------------------------------
     //管理ORACLE的连接的功能对象
@@ -50,7 +50,7 @@ namespace rx_dbc_ora
         //-------------------------------------------------
         //连接到Oracle服务器(出现不可处理问题时抛异常,可控问题时给出ora错误代码)
         //返回值:0正常;其他出现了可控问题(比如密码即将过期的提示)
-        sword open(const dbc_conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
+        sword open(const conn_param_t& dst, const env_option_t &op = env_option_t(), unsigned long env_mode = OCI_OBJECT | OCI_THREADED)
         {
             char dblink[1024];
             sprintf(dblink, "(DESCRIPTION=(CONNECT_TIMEOUT=%d)(TRANSPORT_CONNECT_TIMEOUT=%d)(ADDRESS=(PROTOCOL=tcp) (HOST=%s) (PORT=%d))(CONNECT_DATA=(SERVICE_NAME=%s)))",dst.conn_timeout,dst.conn_timeout,dst.host, dst.port, dst.db);
@@ -253,7 +253,7 @@ namespace rx_dbc_ora
         //根据OCI返回值,获取更详细的错误信息
         inline bool get_last_error(sword oci_result, sword &ec, char *buff, ub4 max_size)
         {
-            return rx_dbc_ora::get_last_error(oci_result,ec,buff,max_size,m_handle_err,m_handle_env);
+            return ora::get_last_error(oci_result,ec,buff,max_size,m_handle_err,m_handle_env);
         }
     private:
         friend class stmt_t;

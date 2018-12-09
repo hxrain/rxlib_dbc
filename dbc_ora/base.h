@@ -13,7 +13,7 @@
         #define	DBC_ORA_Free		NULL
     #endif
 
-namespace rx_dbc_ora
+namespace ora
 {
     //字段名字最大长度
     const ub2 FIELD_NAME_LENGTH = 32;
@@ -25,33 +25,7 @@ namespace rx_dbc_ora
     const char* NUMBER_FRM_FMT = "FM999999999999999999.00999999999999";
     const ub2 NUMBER_FRM_FMT_LEN = 35;
 
-    //声明可以对外使用的类
-    class conn_t;
-    class stmt_t;
-    class query_t;
-    class field_t;
-    class sql_param_t;
-    struct env_option_t;
-    class error_info_t;
-    class datetime_t;
-    //-------------------------------------------------
-    //将本命名空间中的对外开放类型进行统一声明
-    class type_t
-    {
-    public:
-        typedef env_option_t    env_option_t;
-        typedef error_info_t    error_info_t;
-        typedef datetime_t      datetime_t;
-
-        typedef conn_t          conn_t;
-        typedef sql_param_t     sql_param_t;
-        typedef stmt_t          stmt_t;
-
-        typedef field_t         field_t;
-        typedef query_t         query_t;
-    };
-
-    inline dbc_sql_type_t sql_type_to(int OCI_STMT_TYPE)
+    inline sql_type_t sql_type_to(int OCI_STMT_TYPE)
     {
         switch(OCI_STMT_TYPE)
         {
@@ -177,10 +151,10 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //得到当前库内的详细错误信息
-        void make_dbc_error(dbc_err_type_t dbc_err)
+        void make_dbc_error(err_type_t dbc_err)
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
-            desc << "DBC::" << dbc_error_code_info(dbc_err);
+            desc << "DBC::" << err_type_str(dbc_err);
             m_dbc_ec = dbc_err;
             m_ora_ec = 0;
         }
@@ -219,7 +193,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //构造函数,记录库内部错误
-        error_info_t(dbc_err_type_t dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
+        error_info_t(err_type_t dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
         {
             make_dbc_error(dbc_err);
 
@@ -230,7 +204,7 @@ namespace rx_dbc_ora
         }
         //-------------------------------------------------
         //绑定发生错误的数据库连接信息后再获取完整的错误输出
-        const char* c_str(const dbc_conn_param_t &cp)
+        const char* c_str(const conn_param_t &cp)
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc, rx::st::strlen(m_err_desc));
             desc << "::host[" << cp.host << "]db[" << cp.db << "]user[" << cp.user << ']';
@@ -338,7 +312,7 @@ namespace rx_dbc_ora
         typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
 
         col_name_t          m_name;		                    // 对象名字
-        dbc_data_type_t	    m_dbc_data_type;		        // 期待的数据类型
+        data_type_t	    m_dbc_data_type;		        // 期待的数据类型
         int				    m_max_data_size;			    // 每个字段数据最大尺寸
 
         static const int    m_working_buff_size = 64;       // 临时存放转换字符串的缓冲区
@@ -350,7 +324,7 @@ namespace rx_dbc_ora
 
         //-------------------------------------------------
         //字段构造函数,只能被记录集类使用
-        void make(const char *name, ub4 name_len, dbc_data_type_t dbc_data_type, ub4 max_data_size, int bulk_row_count, bool make_datasize_array = false)
+        void make(const char *name, ub4 name_len, data_type_t dbc_data_type, ub4 max_data_size, int bulk_row_count, bool make_datasize_array = false)
         {
             rx_assert(!is_empty(name));
             reset();
@@ -512,7 +486,7 @@ namespace rx_dbc_ora
     public:
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
-        dbc_data_type_t dbc_data_type() { return m_dbc_data_type; }
+        data_type_t dbc_data_type() { return m_dbc_data_type; }
         int max_data_size() { return m_max_data_size; }
         //-------------------------------------------------
         bool is_null(void) const { return m_is_null(bulk_row_idx()); }

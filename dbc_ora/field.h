@@ -1,7 +1,7 @@
 #ifndef	_RX_DBC_ORA_FIELD_H_
 #define	_RX_DBC_ORA_FIELD_H_
 
-namespace rx_dbc_ora
+namespace ora
 {
     class query_t;
     //-----------------------------------------------------
@@ -18,7 +18,7 @@ namespace rx_dbc_ora
         ub2 bind_data_type(query_t *rs, const char *name, ub4 name_len, ub2 oci_data_type, ub4 max_data_size, int fetch_size)
         {
             rx_assert(rs && !is_empty(name));
-            dbc_data_type_t dbc_data_type = DT_UNKNOWN;
+            data_type_t dbc_data_type = DT_UNKNOWN;
             m_query = rs;
 
             //进行oci数据类型的归一化分类,得到dbc内部类型
