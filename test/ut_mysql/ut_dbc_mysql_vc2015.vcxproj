@@ -97,7 +97,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;UT_DB=DB_MYSQL;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>D:\Rain\rxlib_dbc.git\trunk\3rd_deps\ora\include;D:\Rain\rxlib_dbc.git\trunk\3rd_deps\mysql\include;D:\Rain\rxlib_dbc.git\trunk;D:\Rain\rxlib.git\trunk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <MinimalRebuild>true</MinimalRebuild>
     </ClCompile>

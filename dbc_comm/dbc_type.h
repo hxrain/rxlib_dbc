@@ -52,7 +52,7 @@ namespace rx_dbc
     typedef enum data_type_t
     {
         DT_UNKNOWN=-1,
-        DT_LONG     = 'l',                                  //带符号整数,long/int32_t
+        DT_LONG     = 'i',                                  //带符号整数,long/int32_t
         DT_ULONG    = 'u',                                  //无符号整数,ulong/uint32_t
         DT_FLOAT    = 'f',                                  //浮点数,double
         DT_DATE     = 'd',                                  //日期类型

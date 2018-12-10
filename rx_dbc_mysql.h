@@ -2,8 +2,8 @@
 #define	_RX_DBC_MYSQL_H_
 
 #include "mysql.h"                                          //引入mysql接口,默认在"3rd_deps\mysql\include"
-#include "errmsg.h"
-#include "mysqld_error.h"
+#include "errmsg.h"                                         //引入mysql错误消息
+#include "mysqld_error.h"                                   //引入mysql扩展错误消息
 
 #include "rx_cc_macro.h"                                    //引入基础宏定义
 #include "rx_assert.h"                                      //引入断言
@@ -23,12 +23,12 @@
 
 namespace rx_dbc
 {
-    #include "dbc_mysql/base.h"                                 //实现一些通用功能
-    #include "dbc_mysql/conn.h"                                 //实现数据库连接
-    #include "dbc_mysql/field.h"                                //实现记录字段操作对象
-    #include "dbc_mysql/param.h"                                //实现语句段绑定参数
-    #include "dbc_mysql/stmt.h"                                 //实现sql语句段
-    #include "dbc_mysql/query.h"                                //实现记录查询访问对象
+    #include "dbc_mysql/base.h"                             //实现一些通用功能
+    #include "dbc_mysql/conn.h"                             //实现数据库连接
+    #include "dbc_mysql/field.h"                            //实现记录字段操作对象
+    #include "dbc_mysql/param.h"                            //实现语句段绑定参数
+    #include "dbc_mysql/stmt.h"                             //实现sql语句段
+    #include "dbc_mysql/query.h"                            //实现记录查询访问对象
 
     namespace mysql
     {

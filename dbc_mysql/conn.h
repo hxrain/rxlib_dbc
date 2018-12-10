@@ -5,15 +5,6 @@
 namespace mysql
 {
     //-----------------------------------------------------
-    //API库环境初始化
-    class env_t
-    {
-    public:
-        env_t() { mysql_library_init(0,NULL,NULL); }
-        ~env_t() { mysql_library_end(); }
-    };
-
-    //-----------------------------------------------------
     //管理db连接的功能对象
     class conn_t
     {

@@ -52,51 +52,46 @@ namespace ora
             m_max_bulk_deep = BulkCount;
 
             ub2 oci_data_type;
-            data_type_t	dbc_data_type;
             int max_data_size;
 
             char NamePreDateTypeChar = DT_UNKNOWN;          //前缀类型默认为无效
             if (param_name[0] == ':')
                 NamePreDateTypeChar = param_name[1];        //以':'为前导的参数命名才进行前缀类型解析
 
+            if (type == DT_UNKNOWN)
+                type = (data_type_t)NamePreDateTypeChar;
+
             //根据外面告知的绑定数据类型,进行内部数据类型转换
-            if (type == DT_LONG || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_LONG))
+            switch (type)
             {
-                dbc_data_type = DT_LONG;
+            case DT_LONG:
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
-            }
-            else if (type == DT_ULONG || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_ULONG))
-            {
-                dbc_data_type = DT_ULONG;
+                break;
+            case DT_ULONG:
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
-            }
-            else if (type == DT_FLOAT || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_FLOAT))
-            {
-                dbc_data_type = DT_FLOAT;
+                break;
+            case DT_FLOAT:
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
-            }
-            else if (type == DT_DATE || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_DATE))
-            {
-                dbc_data_type = DT_DATE;
+                break;
+            case DT_DATE:
                 oci_data_type = SQLT_ODT;
                 max_data_size = sizeof(OCIDate);
-            }
-            else if (type == DT_TEXT || (type == DT_UNKNOWN && NamePreDateTypeChar == DT_TEXT))
-            {
-                dbc_data_type = DT_TEXT;
+                break;
+            case DT_TEXT:
                 oci_data_type = SQLT_STR;
                 max_data_size = StringMaxSize;
-            }
-            else
+                break;
+            default:
                 //该类型当前还不能处理
-                throw (error_info_t(DBEC_BAD_TYPEPREFIX, __FILE__, __LINE__, "param(%s)",param_name));
-
-
+                throw (error_info_t(DBEC_BAD_TYPEPREFIX, __FILE__, __LINE__, "param(%s)", param_name));
+                break;
+            }
+            
             //分配参数数据内存,并初始清零
-            col_base_t::make(param_name, name_size, dbc_data_type, max_data_size, BulkCount, true);
+            col_base_t::make(param_name, name_size, type, max_data_size, BulkCount, true);
 
             for (ub4 i = 0; i < BulkCount; i++)
                 m_set_data_size(0,i);
