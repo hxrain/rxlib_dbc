@@ -11,7 +11,7 @@ namespace mysql
         stmt_t (const stmt_t&);
         stmt_t& operator = (const stmt_t&);
         friend class field_t;
-        typedef rx::alias_array_t<sql_param_t, FIELD_NAME_LENGTH> param_array_t;
+        typedef rx::alias_array_t<param_t, FIELD_NAME_LENGTH> param_array_t;
         typedef rx::array_t<MYSQL_BIND> mi_array_t;
         typedef rx::tiny_string_t<char, MAX_SQL_LENGTH> sql_string_t;
     protected:
@@ -58,7 +58,7 @@ namespace mysql
         }
         //-------------------------------------------------
         //绑定一个命名变量给当前的语句
-        sql_param_t& m_param_bind(const char *name)
+        param_t& m_param_bind(const char *name)
         {
             rx_assert(!is_empty(name));
 
@@ -81,7 +81,7 @@ namespace mysql
                 throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, name));
 
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
-            sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
+            param_t &Ret = m_params[ParamIdx];          //得到参数对象
             Ret.make(name, &m_metainfos.at(ParamIdx));      //对参数对象进行必要的初始化
             return Ret;
         }
@@ -183,7 +183,7 @@ namespace mysql
         template<class DT>
         stmt_t& operator()(const char* name, const DT& data)
         {
-            sql_param_t &param = m_param_bind(name);
+            param_t &param = m_param_bind(name);
             param = data;
             return *this;
         }
@@ -251,7 +251,7 @@ namespace mysql
         //绑定过的参数数量
         uint32_t params() { return m_params.size(); }
         //获取绑定的参数对象
-        sql_param_t& param(const char* name)
+        param_t& param(const char* name)
         {
             char Tmp[200];
             rx::st::strlwr(name, Tmp);
@@ -262,7 +262,7 @@ namespace mysql
         }
         //-------------------------------------------------
         //根据索引访问参数对象,索引从0开始
-        sql_param_t& param(uint32_t Idx)
+        param_t& param(uint32_t Idx)
         {
             if (Idx>=m_params.size())
                 throw (error_info_t (DBEC_IDX_OVERSTEP, __FILE__, __LINE__));

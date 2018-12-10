@@ -1,11 +1,6 @@
 #ifndef _RX_DBC_SQL_PARAM_PARSE_H_
 #define _RX_DBC_SQL_PARAM_PARSE_H_
 
-#include "rx_str_util_ex.h"
-#include "rx_str_util_tiny.h"
-
-namespace rx_dbc
-{
     //-----------------------------------------------------
     //SQL绑定参数名字解析器
     template<uint16_t max_param_count = 128>
@@ -147,5 +142,4 @@ namespace rx_dbc
         }
     };
 
-}
 #endif

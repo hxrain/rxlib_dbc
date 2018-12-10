@@ -1,8 +1,6 @@
 #ifndef _RX_DBC_TYPE_H_
 #define _RX_DBC_TYPE_H_
 
-namespace rx_dbc
-{
     //允许使用的字符串的最大长度
     const unsigned short MAX_TEXT_BYTES = 1024 * 2;
 
@@ -42,7 +40,7 @@ namespace rx_dbc
             db[0] = 0;
             user[0] = 0;
             pwd[0] = 0;
-            port = 1521;
+            port = 0;
             conn_timeout = 3;
         }
     }conn_param_t;
@@ -107,7 +105,8 @@ namespace rx_dbc
         DBEC_OTHER=-1,
     }err_type_t;
 
-
+    //-----------------------------------------------------
+    //根据DBC错误码获取对应的错误信息描述
     inline const char* err_type_str(err_type_t dbc_err)
     {
         switch (dbc_err)
@@ -137,7 +136,6 @@ namespace rx_dbc
         }
     }
 
-}
 
 
 #endif

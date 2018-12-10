@@ -6,7 +6,7 @@ namespace ora
     //-----------------------------------------------------
     //sql语句绑定参数,即可用于输入,也可用于输出
     //对于批量模式,参数对象对应着一个列的多行值,通过use_bulk()进行调整
-    class sql_param_t:public col_base_t
+    class param_t:public col_base_t
     {
         friend class stmt_t;
         ub4                 m_max_bulk_deep;               //最大的批量数
@@ -14,8 +14,8 @@ namespace ora
         ub2                 m_bulk_idx;                     //当前操作的行块序号
 
         //-------------------------------------------------
-        sql_param_t(const sql_param_t&);
-        sql_param_t& operator = (const sql_param_t&);
+        param_t(const param_t&);
+        param_t& operator = (const param_t&);
 
         //-------------------------------------------------
         //释放全部的资源
@@ -136,7 +136,7 @@ namespace ora
         //-------------------------------------------------
         //绑定数字值
         template<typename DT>
-        sql_param_t& set_long(DT value, bool is_signed)
+        param_t& set_long(DT value, bool is_signed)
         {
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
@@ -168,7 +168,7 @@ namespace ora
         }
         //-------------------------------------------------
         //绑定大数字与浮点数
-        sql_param_t& set_double(double value)
+        param_t& set_double(double value)
         {
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
@@ -195,7 +195,7 @@ namespace ora
                 throw (error_info_t(DBEC_BAD_INPUT, __FILE__, __LINE__, "param(%s)", m_name.c_str()));
             }
         }
-        sql_param_t& set_real(long double value)
+        param_t& set_real(long double value)
         {
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
@@ -233,7 +233,7 @@ namespace ora
         }
         //-------------------------------------------------
         //绑定日期数据
-        sql_param_t& set_datetime(const datetime_t& d)
+        param_t& set_datetime(const datetime_t& d)
         {
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
@@ -257,7 +257,7 @@ namespace ora
         }
         //-------------------------------------------------
         //绑定文本串
-        sql_param_t& set_string(PStr text)
+        param_t& set_string(PStr text)
         {
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             if (is_empty(text))
@@ -330,31 +330,31 @@ namespace ora
         ub2 bulks() { return m_max_bulk_deep; }
     public:
         //-------------------------------------------------
-        sql_param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { m_clear(); }
-        ~sql_param_t() { m_clear(); }
+        param_t(rx::mem_allotter_i &ma) :col_base_t(ma) { m_clear(); }
+        ~param_t() { m_clear(); }
         //-------------------------------------------------
         //让当前参数设置为空值
         void set_null() { rx_assert(bulk_row_idx() < m_max_bulk_deep); m_set_data_size(0, bulk_row_idx()); }
         bool is_null() const { rx_assert(bulk_row_idx() < m_max_bulk_deep); return col_base_t::m_is_null(bulk_row_idx()); }
         //-------------------------------------------------
         //给参数的指定数组批量元素赋值:字符串值
-        sql_param_t& operator = (PStr text) { return set_string(text);}
+        param_t& operator = (PStr text) { return set_string(text);}
         //-------------------------------------------------
         //设置参数中指定序号的批量元素为浮点数
-        sql_param_t& operator = (double value) { return set_double(value); }
-        sql_param_t& operator = (long double value) { return set_real(value); }
+        param_t& operator = (double value) { return set_double(value); }
+        param_t& operator = (long double value) { return set_real(value); }
         //-------------------------------------------------
         //设置参数为大整数值(带符号)
-        sql_param_t& operator = (int64_t value) { return set_long(value,true); }
+        param_t& operator = (int64_t value) { return set_long(value,true); }
         //-------------------------------------------------
         //设置参数为整数值(带符号)
-        sql_param_t& operator = (int32_t value) { return set_long(value, true); }
+        param_t& operator = (int32_t value) { return set_long(value, true); }
         //-------------------------------------------------
         //设置参数为整数值(无符号)
-        sql_param_t& operator = (uint32_t value) { return set_long(value, false); }
+        param_t& operator = (uint32_t value) { return set_long(value, false); }
         //-------------------------------------------------
         //设置参数为日期时间值
-        sql_param_t& operator = (const datetime_t& d) { return set_datetime(d); }
+        param_t& operator = (const datetime_t& d) { return set_datetime(d); }
     };
 }
 

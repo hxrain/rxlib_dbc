@@ -10,7 +10,7 @@ namespace mysql
     {
     private:
         friend class stmt_t;
-        friend class sql_param_t;
+        friend class param_t;
         friend class query_t;
         friend class field_t;
 

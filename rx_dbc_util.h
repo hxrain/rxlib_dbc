@@ -28,7 +28,7 @@ namespace rx_dbc
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
-        typedef typename TT::sql_param_t     sql_param_t;
+        typedef typename TT::param_t         param_t;
         typedef typename TT::stmt_t          stmt_t;
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;
@@ -36,7 +36,7 @@ namespace rx_dbc
         conn_t              m_conn;
         conn_param_t        m_conn_param;
         env_option_t        m_env_param;
-        err_type_t      m_last_error;
+        err_type_t          m_last_error;
 
         template<typename T>
         friend class dbc_t;
@@ -187,7 +187,7 @@ namespace rx_dbc
         //单纯的记录最后的dbc错误号
         void set_last_error(err_type_t e) { m_last_error = e; }
         //-------------------------------------------------
-        //对错误输出进行偏特化区分,对于ora的批量模式进行有效处理
+        //对错误输出进行绑定参数的自动打印
         template<typename T,int>
         class err_log_t
         {
@@ -207,7 +207,7 @@ namespace rx_dbc
 
                     for (uint32_t i = 0; i < params; ++i)   //循环拼装当前块深度的参数值
                     {
-                        sql_param_t &sp = q->param(i);
+                        param_t &sp = q->param(i);
                         str << sp.name() << '=' << sp.as_string();
                         if (i + 1 < params) str << ' ';
                     }
@@ -218,6 +218,7 @@ namespace rx_dbc
             }
         };
 #if defined(_RX_DBC_ORA_COMM_H_)
+        //对于ora功能封装进行特化,用于自动打印批量深度对应的全部参数
         template<int dummy>
         class err_log_t<ora::type_t,dummy>
         {
@@ -274,7 +275,7 @@ namespace rx_dbc
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
-        typedef typename TT::sql_param_t     sql_param_t;
+        typedef typename TT::param_t     param_t;
         typedef typename TT::stmt_t          stmt_t;
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;
@@ -461,7 +462,7 @@ namespace rx_dbc
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
-        typedef typename TT::sql_param_t     sql_param_t;
+        typedef typename TT::param_t     param_t;
         typedef typename TT::stmt_t          stmt_t;
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;

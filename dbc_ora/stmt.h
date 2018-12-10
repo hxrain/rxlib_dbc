@@ -11,7 +11,7 @@ namespace ora
         stmt_t (const stmt_t&);
         stmt_t& operator = (const stmt_t&);
         friend class field_t;
-        typedef rx::alias_array_t<sql_param_t, FIELD_NAME_LENGTH> param_array_t;
+        typedef rx::alias_array_t<param_t, FIELD_NAME_LENGTH> param_array_t;
     protected:
         conn_t		                        &m_conn;		//该语句对象关联的数据库连接对象
         param_array_t		                m_params;	    //带有名称绑定的参数数组
@@ -77,7 +77,7 @@ namespace ora
         //如果批量数为1(默认情况),则可以直接调用bind
         //绑定一个命名变量给当前的语句,如果变量类型是DT_UNKNOWN,则根据变量名前缀进行自动分辨.对于字符串类型,可以设置参数缓存的尺寸
         //参数的数量在首个参数绑定时可以根据sql语句中的':'的数量来确定
-        sql_param_t& m_param_bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
+        param_t& m_param_bind(const char *name, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
         {
             rx_assert(!is_empty(name));
             rx_assert(rx::st::strstr(m_SQL.c_str(), name) != NULL);
@@ -101,7 +101,7 @@ namespace ora
                 throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, name));
 
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
-            sql_param_t &Ret = m_params[ParamIdx];          //得到参数对象
+            param_t &Ret = m_params[ParamIdx];          //得到参数对象
             Ret.bind_param(m_conn, m_stmt_handle, name, type, MaxStringSize, m_max_bulk_deep);  //对参数对象进行必要的初始化
             return Ret;
         }
@@ -195,7 +195,7 @@ namespace ora
         template<class DT>
         stmt_t& operator()(const char* name, const DT& data, data_type_t type = DT_UNKNOWN, int MaxStringSize = MAX_TEXT_BYTES)
         {
-            sql_param_t &param = m_param_bind(name, type, MaxStringSize);
+            param_t &param = m_param_bind(name, type, MaxStringSize);
             param = data;
             return *this;
         }
@@ -292,7 +292,7 @@ namespace ora
         //绑定过的参数数量
         ub4 params() { return m_params.size(); }
         //获取绑定的参数对象
-        sql_param_t& param(const char* name)
+        param_t& param(const char* name)
         {
             char Tmp[200];
             rx::st::strlwr(name, Tmp);
@@ -303,7 +303,7 @@ namespace ora
         }
         //-------------------------------------------------
         //根据索引访问参数对象,索引从0开始
-        sql_param_t& param(ub4 Idx)
+        param_t& param(ub4 Idx)
         {
             if (Idx>=m_params.size())
                 throw (error_info_t (DBEC_IDX_OVERSTEP, __FILE__, __LINE__));
