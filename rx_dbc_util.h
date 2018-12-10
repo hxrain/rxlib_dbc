@@ -1,11 +1,27 @@
 ﻿#ifndef _RX_DBC_UTIL_H_
 #define _RX_DBC_UTIL_H_
 
+/*
+    对rx_dbc::ora,rx_dbc::mysql等底层功能进行功能封装.
+    如果不使用本工具框架中的功能而是直接使用底层功能封装,则需要进行完整的错误处理与捕捉与输出.
+    外面使用的时候,应该按照如下顺序进行头文件引入:
+
+    #include "../rx_dbc_ora.h"
+    #include "../rx_dbc_util.h"
+
+    或
+
+    #include "../rx_dbc_mysql.h"
+    #include "../rx_dbc_util.h"
+*/
 
 namespace rx_dbc
 {
+    //-----------------------------------------------------
     //日志输出函数的委托类型
     typedef rx::delegate3_t<const char*, const char*, va_list, void> dbc_log_delegate_t;
+
+    //默认的日志输出功能函数,打印输出到控制台
     inline void default_dbc_log_func(const char* type, const char* msg, va_list arg, void*)
     {
         static rx::atomic_t<uint32_t> msg_seq;
@@ -24,6 +40,7 @@ namespace rx_dbc
     class dbc_conn_t
     {
     public:
+        //将外部提供的功能封装类在本类内部进行重新导入
         typedef typename TT::env_option_t    env_option_t;
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
@@ -33,24 +50,25 @@ namespace rx_dbc
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;
     protected:
+        //定义底层功能对象
         conn_t              m_conn;
         conn_param_t        m_conn_param;
         env_option_t        m_env_param;
         err_type_t          m_last_error;
 
-        template<typename T>
-        friend class dbc_t;
-        template<typename T>
-        friend class tiny_dbc_t;
-        template<typename T>
-        friend class err_log_t;
+        template<typename T> friend class dbc_ext_t;
+        template<typename T> friend class dbc_tiny_t;
+        template<typename T> friend class err_log_t;
     public:
         //-------------------------------------------------
-        dbc_log_delegate_t  log_func;                       //日志输出方法,默认为default_dbc_log_func.
-        dbc_conn_t() { log_func.bind(default_dbc_log_func); }
-        dbc_conn_t(rx::mem_allotter_i& ma) :m_conn(ma) { log_func.bind(default_dbc_log_func); }
-        err_type_t last_err() { return m_last_error; }
+        dbc_log_delegate_t  log_func;                       //日志输出方法
+        //-------------------------------------------------
+        //默认日志输出方法为default_dbc_log_func.
+        dbc_conn_t(dbc_log_delegate_t::cb_func_t logfunc= default_dbc_log_func) { log_func.bind(logfunc); }
+        dbc_conn_t(rx::mem_allotter_i& ma, dbc_log_delegate_t::cb_func_t logfunc = default_dbc_log_func) :m_conn(ma) { log_func.bind(logfunc); }
         virtual ~dbc_conn_t() {}
+        //-------------------------------------------------
+        err_type_t last_err() { return m_last_error; }
         //-------------------------------------------------
         //日志输出功能封装
         void log_warn(const char* msg, ...)
@@ -108,7 +126,7 @@ namespace rx_dbc
         void set_conn_param(const conn_param_t &p) { set_conn_param(p.host, p.user, p.pwd, p.db, p.port, p.conn_timeout); }
         //-------------------------------------------------
         //进行连接动作,或检查连接是否成功
-        //返回值:连接是否成功,0-连接失败;1连接正常;2连接建立;3重连完成.
+        //返回值:连接是否成功,0-连接失败;1连接正常;2首次建立;3重连完成.
         uint32_t connect(bool force_check = false)
         {
             if (force_check)
@@ -140,7 +158,7 @@ namespace rx_dbc
         //-------------------------------------------------
         //获取表中记录的数量,可指定查询条件(where之后的部分)
         //返回值:<0错误;>=0为结果
-        int query_records(const char* tblname, const char* cond = NULL)
+        int records(const char* tblname, const char* cond = NULL)
         {
             if (!connect())
                 return -1;
@@ -195,10 +213,6 @@ namespace rx_dbc
             //进行错误记录与日志输出
             static void do_error(dbc_conn_t &conn,error_info_t &e, query_t *q)
             {
-                conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
-                conn.set_last_error((err_type_t)e.dbc_error_code());//记录最后的统一错误码
-                if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
-
                 rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
 
                 try {
@@ -226,10 +240,6 @@ namespace rx_dbc
             //进行错误记录与日志输出
             static void do_error(dbc_conn_t &conn, error_info_t &e, query_t *q)
             {
-                conn.log_err(e.c_str(conn.m_conn_param));   //先输出异常内容
-                conn.set_last_error((err_type_t)e.dbc_error_code());//记录最后的统一错误码
-                if (!q || !q->params()) return;             //没有语句处理对象,或没有绑定的参数,返回
-
                 rx::tiny_string_t<char, 1024> str;          //定义局部小串对象,准备拼装参数的值
 
                 try {
@@ -257,6 +267,10 @@ namespace rx_dbc
         //进行错误记录与日志输出
         void do_error(error_info_t &e, query_t *q)
         {
+            log_err(e.c_str(m_conn_param));                 //先输出异常内容
+            set_last_error((err_type_t)e.dbc_error_code()); //记录最后的统一错误码
+            if (!q || !q->params()) return;                 //没有语句处理对象,或没有绑定的参数,返回
+
             err_log_t<TT,0>::do_error(*this,e,q);
         }
         //-------------------------------------------------
@@ -268,14 +282,14 @@ namespace rx_dbc
     //对数据库访问功能进行轻量级封装,仅进行了连接重连与统一异常捕捉处理
     //-----------------------------------------------------
     template<typename TT>
-    class tiny_dbc_t:public TT
+    class dbc_tiny_t:public TT
     {
     public:
         typedef typename TT::env_option_t    env_option_t;
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
-        typedef typename TT::param_t     param_t;
+        typedef typename TT::param_t         param_t;
         typedef typename TT::stmt_t          stmt_t;
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;
@@ -286,7 +300,7 @@ namespace rx_dbc
         dbc_conn_t                 &m_dbconn;               //连接器功能对象的引用
 
         template<typename T>
-        friend class dbc_t;
+        friend class dbc_ext_t;
         //-------------------------------------------------
         //预处理语句
         //返回值:<0错误; 0用户要求放弃; >0完成
@@ -380,8 +394,8 @@ namespace rx_dbc
         }
     public:
         //-------------------------------------------------
-        tiny_dbc_t(dbc_conn_t &c) :m_query(c.m_conn), m_dbconn(c) {}
-        virtual ~tiny_dbc_t() {}
+        dbc_tiny_t(dbc_conn_t &c) :m_query(c.m_conn), m_dbconn(c) {}
+        virtual ~dbc_tiny_t() {}
         //以下对外输出功能方法,都不会抛出异常且会输出错误日志,简化外部调用者的错误处理.
         //-------------------------------------------------
         //执行sql语句,并给定待处理数据;反复多次处理数据的时候不再指定sql语句(给NULL或"").
@@ -414,24 +428,24 @@ namespace rx_dbc
 
             int total = 0;
             if (fetch_count == 0)
-                fetch_count = -1;
+                fetch_count = -1;                           //默认尝试一次性提取所有记录
 
-            do {
-                uint32_t fc = rx::Min((uint32_t)100, fetch_count);
-                int rc = m_fetch(fc);
+            do {//循环并分批次提取
+                int rc = m_fetch(rx::Min((uint32_t)BAT_FETCH_SIZE, fetch_count));
                 if (rc > 0)
                 {
-                    total += rc;
-                    fetch_count -= rc;
+                    total += rc;                            //总数增加
+                    fetch_count -= rc;                      //剩余数减少
                     if (!fetch_count)
-                        break;
+                        break;                              //结束了
                 }
                 else if (rc == 0)
-                    break;
+                    break;                                  //没有数据了
                 else
-                    return -201;
+                    return -201;                            //提取出错了
             } while (1);
-            return total;
+
+            return total;                                   //正常结束,给出本次提取总数
         }
     protected:
         //-------------------------------------------------
@@ -450,24 +464,23 @@ namespace rx_dbc
         virtual int32_t on_exec(query_t &q, void *usrdat) { q.exec(); return 1; }
     };
 
-
     //-----------------------------------------------------
-    //进行应用级dbc语句对象的功能封装,所有方法都不会抛出异常,便于应用层子类继承后用于实现具体业务
+    //进行应用级dbc语句对象的功能封装,所有方法都不会抛出异常,扩展了外部事件回调,细化了数据绑定动作事件.
     //-----------------------------------------------------
     template<typename TT>
-    class dbc_t :public tiny_dbc_t<TT>
+    class dbc_ext_t :public dbc_tiny_t<TT>
     {
     public:
         typedef typename TT::env_option_t    env_option_t;
         typedef typename TT::error_info_t    error_info_t;
         typedef typename TT::datetime_t      datetime_t;
         typedef typename TT::conn_t          conn_t;
-        typedef typename TT::param_t     param_t;
+        typedef typename TT::param_t         param_t;
         typedef typename TT::stmt_t          stmt_t;
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;
 
-        typedef tiny_dbc_t<TT> super_t;
+        typedef dbc_tiny_t<TT> super_t;
         typedef typename super_t::dbc_conn_t dbc_conn_t;
 
         //定义dbc事件的委托类型
@@ -480,12 +493,12 @@ namespace rx_dbc
     public:
         //-------------------------------------------------
         //构造函数,绑定db连接与业务处理回调函数
-        dbc_t(dbc_conn_t  &c, dbc_event_func_t on_bind = NULL, dbc_event_func_t on_row = NULL) :super_t(c)
+        dbc_ext_t(dbc_conn_t  &c, dbc_event_func_t on_bind = NULL, dbc_event_func_t on_row = NULL) :super_t(c)
         {
             if (on_bind) event_on_bind(on_bind);
             if (on_row) event_on_row(on_row);
         }
-        virtual ~dbc_t() {}
+        virtual ~dbc_ext_t() {}
         //-------------------------------------------------
         //执行子类提供的sql语句,处理数据
         //返回值:<0错误;0用户要求放弃;>0完成

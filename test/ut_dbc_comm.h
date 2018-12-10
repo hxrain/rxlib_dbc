@@ -15,8 +15,8 @@
     #include "../rx_dbc_util.h"
 
     typedef rx_dbc::dbc_conn_t<rx_dbc::ora::type_t> dbc_conn_t;
-    typedef rx_dbc::dbc_t<rx_dbc::ora::type_t> dbc_t;
-    typedef rx_dbc::tiny_dbc_t<rx_dbc::ora::type_t> tiny_dbc_t;
+    typedef rx_dbc::dbc_ext_t<rx_dbc::ora::type_t> dbc_ext_t;
+    typedef rx_dbc::dbc_tiny_t<rx_dbc::ora::type_t> dbc_tiny_t;
     using namespace rx_dbc::ora;
     /*
     CREATE TABLE SCOTT.TMP_DBC (
@@ -44,8 +44,8 @@
     #include "../rx_dbc_util.h"
 
     typedef rx_dbc::dbc_conn_t<rx_dbc::mysql::type_t> dbc_conn_t;
-    typedef rx_dbc::dbc_t<rx_dbc::mysql::type_t> dbc_t;
-    typedef rx_dbc::tiny_dbc_t<rx_dbc::mysql::type_t> tiny_dbc_t;
+    typedef rx_dbc::dbc_ext_t<rx_dbc::mysql::type_t> dbc_ext_t;
+    typedef rx_dbc::dbc_tiny_t<rx_dbc::mysql::type_t> dbc_tiny_t;
     using namespace rx_dbc::mysql;
     /*
     CREATE TABLE tmp_dbc (

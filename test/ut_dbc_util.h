@@ -51,7 +51,7 @@ inline int32_t ut_conn_event_func_1(query_t &q, void *usrdat)
 inline void ut_conn_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 {
     //定义数据库功能对象并绑定函数指针
-    dbc_t dbc(conn, ut_conn_event_func_1);
+    dbc_ext_t dbc(conn, ut_conn_event_func_1);
 
     //执行sql语句,使用给定的数据
     int rc=dbc("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)",&dat);
@@ -72,8 +72,8 @@ inline void ut_conn_ext_a1(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     rt.tdd_assert(rc>0);
 }
 //---------------------------------------------------------
-//使用dbc_t作为基类进行业务处理
-class mydbc :public dbc_t
+//使用dbc_ext_t作为基类进行业务处理
+class mydbc :public dbc_ext_t
 {
     //告知待执行的业务SQL语句
     virtual const char* on_sql() { return "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)"; }
@@ -86,7 +86,7 @@ class mydbc :public dbc_t
         return 1;
     }
 public:
-    mydbc(dbc_conn_t  &c) :dbc_t(c) {}
+    mydbc(dbc_conn_t  &c) :dbc_ext_t(c) {}
 };
 //---------------------------------------------------------
 inline void ut_conn_ext_a2(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
@@ -118,8 +118,8 @@ inline void ut_conn_ext_a3(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
     rt.tdd_assert(conn.last_err()== rx_dbc::DBEC_DB_UNIQUECONST);
 }
 //---------------------------------------------------------
-//使用dbc_t作为基类进行业务处理,测试查询提取结果
-class mydbc4 :public dbc_t
+//使用dbc_ext_t作为基类进行业务处理,测试查询提取结果
+class mydbc4 :public dbc_ext_t
 {
     //-----------------------------------------------------
     //告知待执行的业务SQL语句
@@ -143,7 +143,7 @@ class mydbc4 :public dbc_t
         return 1;
     }
 public:
-    mydbc4(dbc_conn_t  &c) :dbc_t(c) {}
+    mydbc4(dbc_conn_t  &c) :dbc_ext_t(c) {}
 };
 //---------------------------------------------------------
 //进行数据提取操作
@@ -164,7 +164,7 @@ inline void ut_conn_ext_a5(rx_tdd_t &rt, dbc_conn_t &conn, ut_ins_dat_t &dat)
 #else
     const char* sql = "insert into tmp_dbc(id,intn,uint,str,mdate,short) values(123456789,-123,123,'insert','2000-01-01 13:14:20',1)";
 #endif
-    rt.tdd_assert(tiny_dbc_t(conn).action(sql) > 0);
+    rt.tdd_assert(dbc_tiny_t(conn).action(sql) > 0);
 }
 //---------------------------------------------------------
 //对上层封装的db操作进行真正的驱动测试

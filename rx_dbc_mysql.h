@@ -34,7 +34,7 @@ namespace rx_dbc
     namespace mysql
     {
         //-------------------------------------------------
-        //将本命名空间中的对外开放类型进行统一声明
+        //将本命名空间中的对外开放类型进行统一声明,便于dbc上层工具的使用.
         class type_t
         {
         public:
@@ -45,7 +45,6 @@ namespace rx_dbc
             typedef conn_t          conn_t;
             typedef param_t         param_t;
             typedef stmt_t          stmt_t;
-
             typedef field_t         field_t;
             typedef query_t         query_t;
         };
