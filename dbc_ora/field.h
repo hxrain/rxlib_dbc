@@ -26,18 +26,22 @@ namespace ora
             {
             case	SQLT_UIN:	// unsigned int
                 oci_data_type = SQLT_VNU;
-                dbc_data_type = DT_ULONG;
+                dbc_data_type = DT_UINT;
                 max_data_size = sizeof(OCINumber);
                 break;
 
             case	SQLT_INT:	// integer
             case	SQLT_LNG:	// long
                 oci_data_type = SQLT_VNU;
-                dbc_data_type = DT_LONG;
+                dbc_data_type = DT_INT;
                 max_data_size = sizeof(OCINumber);
                 break;
 
             case	SQLT_NUM:	// numeric
+                oci_data_type = SQLT_VNU;
+                dbc_data_type = DT_LONG;
+                max_data_size = sizeof(OCINumber);
+                break;
             case	SQLT_FLT:	// float
             case	SQLT_VNU:	// numeric with length
             case	SQLT_PDN:	// packed decimal

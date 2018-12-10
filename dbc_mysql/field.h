@@ -255,8 +255,9 @@ namespace mysql
             case MYSQL_TYPE_SHORT:
             case MYSQL_TYPE_INT24:
             case MYSQL_TYPE_LONG:
+                return m_metainfo->is_unsigned ? DT_UINT : DT_INT;
             case MYSQL_TYPE_LONGLONG:
-                return m_metainfo->is_unsigned ? DT_ULONG : DT_LONG;
+                return DT_LONG;
             case MYSQL_TYPE_FLOAT:
             case MYSQL_TYPE_DOUBLE:
             case MYSQL_TYPE_DECIMAL:

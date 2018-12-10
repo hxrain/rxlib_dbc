@@ -64,14 +64,9 @@ namespace ora
             //根据外面告知的绑定数据类型,进行内部数据类型转换
             switch (type)
             {
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-                oci_data_type = SQLT_VNU;
-                max_data_size = sizeof(OCINumber);
-                break;
-            case DT_ULONG:
-                oci_data_type = SQLT_VNU;
-                max_data_size = sizeof(OCINumber);
-                break;
             case DT_FLOAT:
                 oci_data_type = SQLT_VNU;
                 max_data_size = sizeof(OCINumber);
@@ -141,8 +136,9 @@ namespace ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
@@ -173,8 +169,9 @@ namespace ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
@@ -200,8 +197,9 @@ namespace ora
             rx_assert_msg(m_bulk_idx < m_max_bulk_deep, "索引下标越界!已经使用bulk_bind_begin预先描述了吗?");
             switch (m_dbc_data_type)
             {
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
             {
                 rx_assert(m_max_data_size == sizeof(OCINumber));
@@ -294,15 +292,20 @@ namespace ora
                 D.set(ST);
                 return set_datetime(D);                     //交给实际的功能函数
             }
-            case DT_LONG:
+            case DT_INT:
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
                 int32_t Value = rx::st::atoi(text);
                 return set_long(Value,true);                //交给实际的功能函数
             }
-            case DT_ULONG:
+            case DT_UINT:
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
                 uint32_t Value = rx::st::atoul(text);
                 return set_long(Value,false);               //交给实际的功能函数
+            }
+            case DT_LONG:
+            {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧
+                int64_t Value = rx::st::atoi64(text);
+                return set_long(Value,true);                //交给实际的功能函数
             }
             case DT_FLOAT:
             {//当前实际数据类型是数字,而给赋值的时候是文本串,那么就进行转换后处理吧

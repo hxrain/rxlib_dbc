@@ -50,8 +50,9 @@
     typedef enum data_type_t
     {
         DT_UNKNOWN=-1,
-        DT_LONG     = 'i',                                  //带符号整数,long/int32_t
-        DT_ULONG    = 'u',                                  //无符号整数,ulong/uint32_t
+        DT_INT      = 'i',                                  //带符号整数,int/int32_t
+        DT_UINT     = 'u',                                  //无符号整数,ulong/uint32_t
+        DT_LONG     = 'l',                                   //带符号大整数,long long/int64_t
         DT_FLOAT    = 'f',                                  //浮点数,double
         DT_DATE     = 'd',                                  //日期类型
         DT_TEXT     = 's'                                   //文本串类型

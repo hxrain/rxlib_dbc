@@ -367,8 +367,9 @@ namespace ora
             {
             case DT_TEXT:
                 return m_col_databuff.ptr(RowNo*m_max_data_size);
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
                 return (ub1*)m_col_databuff.ptr<OCINumber>(RowNo);
             case DT_DATE:
@@ -385,8 +386,9 @@ namespace ora
             {
             case DT_TEXT:
                 return (reinterpret_cast <PStr> (data_buff));
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
             {
                 ub4 FmtLen = 3;
@@ -432,8 +434,9 @@ namespace ora
 
                 return value;
             }
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
             {//OCIÊý×Ö×ª»»Îªdouble
                 DT	value;
@@ -458,8 +461,9 @@ namespace ora
                     return is_signed?rx::st::atoi((char*)data_buff):rx::st::atoul((char*)data_buff);
                 else
                     return (DT)rx::st::atoi64((char*)data_buff);
+            case DT_INT:
+            case DT_UINT:
             case DT_LONG:
-            case DT_ULONG:
             case DT_FLOAT:
             {
                 DT	value;
