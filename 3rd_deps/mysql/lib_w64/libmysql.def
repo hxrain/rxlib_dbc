@@ -1,0 +1,134 @@
+; .text   : RVA: 00001000, File offset: 00000400
+; .rdata  : RVA: 000a2000, File offset: 000a0e00
+; .data   : RVA: 0040a000, File offset: 00408600
+; .pdata  : RVA: 0051f000, File offset: 00494800
+; .idata  : RVA: 00528000, File offset: 0049d200
+; .gfids  : RVA: 0052b000, File offset: 004a0000
+; .00cfg  : RVA: 0052c000, File offset: 004a0200
+; .rsrc   : RVA: 0052d000, File offset: 004a0400
+; .reloc  : RVA: 0052e000, File offset: 004a0c00
+; Reading exports from section: .rdata
+; Export table: libmysql.dll
+; Ordinal base: 1
+; Ordinal table RVA: 00408900
+; Name table RVA: 040872c
+; Export address table RVA: 00408558
+LIBRARY libmysql.dll
+EXPORTS
+get_tty_password ; .text ; RVA 00001b36
+handle_options ; .text ; RVA 0000348b
+my_init ; .text ; RVA 00001636
+my_load_defaults ; .text ; RVA 00002153
+my_make_scrambled_password ; .text ; RVA 00002f0e
+mysql_affected_rows ; .text ; RVA 00003e04
+mysql_autocommit ; .text ; RVA 0000114f
+mysql_change_user ; .text ; RVA 00002af9
+mysql_character_set_name ; .text ; RVA 00003eae
+mysql_client_find_plugin ; .text ; RVA 00001438
+mysql_client_register_plugin ; .text ; RVA 00003ae9
+mysql_close ; .text ; RVA 00003a76
+mysql_commit ; .text ; RVA 00002be4
+mysql_data_seek ; .text ; RVA 00001b72
+mysql_debug ; .text ; RVA 00003995
+mysql_dump_debug_info ; .text ; RVA 0000262b
+mysql_eof ; .text ; RVA 00002f13
+mysql_errno ; .text ; RVA 000039e5
+mysql_error ; .text ; RVA 000039ae
+mysql_escape_string ; .text ; RVA 00001424
+mysql_fetch_field ; .text ; RVA 0000278e
+mysql_fetch_field_direct ; .text ; RVA 00002117
+mysql_fetch_fields ; .text ; RVA 000035d0
+mysql_fetch_lengths ; .text ; RVA 00002b62
+mysql_fetch_row ; .text ; RVA 00003503
+mysql_field_count ; .text ; RVA 0000180c
+mysql_field_seek ; .text ; RVA 00002f81
+mysql_field_tell ; .text ; RVA 00002ebe
+mysql_free_result ; .text ; RVA 00003486
+mysql_get_character_set_info ; .text ; RVA 00001631
+mysql_get_client_info ; .text ; RVA 0000372e
+mysql_get_client_version ; .text ; RVA 00003c24
+mysql_get_host_info ; .text ; RVA 0000156e
+mysql_get_option ; .text ; RVA 00002e28
+mysql_get_proto_info ; .text ; RVA 00003dd2
+mysql_get_server_info ; .text ; RVA 000029a0
+mysql_get_server_version ; .text ; RVA 00001a41
+mysql_get_ssl_cipher ; .text ; RVA 00002789
+mysql_hex_string ; .text ; RVA 000027cf
+mysql_info ; .text ; RVA 000015f5
+mysql_init ; .text ; RVA 0000161d
+mysql_insert_id ; .text ; RVA 00002329
+mysql_kill ; .text ; RVA 000015ff
+mysql_list_dbs ; .text ; RVA 00001cfd
+mysql_list_fields ; .text ; RVA 000027ac
+mysql_list_processes ; .text ; RVA 000028f6
+mysql_list_tables ; .text ; RVA 000026bc
+mysql_load_plugin ; .text ; RVA 00001b9f
+mysql_load_plugin_v ; .text ; RVA 0000248c
+mysql_more_results ; .text ; RVA 00003f3f
+mysql_next_result ; .text ; RVA 00003c88
+mysql_num_fields ; .text ; RVA 0000300d
+mysql_num_rows ; .text ; RVA 0000154b
+mysql_options ; .text ; RVA 0000127b
+mysql_options4 ; .text ; RVA 00002c7a
+mysql_ping ; .text ; RVA 00001613
+mysql_plugin_options ; .text ; RVA 00002c75
+mysql_query ; .text ; RVA 000017e4
+mysql_read_query_result ; .text ; RVA 00003279
+mysql_real_connect ; .text ; RVA 00001a19
+mysql_real_escape_string ; .text ; RVA 00002ca7
+mysql_real_escape_string_quote ; .text ; RVA 00002cca
+mysql_real_query ; .text ; RVA 00003c6a
+mysql_refresh ; .text ; RVA 0000263a
+mysql_reset_connection ; .text ; RVA 00002ce8
+mysql_rollback ; .text ; RVA 000010ff
+mysql_row_seek ; .text ; RVA 00001523
+mysql_row_tell ; .text ; RVA 00001555
+mysql_select_db ; .text ; RVA 000026cb
+mysql_send_query ; .text ; RVA 00001ce9
+mysql_server_end ; .text ; RVA 00001c8a
+mysql_server_init ; .text ; RVA 00003341
+mysql_session_track_get_first ; .text ; RVA 00002446
+mysql_session_track_get_next ; .text ; RVA 00001866
+mysql_set_character_set ; .text ; RVA 00003350
+mysql_set_local_infile_default ; .text ; RVA 00001f73
+mysql_set_local_infile_handler ; .text ; RVA 000024c8
+mysql_set_server_option ; .text ; RVA 000037ce
+mysql_shutdown ; .text ; RVA 00003530
+mysql_sqlstate ; .text ; RVA 000035b2
+mysql_ssl_set ; .text ; RVA 0000263f
+mysql_stat ; .text ; RVA 00001b86
+mysql_stmt_affected_rows ; .text ; RVA 00001bc2
+mysql_stmt_attr_get ; .text ; RVA 00003b7a
+mysql_stmt_attr_set ; .text ; RVA 00003cb0
+mysql_stmt_bind_param ; .text ; RVA 00001afa
+mysql_stmt_bind_result ; .text ; RVA 00003765
+mysql_stmt_close ; .text ; RVA 000037c9
+mysql_stmt_data_seek ; .text ; RVA 000034b3
+mysql_stmt_errno ; .text ; RVA 00003823
+mysql_stmt_error ; .text ; RVA 0000383c
+mysql_stmt_execute ; .text ; RVA 000034cc
+mysql_stmt_fetch ; .text ; RVA 0000380f
+mysql_stmt_fetch_column ; .text ; RVA 00002e46
+mysql_stmt_field_count ; .text ; RVA 000022e3
+mysql_stmt_free_result ; .text ; RVA 00001e1f
+mysql_stmt_init ; .text ; RVA 0000379c
+mysql_stmt_insert_id ; .text ; RVA 00001c99
+mysql_stmt_next_result ; .text ; RVA 00002a86
+mysql_stmt_num_rows ; .text ; RVA 0000100f
+mysql_stmt_param_count ; .text ; RVA 000032ba
+mysql_stmt_param_metadata ; .text ; RVA 000030f8
+mysql_stmt_prepare ; .text ; RVA 000034e0
+mysql_stmt_reset ; .text ; RVA 00002b8f
+mysql_stmt_result_metadata ; .text ; RVA 000038ff
+mysql_stmt_row_seek ; .text ; RVA 00003f62
+mysql_stmt_row_tell ; .text ; RVA 00003fb7
+mysql_stmt_send_long_data ; .text ; RVA 00003a62
+mysql_stmt_sqlstate ; .text ; RVA 000026b2
+mysql_stmt_store_result ; .text ; RVA 00002a9f
+mysql_store_result ; .text ; RVA 000025fe
+mysql_thread_end ; .text ; RVA 00002e7d
+mysql_thread_id ; .text ; RVA 000031ac
+mysql_thread_init ; .text ; RVA 00002dce
+mysql_thread_safe ; .text ; RVA 00002be9
+mysql_use_result ; .text ; RVA 00002423
+mysql_warning_count ; .text ; RVA 00003e1d
