@@ -42,9 +42,8 @@ namespace mysql
     //获取db更详细的错误信息
     inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size,MYSQL *handle)
     {
-        bool get_details = false;
         rx::tiny_string_t<> desc(max_size, buff);
-        
+
         if (handle)
         {
             ec = mysql_errno(handle);
@@ -61,7 +60,6 @@ namespace mysql
     //获取DB/STMT更详细的错误信息
     inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size, MYSQL_STMT *handle)
     {
-        bool get_details = false;
         rx::tiny_string_t<> desc(max_size, buff);
 
         if (handle)
@@ -173,7 +171,7 @@ namespace mysql
             va_start(va, format);
             make_attached_msg(format, va, source_name, line_number);
             va_end(va);
-        }        
+        }
         //-------------------------------------------------
         //构造函数,记录库内部错误
         error_info_t(err_type_t dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)

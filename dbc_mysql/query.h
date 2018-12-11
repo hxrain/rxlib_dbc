@@ -39,7 +39,7 @@ namespace mysql
         {
             m_clear(true);                                  //状态归零,先不释放字段数组
             rx_assert(m_stmt_handle != NULL);
-            
+
             uint32_t count = mysql_stmt_field_count(m_stmt_handle);
             if (!count)
                 return 0;                                   //获取结果集字段数量
@@ -59,7 +59,7 @@ namespace mysql
             {
                 MYSQL_BIND  &mi = m_metainfos.at(i);        //字段绑定的元信息
                 MYSQL_FIELD &mf = cols->fields[i];          //字段元信息
-                
+
                 char Tmp[200];
                 rx::st::strlwr(mf.name, Tmp);
 
@@ -94,21 +94,17 @@ namespace mysql
             switch (rc)
             {
             case 0:
-                ++m_fetched_count; 
+                ++m_fetched_count;
                 m_cur_field_idx = 0;
                 return;
             case MYSQL_NO_DATA:
-                m_is_eof = true; 
+                m_is_eof = true;
                 break;
             case MYSQL_DATA_TRUNCATED:
                 //需要处理,看哪个字段的数据被截断了
                 for (uint32_t i = 0; i < m_fields.size(); ++i)
-                {
-                    MYSQL_BIND &mi = m_metainfos.at(i);
-                    field_t &field = m_fields[i];
-                    rx_assert_msg(mi.error_value == 0, field.name());
-                }
-                    
+                    rx_assert_msg(m_metainfos.at(i).error_value == 0, m_fields[i].name());
+
                 ++m_fetched_count;
                 m_cur_field_idx = 0;
                 return;
@@ -229,7 +225,7 @@ namespace mysql
         query_t& operator >> (DT &value)
         {
             rx_assert(m_cur_field_idx<m_fields.size());
-            m_fields[field_idx].to(value);
+            m_fields[m_cur_field_idx++].to(value);
             return *this;
         }
     };
