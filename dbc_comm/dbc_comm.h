@@ -17,8 +17,8 @@
 
 namespace rx_dbc
 {
-    #include "dbc_comm/dbc_parse.h"                         //SQL绑定参数的名字解析功能
-    #include "dbc_comm/dbc_type.h"                          //统一类型定义
+    #include "dbc_type.h"                                   //统一类型定义
+    #include "dbc_parse.h"                                  //SQL绑定参数的名字解析功能
 }
 
 #endif

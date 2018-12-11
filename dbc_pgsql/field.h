@@ -11,7 +11,7 @@ namespace pqsql
     class field_t
     {
     protected:
-        typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
+        typedef rx::tiny_string_t<char, ::FIELD_NAME_LENGTH> col_name_t;
         friend class query_t;
 
         col_name_t          m_name;		                    // ¶ÔÏóÃû×Ö

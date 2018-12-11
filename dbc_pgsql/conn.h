@@ -16,16 +16,15 @@ namespace pgsql
 
         rx::mem_allotter_i &m_mem;                          //内存分配器
         bool		        m_is_valid;
-        pgsql               m_handle;
+        PGconn             *m_handle;
 
         conn_t(const conn_t&);
         conn_t& operator = (const conn_t&);
 
     public:
         //-------------------------------------------------
-        conn_t(rx::mem_allotter_i& ma = rx_global_mem_allotter()):m_mem(ma)
+        conn_t(rx::mem_allotter_i& ma = rx_global_mem_allotter()):m_mem(ma), m_handle(NULL)
         {
-            memset(&m_handle,0,sizeof(m_handle));
             m_is_valid = false;
         }
         ~conn_t (){close();}
@@ -41,18 +40,16 @@ namespace pgsql
                 
             //每次连接前都先尝试关闭之前的连接
             close();
-
-            pgsql_init(&m_handle);
-            pgsql_options(&m_handle, pgsql_OPT_CONNECT_TIMEOUT, &dst.conn_timeout);
-            pgsql_options(&m_handle, pgsql_OPT_READ_TIMEOUT, &rw_timeout_sec);
-            pgsql_options(&m_handle, pgsql_OPT_WRITE_TIMEOUT, &rw_timeout_sec);
-            pgsql *rc=pgsql_real_connect(&m_handle, dst.host, dst.user, dst.pwd, dst.db, dst.port, NULL, 0);
-            if (!rc)
-                throw (error_info_t(&m_handle, __FILE__, __LINE__));
+            char conn_uri[1024];
+            rx::st::snprintf(conn_uri,sizeof(conn_uri),"postgresql://%s:%s@%s:%u/%s?connect_timeout=%u", dst.user, dst.pwd, dst.host, dst.port, dst.db, dst.conn_timeout);
+            m_handle = PQconnectdb(conn_uri);
+            if (!m_handle)
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__));
+            if (::PQstatus(m_handle)!= CONNECTION_OK)
+                throw (error_info_t(m_handle, __FILE__, __LINE__));
 
             //与ora模式一致,默认不进行自动提交,需要明确的手动提交
-            if (pgsql_autocommit(&m_handle, false))
-                throw (error_info_t(&m_handle, __FILE__, __LINE__));
+            exec("SET AUTOCOMMIT = OFF");
 
             //尝试设置会话字符集
             if (!is_empty(op.charset))
@@ -60,8 +57,11 @@ namespace pgsql
 
             //尝试设置会话交互提示语言
             if (!is_empty(op.language))
-                exec("SET SESSION lc_messages = '%s'", op.language);
-                
+                exec("SET lc_messages = '%s'", op.language);
+
+            //日期显示格式
+            exec("SET DateStyle='ISO,YMD'", op.charset);
+
             m_is_valid = true;
             return 0;
         }
@@ -69,9 +69,10 @@ namespace pgsql
         //关闭当前的连接(不会抛出异常)
         bool close (void)
         {
-            if (m_is_valid)
+            if (m_handle)
             {
-                pgsql_close(&m_handle);
+                ::PQfinish(m_handle);
+                m_handle = NULL;
                 m_is_valid = false;
                 return true;
             }
@@ -82,57 +83,65 @@ namespace pgsql
         //内部实现是建立了临时的OiCommand对象,对于频繁执行的动作不建议使用此函数
         void exec(const char *sql, ...)
         {
+            if (!m_handle)                                  //执行顺序错误,连接尚未建立
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
+
+            //进行语句格式化
             rx::tiny_string_t<char, 1024> SQL;
             va_list arg;
             va_start(arg,sql);
             SQL.fmt(sql, arg);
             va_end(arg);
-            if (pgsql_query(&m_handle,SQL.c_str())!=0)
-                throw (error_info_t(&m_handle, __FILE__, __LINE__));
+
+            //执行语句
+            PGresult *res = ::PQexec(m_handle,SQL.c_str());
+            if (!res)                                       //出现内存不足的错误了
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__));
+
+            //获取执行结果
+            ::ExecStatusType ec = ::PQresultStatus(res);
+            if (ec != PGRES_COMMAND_OK)
+            {//如果不是无结果集命令成功,就进行错误信息记录
+                SQL = ::PQresultErrorMessage(res);
+                ::PQclear(res);                             //必须清理执行结果对象后,再抛出错误异常
+                throw (error_info_t(SQL.c_str(), __FILE__, __LINE__));
+            }
+            ::PQclear(res);                                 //正常执行完成后也必须清理执行结果对象
         }
         //-------------------------------------------------
         //切换到指定的用户专属库
-        void schema_to(const char *schema) { exec("use %s", schema); }
+        void schema_to(const char *schema) { exec("set search_path = '%s'", schema); }
         //-------------------------------------------------
         //当前连接启动事务.本封装使用了非自动提交模式,显式事务的启动就无需特殊处理.
-        void trans_begin() { rx_assert(m_is_valid); }
+        void trans_begin() { exec("begin"); }
         //-------------------------------------------------
         //提交当前事务
         void trans_commit (void)
         {
             rx_assert(m_is_valid);
-            if (pgsql_commit(&m_handle))
-                throw (error_info_t(&m_handle, __FILE__, __LINE__));
+            exec("commit");
         }
         //-------------------------------------------------
         //回滚当前事务
         //返回值:操作结果(回滚本身出错时不再抛出异常)
         bool trans_rollback (int32_t *ec=NULL)
         {
-            rx_assert(m_is_valid);
-            bool rc = pgsql_rollback(&m_handle)==0;
-            if (!rc)
-            {
-                char tmp[1024];
-                int32_t ec = 0;
-                get_last_error(ec,tmp,sizeof(tmp));
-            }
-            return rc;
+            try { exec("rollback"); return true; }
+            catch (error_info_t &e) { e.c_str(); return false; }
         }
         //-------------------------------------------------
         //进行服务器ping检查,真实的判断连接是否有效(不会抛出异常)
         bool ping()
         {
-            rx_assert(m_is_valid);
-            return  pgsql_ping(&m_handle)==0;
+            try { exec("set session tmp.rx_dbc_pgsql_ping_test = 1"); return true; }
+            catch (error_info_t &e) { e.c_str(); return false; }
         }
         //-------------------------------------------------
         //获取最后的oci错误号ec,与对应的错误描述
         //返回值:操作结果(出错时不再抛出异常)
         bool get_last_error(int32_t &ec,char *buff,uint32_t max_size)
         {
-            rx_assert(m_is_valid);
-            return pgsql::get_last_error(ec, buff, max_size, &m_handle);
+            return pgsql::get_last_error(ec, buff, max_size, m_handle);
         }
     };
 }

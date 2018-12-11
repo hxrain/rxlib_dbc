@@ -69,13 +69,10 @@ namespace mysql
         //关闭当前的连接(不会抛出异常)
         bool close (void)
         {
-            if (m_is_valid)
-            {
-                mysql_close(&m_handle);
-                m_is_valid = false;
-                return true;
-            }
-            return false;
+            bool ret = m_is_valid;
+            mysql_close(&m_handle);
+            m_is_valid = false;
+            return ret;
         }
         //-------------------------------------------------
         //执行一条没有结果返回(非SELECT)的sql语句

@@ -60,6 +60,26 @@
     */
 #endif
 
+#if UT_DB==DB_PGSQL
+#include "../rx_dbc_pgsql.h"
+#include "../rx_dbc_util.h"
+
+    typedef rx_dbc::dbc_conn_t<rx_dbc::pgsql::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_ext_t<rx_dbc::pgsql::type_t> dbc_ext_t;
+    typedef rx_dbc::dbc_tiny_t<rx_dbc::pgsql::type_t> dbc_tiny_t;
+    using namespace rx_dbc::pgsql;
+    /*
+    CREATE TABLE tmp_dbc (
+    ID bigint(20) unsigned NOT NULL,
+    INTN int(10) DEFAULT NULL,
+    UINT int(10) unsigned DEFAULT NULL,
+    STR varchar(255) DEFAULT NULL,
+    MDATE datetime DEFAULT NULL,
+    SHORT smallint(6) DEFAULT NULL,
+    PRIMARY KEY (ID)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    */
+#endif
     //---------------------------------------------------------
     //基于底层功能对象进行连接与数据库操作测试
     //---------------------------------------------------------
@@ -77,6 +97,12 @@
             strcpy(conn_param.pwd, "sysdba");
             strcpy(conn_param.db, "oradb");
             conn_param.port = 1521;
+#elif UT_DB==DB_PGSQL
+            strcpy(conn_param.host, "10.110.38.208");
+            strcpy(conn_param.user, "postgresql");
+            strcpy(conn_param.pwd, "postgresql");
+            strcpy(conn_param.db, "mydb");
+            conn_param.port = 5432;
 #elif UT_DB==DB_MYSQL
             strcpy(conn_param.host, "20.0.3.130");
             strcpy(conn_param.user, "root");
@@ -84,16 +110,16 @@
             strcpy(conn_param.db, "mysql");
             conn_param.port = 3306;
 
-            rx_assert(get_sql_type("SELECT") == rx_dbc::ST_SELECT);
-            rx_assert(get_sql_type("UPDATE") == rx_dbc::ST_UPDATE);
-            rx_assert(get_sql_type("UPSERT") == rx_dbc::ST_UPDATE);
-            rx_assert(get_sql_type("DELETE") == rx_dbc::ST_DELETE);
-            rx_assert(get_sql_type("CREATE") == rx_dbc::ST_CREATE);
-            rx_assert(get_sql_type("DROP")   == rx_dbc::ST_DROP);
-            rx_assert(get_sql_type("ALTER")  == rx_dbc::ST_ALTER);
-            rx_assert(get_sql_type("BEGIN")  == rx_dbc::ST_BEGIN);
-            rx_assert(get_sql_type("SET ")   == rx_dbc::ST_SET);
-            rx_assert(get_sql_type("INSERT") == rx_dbc::ST_INSERT);
+            rx_assert(rx_dbc::get_sql_type("SELECT") == rx_dbc::ST_SELECT);
+            rx_assert(rx_dbc::get_sql_type("UPDATE") == rx_dbc::ST_UPDATE);
+            rx_assert(rx_dbc::get_sql_type("UPSERT") == rx_dbc::ST_UPDATE);
+            rx_assert(rx_dbc::get_sql_type("DELETE") == rx_dbc::ST_DELETE);
+            rx_assert(rx_dbc::get_sql_type("CREATE") == rx_dbc::ST_CREATE);
+            rx_assert(rx_dbc::get_sql_type("DROP")   == rx_dbc::ST_DROP);
+            rx_assert(rx_dbc::get_sql_type("ALTER")  == rx_dbc::ST_ALTER);
+            rx_assert(rx_dbc::get_sql_type("BEGIN")  == rx_dbc::ST_BEGIN);
+            rx_assert(rx_dbc::get_sql_type("SET ")   == rx_dbc::ST_SET);
+            rx_assert(rx_dbc::get_sql_type("INSERT") == rx_dbc::ST_INSERT);
 #endif
         }
         bool check_conn()

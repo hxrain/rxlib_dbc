@@ -142,4 +142,38 @@
         }
     };
 
+    //-------------------------------------------------
+    //获取语句类型
+    inline sql_type_t get_sql_type(const char* SQL)
+    {
+        if (is_empty(SQL))
+            return ST_UNKNOWN;
+
+        while (*SQL)
+        {
+            if (*SQL == ' ')
+                ++SQL;
+            else
+                break;
+        }
+
+        char tmp[5]; tmp[4] = 0;
+        rx::st::strncpy(tmp, SQL, 4);
+        rx::st::strupr(tmp);
+
+        switch (*(uint32_t*)tmp)
+        {
+        case 0x454c4553:return ST_SELECT;
+        case 0x41445055:return ST_UPDATE;
+        case 0x45535055:return ST_UPDATE;
+        case 0x454c4544:return ST_DELETE;
+        case 0x45534e49:return ST_INSERT;
+        case 0x41455243:return ST_CREATE;
+        case 0x504f5244:return ST_DROP;
+        case 0x45544c41:return ST_ALTER;
+        case 0x49474542:return ST_BEGIN;
+        case 0x20544553:return ST_SET;
+        default:return ST_UNKNOWN;
+        }
+    }
 #endif
