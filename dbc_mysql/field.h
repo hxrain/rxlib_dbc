@@ -132,7 +132,7 @@ namespace mysql
         }
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
-        int32_t comm_as_long(bool is_signed = true) const
+        int32_t comm_as_int(bool is_signed = true) const
         {
             #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
             switch (m_metainfo->buffer_type)
@@ -167,7 +167,7 @@ namespace mysql
             #undef NUM2NUM
         }
         //-----------------------------------------------------
-        int64_t comm_as_longlong() const
+        int64_t comm_as_intlong() const
         {
             #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
             switch (m_metainfo->buffer_type)
@@ -318,38 +318,38 @@ namespace mysql
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_bigint(int64_t def_val = 0) const 
+        int64_t as_long(int64_t def_val = 0) const 
         { 
             if (m_is_null()) return def_val;
-            return comm_as_longlong(); 
+            return comm_as_intlong(); 
         }
         field_t& to(int64_t &buff, int64_t def_val = 0)
-        {
-            buff = as_bigint(def_val);
-            return *this;
-        }
-        //-------------------------------------------------
-        //尝试获取内部数据为带符号整数
-        int32_t as_long(int32_t def_val = 0) const
-        {
-            if (m_is_null()) return def_val;
-            return comm_as_long();
-        }
-        field_t& to(int32_t &buff, int32_t def_val = 0)
         {
             buff = as_long(def_val);
             return *this;
         }
         //-------------------------------------------------
-        //尝试获取内部数据为无符号整数
-        uint32_t as_ulong(uint32_t def_val = 0) const
+        //尝试获取内部数据为带符号整数
+        int32_t as_int(int32_t def_val = 0) const
         {
             if (m_is_null()) return def_val;
-            return comm_as_long(false);
+            return comm_as_int();
+        }
+        field_t& to(int32_t &buff, int32_t def_val = 0)
+        {
+            buff = as_int(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为无符号整数
+        uint32_t as_uint(uint32_t def_val = 0) const
+        {
+            if (m_is_null()) return def_val;
+            return comm_as_int(false);
         }
         field_t& to(uint32_t &buff, uint32_t def_val = 0)
         {
-            buff = as_ulong(def_val);
+            buff = as_uint(def_val);
             return *this;
         }
         //-------------------------------------------------

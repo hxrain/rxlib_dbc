@@ -299,8 +299,7 @@ namespace rx_dbc
         query_t                     m_query;                //实际语句的底层执行器
         dbc_conn_t                 &m_dbconn;               //连接器功能对象的引用
 
-        template<typename T>
-        friend class dbc_ext_t;
+        template<typename T> friend class dbc_ext_t;
         //-------------------------------------------------
         //预处理语句
         //返回值:<0错误; 0用户要求放弃; >0完成
@@ -414,9 +413,9 @@ namespace rx_dbc
             return action(sql, usrdat, explicit_trans, retry);
         }
         //-------------------------------------------------
-        //执行了select后,可以进行结果的提取;此方法可以反复多次调用,直到结果遍历完成
+        //执行了select后,可以进行结果的提取;此方法可以反复多次调用,直到结果遍历完成(默认尝试一次性提取所有记录)
         //返回值:<0错误;0结束;>0本次提取的数量
-        int fetch(uint32_t fetch_count = 0)
+        int fetch(uint32_t fetch_count = -1)
         {
             m_dbconn.set_last_error(DBEC_OK);
             if (m_query.sql_type() != ST_SELECT)
@@ -505,7 +504,7 @@ namespace rx_dbc
         int action(void *usrdat, bool explicit_trans = false, uint32_t retry = 1)
         {
             if (is_empty(super_t::m_query.sql_string()))
-                return super_t::action(on_sql(), usrdat, explicit_trans, retry);  //首次执行,需要解析sql
+                return super_t::action(on_sql(), usrdat, explicit_trans, retry); //首次执行,需要解析sql
             else
                 return super_t::action(NULL, usrdat, explicit_trans, retry);     //后续执行,不需要再解析sql
         }

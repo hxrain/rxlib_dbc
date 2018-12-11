@@ -138,8 +138,8 @@ class mydbc4 :public dbc_ext_t
     virtual int32_t on_row(query_t &q, void *usrdat)
     {
         printf("fetcount=%d:id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",q.fetched(),
-            q["id"].as_ulong(), q["intn"].as_long(), q["uint"].as_ulong(),
-            q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
+            q["id"].as_uint(), q["intn"].as_int(), q["uint"].as_uint(),
+            q["str"].as_string(), q["mdate"].as_string(), q["short"].as_int());
         return 1;
     }
 public:

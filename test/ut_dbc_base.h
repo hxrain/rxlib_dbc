@@ -14,8 +14,8 @@ inline bool ut_conn_base_query_1(rx_tdd_t &rt, ut_conn &dbc)
         for (q.exec("select * from tmp_dbc"); !q.eof(); q.next())
         {
             printf("fetch_count=%d:id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",q.fetched(),
-                q["id"].as_long(), q["intn"].as_long(), q["uint"].as_ulong(),
-                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
+                q["id"].as_int(), q["intn"].as_int(), q["uint"].as_uint(),
+                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_int());
         }
 
         return true;
@@ -40,8 +40,8 @@ inline bool ut_conn_base_query_2(rx_tdd_t &rt, ut_conn &dbc)
         for (q.exec(); !q.eof(); q.next())
         {
             printf("fc=%d:id(%d),intn(%d),uint(%u),str(%s),mdate(%s),short(%d)\n",q.fetched(),
-                q["id"].as_long(), q["intn"].as_long(), q["uint"].as_ulong(),
-                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_long());
+                q["id"].as_int(), q["intn"].as_int(), q["uint"].as_uint(),
+                q["str"].as_string(), q["mdate"].as_string(), q["short"].as_int());
         }
 
         //q.exec("delete from tmp_dbc where str!='str'").conn().trans_commit();

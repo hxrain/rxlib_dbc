@@ -452,7 +452,7 @@ namespace ora
         //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
         template<typename DT>
-        DT comm_as_long(ub1* data_buff,bool is_signed = true) const
+        DT comm_as_int(ub1* data_buff,bool is_signed = true) const
         {
             switch (m_dbc_data_type)
             {
@@ -546,41 +546,41 @@ namespace ora
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_bigint(int64_t DefValue = 0) const 
+        int64_t as_long(int64_t DefValue = 0) const 
         { 
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
-            return comm_as_long<int64_t>(get_data_buff(idx));
+            return comm_as_int<int64_t>(get_data_buff(idx));
         }
         col_base_t& to(int64_t &buff, int64_t def_val = 0)
-        {
-            buff = as_bigint(def_val);
-            return *this;
-        }
-        //-------------------------------------------------
-        //尝试获取内部数据为带符号整数
-        int32_t as_long(int32_t DefValue = 0) const
-        {
-            ub2 idx = bulk_row_idx();
-            if (m_is_null(idx)) return DefValue;
-            return comm_as_long<int32_t>(get_data_buff(idx));
-        }
-        col_base_t& to(int32_t &buff, int32_t def_val = 0)
         {
             buff = as_long(def_val);
             return *this;
         }
         //-------------------------------------------------
-        //尝试获取内部数据为无符号整数
-        uint32_t as_ulong(uint32_t DefValue = 0) const
+        //尝试获取内部数据为带符号整数
+        int32_t as_int(int32_t DefValue = 0) const
         {
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
-            return comm_as_long<uint32_t>(get_data_buff(idx), false);
+            return comm_as_int<int32_t>(get_data_buff(idx));
+        }
+        col_base_t& to(int32_t &buff, int32_t def_val = 0)
+        {
+            buff = as_int(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为无符号整数
+        uint32_t as_uint(uint32_t DefValue = 0) const
+        {
+            ub2 idx = bulk_row_idx();
+            if (m_is_null(idx)) return DefValue;
+            return comm_as_int<uint32_t>(get_data_buff(idx), false);
         }
         col_base_t& to(uint32_t &buff, uint32_t def_val = 0)
         {
-            buff = as_ulong(def_val);
+            buff = as_uint(def_val);
             return *this;
         }
         //-------------------------------------------------

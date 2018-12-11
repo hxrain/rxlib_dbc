@@ -217,7 +217,7 @@ namespace mysql
                 exec("select count(1) as c from %s where %s", tblname, cond);
 
             if (eof()) return 0;
-            return field("c").as_long();
+            return field("c").as_int();
         }
         //-------------------------------------------------
         //ÔËËã·ûÖØÔØ,·ÃÎÊ×Ö¶Î
