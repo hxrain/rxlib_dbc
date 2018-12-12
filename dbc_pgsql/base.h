@@ -30,20 +30,19 @@ namespace pgsql
     }env_option_t;
 
     //--------------------------------------------------
-    typedef enum pg_err_code
-    {
-        pgec_conn_timeout,
-        pgec_bad_user_pwd,
-        pgec_connection_lost,
-        pgec_connect_fail,
-        pgec_unique_constraint,
-        pgec_other,
-    }pg_err_code;
-    //--------------------------------------------------
     //由于PG没有统一的错误代码,所以需要对关键消息进行甄别,给出必要的错误代码
-    inline pg_err_code conv_pg_err_code(const char* msg)
+    inline int conv_pg_err_code(const char* msg)
     {
-        return pgec_other;
+        if (is_empty(msg))
+            return DBEC_OK;
+        if (rx::st::strncmp(msg, "FATAL:  password authentication failed for user", 47) == 0)
+            return DBEC_DB_BADPWD;
+        if (rx::st::strstr(msg, "FATAL:  database \"") && rx::st::strstr(msg, "\" does not exist"))
+            return DBEC_DB_CONNFAIL;
+        if (rx::st::strncmp(msg, "ERROR:  duplicate key value violates unique constraint", 54) == 0)
+            return DBEC_DB_UNIQUECONST;
+            
+        return DBEC_OTHER;
     }
     //-------------------------------------------------
     //获取db连接的错误信息
@@ -92,7 +91,7 @@ namespace pgsql
         static const uint32_t MAX_BUF_SIZE = 1024 * 2;
     private:
         int32_t		        m_dbc_ec;  	                    //DBC错误码
-        int32_t		        m_pgsql_ec;		                //pgsql错误码
+        int32_t		        m_pg_ec;		                //pgsql错误码
         char	            m_err_desc[MAX_BUF_SIZE];	    //错误内容
 
         //--------------------------------------------------
@@ -102,26 +101,8 @@ namespace pgsql
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
             desc << "pgsql::" << msg;
             m_dbc_ec = DBEC_DB;
-            m_pgsql_ec = conv_pg_err_code(msg);
+            m_pg_ec = ec;
             desc.repleace('\n', '.');
-            //进行OCI错误细分,映射到DBEC错误码
-            switch (m_pgsql_ec)
-            {
-            case PGRES_NONFATAL_ERROR:
-                m_dbc_ec = DBEC_DB_UNIQUECONST; break;
-            //case ER_ACCESS_DENIED_ERROR:
-            //    m_dbc_ec = DBEC_DB_BADPWD; break;
-            case PGRES_FATAL_ERROR:
-                m_dbc_ec = DBEC_DB_CONNFAIL; break;
-            case CONNECTION_BAD:
-                m_dbc_ec = DBEC_DB_CONNTIMEOUT; break;
-            default:
-                if (is_connection_lost())
-                    m_dbc_ec = DBEC_DB_CONNLOST;
-                else if (is_connect_fail())
-                    m_dbc_ec = DBEC_DB_CONNFAIL;
-                break;
-            }
         }
 
         //-------------------------------------------------
@@ -131,7 +112,7 @@ namespace pgsql
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
             desc << "DBC::" << err_type_str(dbc_err);
             m_dbc_ec = dbc_err;
-            m_pgsql_ec = 0;
+            m_pg_ec = 0;
         }
 
         //-------------------------------------------------
@@ -204,23 +185,23 @@ namespace pgsql
         const char* c_str(void) { return m_err_desc; }
         //-------------------------------------------------
         //判断是否为db错误类别
-        bool is_db_error() { return m_pgsql_ec != 0; }
+        bool is_db_error() { return m_pg_ec != 0; }
         //得到db错误代码
-        uint32_t db_error_code() { return m_pgsql_ec; }
+        uint32_t db_error_code() { return m_pg_ec; }
         //得到dbc错误代码
         uint32_t dbc_error_code() { return m_dbc_ec; }
         //-------------------------------------------------
         //判断错误是否为用户名口令错误
-        bool is_bad_user_pwd() { return m_pgsql_ec == pgec_bad_user_pwd; }
+        bool is_bad_user_pwd() { return m_pg_ec == DBEC_DB_BADPWD; }
         //判断是否为连接错误
-        bool is_conn_timeout() { return m_pgsql_ec == pgec_conn_timeout; }
+        bool is_conn_timeout() { return m_pg_ec == DBEC_DB_CONNTIMEOUT; }
         //连接断开
-        bool is_connection_lost() { return m_pgsql_ec == pgec_connection_lost; }
+        bool is_connection_lost() { return m_pg_ec == DBEC_DB_CONNLOST; }
         //连接失败(12541监听器不存在;或口令错误;或连接超时;或连接丢失)
-        bool is_connect_fail() { return m_pgsql_ec == pgec_connect_fail || is_bad_user_pwd() || is_conn_timeout() || is_connection_lost(); }
+        bool is_connect_fail() { return m_pg_ec == DBEC_DB_CONNFAIL || is_bad_user_pwd() || is_conn_timeout() || is_connection_lost(); }
         //-------------------------------------------------
         //是否为唯一性约束冲突
-        bool is_unique_constraint() { return m_pgsql_ec == pgec_unique_constraint; }
+        bool is_unique_constraint() { return m_pg_ec == DBEC_DB_UNIQUECONST; }
     };
 
     //-----------------------------------------------------

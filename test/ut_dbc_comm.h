@@ -69,15 +69,16 @@
     typedef rx_dbc::dbc_tiny_t<rx_dbc::pgsql::type_t> dbc_tiny_t;
     using namespace rx_dbc::pgsql;
     /*
-    CREATE TABLE tmp_dbc (
-    ID bigint(20) unsigned NOT NULL,
-    INTN int(10) DEFAULT NULL,
-    UINT int(10) unsigned DEFAULT NULL,
-    STR varchar(255) DEFAULT NULL,
-    MDATE datetime DEFAULT NULL,
-    SHORT smallint(6) DEFAULT NULL,
-    PRIMARY KEY (ID)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    CREATE TABLE "public"."tmp_dbc" (
+        "id" int4 NOT NULL,
+        "intn" int4,
+        "uint" int8,
+        "str" varchar(255) COLLATE "default",
+        "mdate" timestamp(6),
+        "short" int2,
+        CONSTRAINT "tmp_dbc_pkey" PRIMARY KEY ("id")
+    )WITH (OIDS=FALSE);
+    ALTER TABLE "public"."tmp_dbc" OWNER TO "postgres";
     */
 #endif
     //---------------------------------------------------------
