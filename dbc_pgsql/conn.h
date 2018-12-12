@@ -29,8 +29,8 @@ namespace pgsql
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
             //执行语句
             PGresult *res = ::PQexec(m_handle, sql);
-            if (!res)                                       //出现内存不足的错误了
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__));
+            if (!res)                                       //出现错误了
+                throw (error_info_t(DBEC_DB_CONNLOST, __FILE__, __LINE__));
 
             //获取执行结果
             ::ExecStatusType ec = ::PQresultStatus(res);
