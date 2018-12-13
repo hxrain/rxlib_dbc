@@ -111,12 +111,11 @@ namespace pgsql
             if (!is_empty(op.language))
                 exec("SET lc_messages = '%s'", op.language);
 
-            //日期显示格式
-            exec("SET DateStyle='ISO,YMD'", op.charset);
+            //默认日期格式化函数的格式
+            try { exec("SET DateStyle='ISO,YMD'"); } catch (...) {}
 
             //与ora模式一致,默认不进行自动提交,需要明确的手动提交.(pgsql 9.5之后废弃了此特性)
-            try { exec("SET AUTOCOMMIT = OFF"); }
-            catch (...) { m_auto_trans = true; }
+            try { exec("SET AUTOCOMMIT = OFF"); } catch (...) { m_auto_trans = true; }
 
             m_is_valid = true;
             return 0;
@@ -150,6 +149,41 @@ namespace pgsql
             do_auto_begin(SQL);
             m_exec(SQL);
         }
+        //-------------------------------------------------
+        //执行一条语句
+        void tmp_exec(const char *sql)
+        {
+            if (!m_handle)                                  //执行顺序错误,连接尚未建立
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
+            //执行语句
+            PGresult *res = ::PQexecParams(m_handle,sql,0,NULL,NULL,NULL,NULL,0);//::PQexec(m_handle, sql);
+            if (!res)                                       //出现错误了
+                throw (error_info_t(DBEC_DB_CONNLOST, __FILE__, __LINE__));
+
+            //获取执行结果
+            ::ExecStatusType ec = ::PQresultStatus(res);
+            if (ec != PGRES_TUPLES_OK)
+            {//如果不是无结果集命令成功,就进行错误信息记录
+                rx::tiny_string_t<char, 1024> tmp;
+                tmp = ::PQresultErrorMessage(res);
+                ::PQclear(res);                             //必须清理执行结果对象后,再抛出错误异常
+                throw (error_info_t(tmp.c_str(), __FILE__, __LINE__));
+            }
+
+            int32_t rows = ::PQntuples(res);
+            int32_t fields = ::PQnfields(res);
+            for (int i = 0; i < fields; ++i)
+            {
+                const char* fname = ::PQfname(res, i);
+                int is_bin = ::PQfformat(res, i);
+                Oid ftype = ::PQftype(res, i);
+                int flen = ::PQgetlength(res,0,i);
+                const char* fval = ::PQgetvalue(res, 0, i);
+                flen++;
+            }
+
+            ::PQclear(res);                                 //正常执行完成后也必须清理执行结果对象
+        }        
         //-------------------------------------------------
         //切换到指定的用户专属库
         void schema_to(const char *schema) { exec("set search_path = '%s'", schema); }

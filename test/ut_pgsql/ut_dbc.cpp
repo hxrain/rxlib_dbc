@@ -35,6 +35,8 @@ void ut_pgsql_base_conn_0(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
 void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn_param)
 {
     try {
+        conn.tmp_exec("SELECT  NOW()::date,NOW()::time,NOW()::abstime,NOW()::timestamp,NOW()::timestamptz");
+        rt.tdd_assert(conn.ping());
         conn.exec("insert into tmp_dbc(id,intn) values(3,0)");
     }
     catch (error_info_t &e)
@@ -57,7 +59,7 @@ void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
     catch (error_info_t &e)
     {
         printf(e.c_str(conn_param));
-        printf("\n");
+        printf("\n"); 
     }
 }
 

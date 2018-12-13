@@ -258,6 +258,277 @@ namespace pgsql
             return Result;
         }
     };
+
+    //-----------------------------------------------------
+    //字段与绑定参数使用的基类,进行数据缓冲区的管理与字段数据的访问;
+    //要求PG参数与数据传输都使用文本模式.
+    class col_base_t
+    {
+    protected:
+        typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
+        friend class query_t;
+
+        col_name_t          m_name;		                    // 对象名字
+        int                 m_idx;                          // 对象序号
+        char                m_working_buff[64];             // 临时存放转换字符串的缓冲区
+        Oid                *m_type_oid;                     // 指向参数或字段的类型指针
+        //-------------------------------------------------
+        //字段构造函数,只能被记录集类使用
+        void make(int idx,const char *name, Oid *type_oid)
+        {
+            rx_assert(!is_empty(name));
+            reset();
+
+            m_name.assign(name);
+            m_idx = idx;
+            m_type_oid = type_oid;
+        }
+        //-------------------------------------------------
+        void reset()
+        {
+            m_name.assign();
+            m_type_oid = NULL;
+            m_idx = -1;
+        }
+
+        //-----------------------------------------------------
+        //统一功能函数:将指定的原始类型的数据转换为字符串
+        PStr comm_as_string(const char* ConvFmt = NULL) const
+        {
+            int len;
+            const char* val = m_value(len);
+            switch (dbc_data_type())
+            {
+            case DT_INT:
+            case DT_UINT:
+            case DT_LONG:
+            case DT_FLOAT:
+            case DT_TEXT:
+                return val;
+            case DT_DATE:
+                rx::st::strcpy2((char*)m_working_buff, sizeof(m_working_buff), val, ".+");
+                return m_working_buff;
+            default:
+                return val;
+            }
+        }
+        //-----------------------------------------------------
+        //统一功能函数:将指定的原始类型的数据转换为浮点数
+        double comm_as_double() const
+        {
+            int len;
+            const char* val = m_value(len);
+
+            switch (dbc_data_type())
+            {
+            case DT_INT:
+            case DT_UINT:
+            case DT_LONG:
+            case DT_FLOAT:
+            case DT_TEXT:
+                return rx::st::atof(val);
+            case DT_DATE:
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+        }
+        //-----------------------------------------------------
+        //统一功能函数:将指定的原始类型的数据转换为整数
+        int32_t comm_as_int(bool is_signed = true) const
+        {
+            int len;
+            const char* val = m_value(len);
+
+            switch (dbc_data_type())
+            {
+            case DT_INT:
+            case DT_UINT:
+                return is_signed ? rx::st::atoi(val) : rx::st::atoul(val);
+            case DT_LONG:
+                return is_signed ? (int32_t)rx::st::atoi64(val): (uint32_t)rx::st::atoi64(val);
+            case DT_FLOAT:
+            case DT_TEXT:
+                return is_signed ? (int32_t)rx::st::atof(val) : (uint32_t)rx::st::atof(val);
+            case DT_DATE:
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+        }
+        //-----------------------------------------------------
+        int64_t comm_as_intlong() const
+        {
+            int len;
+            const char* val = m_value(len);
+
+            switch (dbc_data_type())
+            {
+            case DT_INT:
+            case DT_UINT:
+                return rx::st::atoul(val);
+            case DT_LONG:
+                return rx::st::atoi64(val);
+            case DT_FLOAT:
+            case DT_TEXT:
+                return (int64_t)rx::st::atof(val);
+            case DT_DATE:
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+        }
+        //-----------------------------------------------------
+        //统一功能函数:将指定的原始类型的数据转换为日期
+        datetime_t comm_as_datetime() const
+        {
+            int len;
+            const char* val = m_value(len);
+
+            switch (dbc_data_type())
+            {
+            case DT_DATE:
+            case DT_TEXT:
+            {
+                struct tm ts;
+                rx::st::strcpy2((char*)m_working_buff, sizeof(m_working_buff), val, ".+");
+                switch (*m_type_oid)
+                {
+                case PG_DATA_TYPE_DATE:
+                    if (!::rx_iso_date(m_working_buff, ts))
+                        throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)date(%s)", m_name.c_str(), m_working_buff));
+                    return datetime_t(ts);
+                case PG_DATA_TYPE_TIME:
+                    if (!::rx_iso_time(m_working_buff, ts))
+                        throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)time(%s)", m_name.c_str(), m_working_buff));
+                    return datetime_t(ts);
+                default:
+                    if (!::rx_iso_datetime(m_working_buff, ts))
+                        throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)datetime(%s)", m_name.c_str(), m_working_buff));
+                    return datetime_t(ts);
+                }
+            }
+            case DT_INT:
+            case DT_UINT:
+            case DT_LONG:
+            case DT_FLOAT:
+            default:
+                throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "col(%s)", m_name.c_str()));
+            }
+        }
+        //-------------------------------------------------
+        //判断当前列是否为null空值
+        virtual bool m_is_null() const = 0;
+        //-------------------------------------------------
+        //获取当前列数据内容与长度
+        virtual const char* m_value(int &len) const = 0;
+    public:
+        col_base_t(){ reset(); }
+        virtual ~col_base_t() { reset(); }
+        //-------------------------------------------------
+        const char* name()const { return m_name.c_str(); }
+        //-------------------------------------------------
+        data_type_t dbc_data_type() const
+        {
+            if (m_is_null()|| m_type_oid==NULL) return DT_UNKNOWN;
+            switch (*m_type_oid)
+            {
+            case PG_DATA_TYPE_INT2       :
+            case PG_DATA_TYPE_INT4       :return DT_INT;
+            case PG_DATA_TYPE_INT8       :return DT_LONG;
+            case PG_DATA_TYPE_OID        :return DT_UINT;
+            case PG_DATA_TYPE_FLOAT4     :
+            case PG_DATA_TYPE_FLOAT8     :
+            case PG_DATA_TYPE_NUMERIC    :return DT_FLOAT;
+            case PG_DATA_TYPE_BYTEA      :
+            case PG_DATA_TYPE_CHAR       :
+            case PG_DATA_TYPE_NAME       :
+            case PG_DATA_TYPE_TEXT       :
+            case PG_DATA_TYPE_BPCHAR     :
+            case PG_DATA_TYPE_VARCHAR    :return DT_TEXT;
+            case PG_DATA_TYPE_DATE       :
+            case PG_DATA_TYPE_TIME       :
+            case PG_DATA_TYPE_ABSTIME    :
+            case PG_DATA_TYPE_TIMESTAMP  :
+            case PG_DATA_TYPE_TIMESTAMPTZ:return DT_DATE;
+            default                      :return DT_UNKNOWN;
+            }
+        }
+        //-------------------------------------------------
+        bool is_null(void) const { return m_is_null(); }
+        //-------------------------------------------------
+        //尝试获取内部数据为字符串
+        PStr as_string(const char* ConvFmt = NULL) const
+        {
+            if (m_is_null()) return NULL;
+            return comm_as_string( ConvFmt);
+        }
+        col_base_t& to(char* buff, uint32_t max_size = 0)
+        {
+            if (max_size)
+                rx::st::strcpy(buff, max_size, as_string());
+            else
+                rx::st::strcpy(buff, as_string());
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为浮点数
+        double as_double(double def_val = 0) const
+        {
+            if (m_is_null()) return def_val;
+            return comm_as_double();
+        }
+        col_base_t& to(double &buff, double def_val = 0)
+        {
+            buff = as_double(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为超大整数
+        int64_t as_long(int64_t def_val = 0) const 
+        { 
+            if (m_is_null()) return def_val;
+            return comm_as_intlong(); 
+        }
+        col_base_t& to(int64_t &buff, int64_t def_val = 0)
+        {
+            buff = as_long(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为带符号整数
+        int32_t as_int(int32_t def_val = 0) const
+        {
+            if (m_is_null()) return def_val;
+            return comm_as_int();
+        }
+        col_base_t& to(int32_t &buff, int32_t def_val = 0)
+        {
+            buff = as_int(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为无符号整数
+        uint32_t as_uint(uint32_t def_val = 0) const
+        {
+            if (m_is_null()) return def_val;
+            return comm_as_int(false);
+        }
+        col_base_t& to(uint32_t &buff, uint32_t def_val = 0)
+        {
+            buff = as_uint(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为日期时间
+        datetime_t as_datetime(void) const
+        {
+            if (m_is_null()) return datetime_t();
+            return comm_as_datetime();
+        }
+        col_base_t& to(datetime_t &buff)
+        {
+            buff = as_datetime();
+            return *this;
+        }
+    };
 }
 
 #endif

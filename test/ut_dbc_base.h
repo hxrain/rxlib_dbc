@@ -302,10 +302,10 @@ inline void ut_conn_base_sql_parse_1(rx_tdd_t &rt)
     rx_dbc::sql_param_parse_t<> sp;
     rt.tdd_assert(sp.ora_sql("select id,'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uvID and UINT=:uUINT;") == NULL);
     rt.tdd_assert(sp.count == 2);
-    rt.tdd_assert(strncmp(sp.segs[0].name, ":uvID", sp.segs[0].name_len) == 0);
-    rt.tdd_assert(sp.segs[0].name_len == 5);
-    rt.tdd_assert(strncmp(sp.segs[1].name, ":uUINT", sp.segs[1].name_len) == 0);
-    rt.tdd_assert(sp.segs[1].name_len == 6);
+    rt.tdd_assert(strncmp(sp.segs[0].name, ":uvID", sp.segs[0].length) == 0);
+    rt.tdd_assert(sp.segs[0].length == 5);
+    rt.tdd_assert(strncmp(sp.segs[1].name, ":uUINT", sp.segs[1].length) == 0);
+    rt.tdd_assert(sp.segs[1].length == 6);
 
     rt.tdd_assert(sp.ora_sql("select id,:se'b',':g:\":H:\":i:',\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uvID and UINT=:uUINT;") != NULL);
 
@@ -332,6 +332,11 @@ inline void ut_conn_base_sql_parse_1(rx_tdd_t &rt)
     rt.tdd_assert(sp.ora2mysql("select id,'\"',UINT from tmp_dbc where id=1 and UINT=1",tmp,sizeof(tmp)) != sizeof(tmp));
 
     rt.tdd_assert(sp.ora2mysql("select id,'b',':g:\":H:\":i:',:se,\"STR\",':\" : a\":\" : INT\"',UINT from tmp_dbc where id=:uvID and UINT=:uUINT;",tmp,sizeof(tmp)) != sizeof(tmp));
+
+    rt.tdd_assert(sp.pg_sql("select id,UINT from tmp_dbc where UINT=$1 or UINT=$2::int8") == NULL);
+    rt.tdd_assert(sp.count == 2);
+    rt.tdd_assert(rx::st::strcmp(sp.segs[1].name, "$2::int8") == 0);
+
 }
 //---------------------------------------------------------
 //进行数据库基础动作测试
