@@ -161,7 +161,7 @@ namespace mysql
                 if (unnamed)
                     rx::st::itoa(i + 1, name);              //未命名的时候,使用序号当作名字,序号从1开始
                 else
-                    rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].name_len);
+                    rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].length);
                 m_param_bind(name);
             }
             return *this;
