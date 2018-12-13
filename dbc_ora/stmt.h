@@ -154,7 +154,7 @@ namespace ora
             char name[FIELD_NAME_LENGTH];
             for (ub2 i = 0; i < sp.count; ++i)
             {//循环进行参数数组的自动绑定
-                rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].name_len);
+                rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].length);
                 m_param_bind(name);
             }
             return *this;

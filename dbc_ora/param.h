@@ -9,7 +9,7 @@ namespace ora
     class param_t:public col_base_t
     {
         friend class stmt_t;
-        ub4                 m_max_bulk_deep;               //最大的批量数
+        ub4                 m_max_bulk_deep;                //最大的批量数
         conn_t		        *m_conn;		                //关联的数据库连接对象
         ub2                 m_bulk_idx;                     //当前操作的行块序号
 
