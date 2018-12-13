@@ -46,13 +46,13 @@
     }conn_param_t;
 
     //-----------------------------------------------------
-    //dbc_ora可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
+    //dbc可以处理的数据类型(绑定参数时,名字前缀可以告知数据类型)
     typedef enum data_type_t
     {
         DT_UNKNOWN=-1,
         DT_INT      = 'i',                                  //带符号整数,int/int32_t
         DT_UINT     = 'u',                                  //无符号整数,ulong/uint32_t
-        DT_LONG     = 'l',                                   //带符号大整数,long long/int64_t
+        DT_LONG     = 'l',                                  //带符号大整数,long long/int64_t
         DT_FLOAT    = 'f',                                  //浮点数,double
         DT_DATE     = 'd',                                  //日期类型
         DT_TEXT     = 's'                                   //文本串类型
@@ -120,7 +120,7 @@
         case	DBEC_BAD_INPUT:         return "(DBEC_BAD_INPUT):input bind data doesn't have expected type";
         case	DBEC_BAD_OUTPUT:        return "(DBEC_BAD_OUTPUT):output convert type incorrect";
         case	DBEC_BAD_TYPEPREFIX:    return "(DBEC_BAD_TYPEPREFIX):input bind parameter prefix incorrect";
-        case	DBEC_UNSUP_TYPE:        return "(DBEC_UNSUP_TYPE):unsupported Oracle type - cannot be converted";
+        case	DBEC_UNSUP_TYPE:        return "(DBEC_UNSUP_TYPE):unsupported type - cannot be converted";
         case	DBEC_PARAM_NOT_FOUND:   return "(DBEC_PARAM_NOT_FOUND):name not found in statement's parameters";
         case	DBEC_FIELD_NOT_FOUND:   return "(DBEC_FIELD_NOT_FOUND):resultset doesn't contain field_t with such name";
         case    DBEC_METHOD_CALL:       return "(DBEC_METHOD_CALL):func method called order error";
