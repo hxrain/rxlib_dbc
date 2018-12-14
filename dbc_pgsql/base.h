@@ -266,15 +266,14 @@ namespace pgsql
     {
     protected:
         typedef rx::tiny_string_t<char, FIELD_NAME_LENGTH> col_name_t;
-        friend class query_t;
 
         col_name_t          m_name;		                    // 对象名字
         int                 m_idx;                          // 对象序号
         char                m_working_buff[64];             // 临时存放转换字符串的缓冲区
-        Oid                *m_type_oid;                     // 指向参数或字段的类型指针
+        int                *m_type_oid;                     // 指向参数或字段的类型指针
         //-------------------------------------------------
-        //字段构造函数,只能被记录集类使用
-        void make(int idx,const char *name, Oid *type_oid)
+        //绑定初始信息
+        void bind(int idx,const char *name, int *type_oid)
         {
             rx_assert(!is_empty(name));
             reset();
@@ -295,8 +294,7 @@ namespace pgsql
         //统一功能函数:将指定的原始类型的数据转换为字符串
         PStr comm_as_string(const char* ConvFmt = NULL) const
         {
-            int len;
-            const char* val = m_value(len);
+            const char* val = m_value();
             switch (dbc_data_type())
             {
             case DT_INT:
@@ -316,8 +314,7 @@ namespace pgsql
         //统一功能函数:将指定的原始类型的数据转换为浮点数
         double comm_as_double() const
         {
-            int len;
-            const char* val = m_value(len);
+            const char* val = m_value();
 
             switch (dbc_data_type())
             {
@@ -336,8 +333,7 @@ namespace pgsql
         //统一功能函数:将指定的原始类型的数据转换为整数
         int32_t comm_as_int(bool is_signed = true) const
         {
-            int len;
-            const char* val = m_value(len);
+            const char* val = m_value();
 
             switch (dbc_data_type())
             {
@@ -357,8 +353,7 @@ namespace pgsql
         //-----------------------------------------------------
         int64_t comm_as_intlong() const
         {
-            int len;
-            const char* val = m_value(len);
+            const char* val = m_value();
 
             switch (dbc_data_type())
             {
@@ -379,8 +374,7 @@ namespace pgsql
         //统一功能函数:将指定的原始类型的数据转换为日期
         datetime_t comm_as_datetime() const
         {
-            int len;
-            const char* val = m_value(len);
+            const char* val = m_value();
 
             switch (dbc_data_type())
             {
@@ -418,7 +412,7 @@ namespace pgsql
         virtual bool m_is_null() const = 0;
         //-------------------------------------------------
         //获取当前列数据内容与长度
-        virtual const char* m_value(int &len) const = 0;
+        virtual const char* m_value() const = 0;
     public:
         col_base_t(){ reset(); }
         virtual ~col_base_t() { reset(); }

@@ -10,50 +10,40 @@ namespace pgsql
     {
         stmt_t (const stmt_t&);
         stmt_t& operator = (const stmt_t&);
-        friend class field_t;
+
         typedef rx::alias_array_t<param_t, FIELD_NAME_LENGTH> param_array_t;
-        typedef rx::array_t<pgsql_BIND> mi_array_t;
         typedef rx::tiny_string_t<char, MAX_SQL_LENGTH> sql_string_t;
+        typedef rx::array_t<int>    mi_oid_array_t;
+        typedef rx::array_t<char*>  mi_val_array_t;
+
+
     protected:
         conn_t		           &m_conn;		                //该语句对象关联的数据库连接对象
-        mi_array_t              m_metainfos;                //pgsql需要的绑定信息结构数组
+        mi_oid_array_t          m_mi_oids;                  //pgsql需要的绑定信息类型数组
+        mi_val_array_t          m_mi_vals;                  //pgsql需要的绑定信息数值数组
         param_array_t	        m_params;	                //带有名称绑定的参数数组
         sql_type_t	            m_sql_type;                 //该语句对象当前sql语句的类型
         sql_string_t            m_SQL;                      //预解析时记录的待执行的sql语句
         sql_string_t            m_SQL_BAK;                  //预解析时记录的原始的sql语句
-        pgsql_STMT	           *m_stmt_handle;              //该语句对象的pgsql句柄
         uint32_t                m_cur_param_idx;            //绑定数据的时候用于顺序处理参数序号
         bool			        m_executed;                 //标记当前语句是否已经被正确执行过了
-        //-------------------------------------------------
-        //预解析一个sql语句,得到必要的信息,之后可以进行参数绑定了
-        void m_prepare()
-        {
-            rx_assert(!is_empty(m_SQL));
-            
-            close(true);                                    //语句可能都变了,复位后重来
-            m_stmt_handle = pgsql_stmt_init(&m_conn.m_handle);
 
-            if (!m_stmt_handle)
-                throw (error_info_t(&m_conn.m_handle, __FILE__, __LINE__,m_SQL));
-
-            if (pgsql_stmt_prepare(m_stmt_handle,m_SQL,m_SQL.size()))
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
-
-            m_sql_type = get_sql_type(m_SQL);
-        }
         //-------------------------------------------------
         //绑定参数初始化:参数的数量(如果不告知,则自动根据sql语句分析获取);
         void m_param_make(uint16_t ParamCount = 0)
         {
             if (ParamCount == 0)
-                ParamCount = rx::st::count(m_SQL.c_str(), '?');
+                ParamCount = rx::st::count(m_SQL.c_str(), '$');
 
             if (!ParamCount) return;
 
             if (!m_params.make(ParamCount,true))            //生成绑定参数对象的数组
                 throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
 
-            if (!m_metainfos.make(ParamCount, true))        //生成绑定参数元信息数组
+            if (!m_mi_oids.make(ParamCount, true))        //生成绑定参数元信息类型数组
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
+
+            if (!m_mi_vals.make(ParamCount, true))        //生成绑定参数元信息数值数组
                 throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
         }
         //-------------------------------------------------
@@ -81,15 +71,14 @@ namespace pgsql
                 throw (error_info_t(DBEC_IDX_OVERSTEP, __FILE__, __LINE__, name));
 
             m_params.bind(ParamIdx, Tmp);                   //将参数的索引号与名字进行关联
-            param_t &Ret = m_params[ParamIdx];          //得到参数对象
-            Ret.make(name, &m_metainfos.at(ParamIdx));      //对参数对象进行必要的初始化
+            param_t &Ret = m_params[ParamIdx];              //得到参数对象
+            Ret.bind(m_mi_vals.array(),ParamIdx,&m_mi_oids.at(ParamIdx),name);      //对参数对象进行必要的初始化
             return Ret;
         }
     public:
         //-------------------------------------------------
         stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_mem)
         {
-            m_stmt_handle = NULL;
             close();
         }
         //-------------------------------------------------
@@ -117,7 +106,7 @@ namespace pgsql
                 m_SQL = m_SQL_BAK;
 
             //最后再执行预处理
-            m_prepare();
+
             return *this;
         }
         stmt_t& prepare(const char *sql, ...)
@@ -134,7 +123,7 @@ namespace pgsql
         //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
         stmt_t& auto_bind(int dummy=0)
         {
-            if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
+            if (m_sql_type == ST_UNKNOWN)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
             //先尝试解析ora模式的命名参数
@@ -161,7 +150,7 @@ namespace pgsql
                 if (unnamed)
                     rx::st::itoa(i + 1, name);              //未命名的时候,使用序号当作名字,序号从1开始
                 else
-                    rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].name_len);
+                    rx::st::strcpy(name, sizeof(name), sp.segs[i].name, sp.segs[i].length);
                 m_param_bind(name);
             }
             return *this;
@@ -171,7 +160,7 @@ namespace pgsql
         //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
         stmt_t& manual_bind(uint16_t dummy=0, uint16_t params = 0)
         {
-            if (m_sql_type == ST_UNKNOWN || m_stmt_handle == NULL)
+            if (m_sql_type == ST_UNKNOWN)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Prepared!"));
 
             m_param_make(params);                           //尝试进行参数数组的生成
@@ -212,15 +201,8 @@ namespace pgsql
         //执行当前预解析过的语句,不进行返回记录集的处理
         stmt_t& exec (bool auto_commit=false)
         {
-            rx_assert(m_stmt_handle != NULL);
             m_executed = false;
             m_cur_param_idx = 0;
-            
-            if (m_params.size() && pgsql_stmt_bind_param(m_stmt_handle, m_metainfos.array()))
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
-
-            if (pgsql_stmt_execute(m_stmt_handle))
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
             
             if (auto_commit)
                 m_conn.trans_commit();
@@ -243,9 +225,9 @@ namespace pgsql
         //得到上一条语句执行后被影响的行数(select无效)
         uint32_t rows()
         {
-            if (!m_executed||!m_stmt_handle)
+            if (!m_executed)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql Is Not Executed!"));
-            return (uint32_t)pgsql_stmt_affected_rows(m_stmt_handle);
+            return (uint32_t)0;
         }
         //-------------------------------------------------
         //绑定过的参数数量
@@ -273,17 +255,16 @@ namespace pgsql
         void close (bool reset_only=false)
         {
             m_params.clear(reset_only);
-            if (!reset_only) 
-                m_metainfos.clear();
+            if (!reset_only)
+            {
+                m_mi_oids.clear();
+                m_mi_vals.clear();
+            }
+                
             m_executed = false;
             m_cur_param_idx = 0;
             m_sql_type = ST_UNKNOWN;
 
-            if (m_stmt_handle)
-            {//释放sql语句句柄
-                pgsql_stmt_close(m_stmt_handle);
-                m_stmt_handle = NULL;
-            }
         }
     };
 }

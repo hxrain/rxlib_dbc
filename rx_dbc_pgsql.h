@@ -11,9 +11,10 @@ namespace rx_dbc
     #include "dbc_pgsql/base.h"                             //实现一些通用功能
     #include "dbc_pgsql/conn.h"                             //实现数据库连接
     #include "dbc_pgsql/field.h"                            //实现记录字段操作对象
-    /*
+    
     #include "dbc_pgsql/param.h"                            //实现语句段绑定参数
     #include "dbc_pgsql/stmt.h"                             //实现sql语句段
+    /*
     #include "dbc_pgsql/query.h"                            //实现记录查询访问对象
 
     namespace pgsql
