@@ -55,8 +55,7 @@ namespace pgsql
         {
             const char *err = ::PQerrorMessage(handle);
             ec = conv_pg_err_code(err);
-            desc << "(DB_ERROR)<" << rx::n2s_t((uint32_t)ec) << ':';
-            desc << err << '>';
+            desc << "(DB_ERROR)<" << err << '>';
         }
         else
         {
@@ -74,8 +73,7 @@ namespace pgsql
         if (!is_empty(msg))
         {
             ec = conv_pg_err_code(msg);
-            desc << "(DB_ERROR)<" << rx::n2s_t((uint32_t)ec) << ':';
-            desc << msg << '>';
+            desc << "(DB_ERROR)<" <<  msg << '>';
         }
         else
         {
@@ -95,7 +93,7 @@ namespace pgsql
         char	            m_err_desc[MAX_BUF_SIZE];	    //错误内容
 
         //--------------------------------------------------
-        //得到dn的错误详细信息
+        //得到db的错误详细信息
         void make_db_error_info(int32_t ec, const char *msg)
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
@@ -408,6 +406,8 @@ namespace pgsql
             }
         }
         //-------------------------------------------------
+        int pg_data_type() const { return m_type_oid == NULL ? DT_UNKNOWN : *m_type_oid; }
+        //-------------------------------------------------
         //判断当前列是否为null空值
         virtual bool m_is_null() const = 0;
         //-------------------------------------------------
@@ -421,8 +421,7 @@ namespace pgsql
         //-------------------------------------------------
         data_type_t dbc_data_type() const
         {
-            if (m_is_null()|| m_type_oid==NULL) return DT_UNKNOWN;
-            switch (*m_type_oid)
+            switch (pg_data_type())
             {
             case PG_DATA_TYPE_INT2       :
             case PG_DATA_TYPE_INT4       :return DT_INT;

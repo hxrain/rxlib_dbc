@@ -24,39 +24,123 @@ namespace pgsql
         //绑定数字值
         param_t& set_long(int32_t value, bool is_signed)
         {
-            if (is_signed)
+            switch (pg_data_type())
             {
-                rx::st::itoa(value, m_buff);
-                m_set_type(PG_DATA_TYPE_INT4);
+                case PG_DATA_TYPE_DATE       :
+                case PG_DATA_TYPE_TIME       :
+                case PG_DATA_TYPE_ABSTIME    :
+                case PG_DATA_TYPE_TIMESTAMP  :
+                case PG_DATA_TYPE_TIMESTAMPTZ:
+                    throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "param(%s:%d)", m_name.c_str(),m_idx));
+                    break;
+                default                      :
+                    if (is_signed)
+                        rx::st::itoa(value, m_buff);
+                    else
+                        rx::st::ultoa(value, m_buff);
+                    break;
             }
-            else
-            {
-                rx::st::ultoa(value, m_buff);
-                m_set_type(PG_DATA_TYPE_INT8);
-            }
+
+            m_values[m_idx] = m_buff;
             return *this;
         }
         //-------------------------------------------------
         //绑定大数字与浮点数
         param_t& set_double(double value)
         {
-            rx::st::ftoa(value, m_buff);
-            m_set_type(PG_DATA_TYPE_FLOAT8);
+            switch (pg_data_type())
+            {
+                case PG_DATA_TYPE_DATE       :
+                case PG_DATA_TYPE_TIME       :
+                case PG_DATA_TYPE_ABSTIME    :
+                case PG_DATA_TYPE_TIMESTAMP  :
+                case PG_DATA_TYPE_TIMESTAMPTZ:
+                    throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "param(%s:%d)", m_name.c_str(), m_idx));
+                    break;
+                case PG_DATA_TYPE_INT2       :
+                case PG_DATA_TYPE_INT4       :
+                case PG_DATA_TYPE_INT8       :
+                case PG_DATA_TYPE_OID        :
+                    rx::st::itoa64((int64_t)value, m_buff);
+                    break;
+                case PG_DATA_TYPE_FLOAT4     :
+                case PG_DATA_TYPE_FLOAT8     :
+                case PG_DATA_TYPE_NUMERIC    :
+                case PG_DATA_TYPE_BYTEA      :
+                case PG_DATA_TYPE_CHAR       :
+                case PG_DATA_TYPE_NAME       :
+                case PG_DATA_TYPE_TEXT       :
+                case PG_DATA_TYPE_BPCHAR     :
+                case PG_DATA_TYPE_VARCHAR    :
+                default                      :
+                    rx::st::ftoa(value, m_buff);
+                    break;
+            }
+
+            m_values[m_idx] = m_buff;
             return *this;
         }
         //-------------------------------------------------
         param_t& set_longlong(int64_t value)
         {
-            rx::st::itoa64(value, m_buff);
-            m_set_type(PG_DATA_TYPE_INT8);
+            switch (pg_data_type())
+            {
+                case PG_DATA_TYPE_INT2       :
+                case PG_DATA_TYPE_INT4       :
+                case PG_DATA_TYPE_INT8       :
+                case PG_DATA_TYPE_OID        :
+                case PG_DATA_TYPE_FLOAT4     :
+                case PG_DATA_TYPE_FLOAT8     :
+                case PG_DATA_TYPE_NUMERIC    :
+                case PG_DATA_TYPE_BYTEA      :
+                case PG_DATA_TYPE_CHAR       :
+                case PG_DATA_TYPE_NAME       :
+                case PG_DATA_TYPE_TEXT       :
+                case PG_DATA_TYPE_BPCHAR     :
+                case PG_DATA_TYPE_VARCHAR    :
+                    rx::st::itoa64(value, m_buff);
+                    break;
+                case PG_DATA_TYPE_DATE       :
+                case PG_DATA_TYPE_TIME       :
+                case PG_DATA_TYPE_ABSTIME    :
+                case PG_DATA_TYPE_TIMESTAMP  :
+                case PG_DATA_TYPE_TIMESTAMPTZ:
+                default                      :
+                    throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "param(%s:%d)", m_name.c_str(), m_idx));
+            }
             return *this;
         }
         //-------------------------------------------------
         //绑定日期数据
         param_t& set_datetime(const datetime_t& value)
         {
-            value.to(m_buff);
-            m_set_type(PG_DATA_TYPE_TIMESTAMP);
+            switch (pg_data_type())
+            {
+                case PG_DATA_TYPE_INT2       :
+                case PG_DATA_TYPE_INT4       :
+                case PG_DATA_TYPE_INT8       :
+                case PG_DATA_TYPE_OID        :
+                case PG_DATA_TYPE_FLOAT4     :
+                case PG_DATA_TYPE_FLOAT8     :
+                case PG_DATA_TYPE_NUMERIC    :
+                    throw (error_info_t(DBEC_UNSUP_TYPE, __FILE__, __LINE__, "param(%s:%d)", m_name.c_str(), m_idx));
+                    break;
+                case PG_DATA_TYPE_BYTEA      :
+                case PG_DATA_TYPE_CHAR       :
+                case PG_DATA_TYPE_NAME       :
+                case PG_DATA_TYPE_TEXT       :
+                case PG_DATA_TYPE_BPCHAR     :
+                case PG_DATA_TYPE_VARCHAR    :
+                case PG_DATA_TYPE_DATE       :
+                case PG_DATA_TYPE_TIME       :
+                case PG_DATA_TYPE_ABSTIME    :
+                case PG_DATA_TYPE_TIMESTAMP  :
+                case PG_DATA_TYPE_TIMESTAMPTZ:
+                default                      :
+                    value.to(m_buff);
+                    break;
+            }
+            m_values[m_idx] = m_buff;
             return *this;
         }
         //-------------------------------------------------
@@ -64,17 +148,21 @@ namespace pgsql
         param_t& set_string(PStr value)
         {
             rx::st::strcpy2(m_buff,sizeof(m_buff),value);
-            m_set_type(PG_DATA_TYPE_TEXT);
+            m_values[m_idx] = m_buff;
             return *this;
         }
     protected:
         //-------------------------------------------------
         //给当前参数对象绑定对应的元信息
-        void bind(char **values,int idx,int *type_oid,const char* name)
+        void bind(char **values,int idx,int *type_oid,const char* name, int type)
         {
             m_values = values;
             col_base_t::bind(idx,name,type_oid);
             set_null();                                     //默认参数值为null空
+            rx_assert(m_values != NULL);
+            rx_assert(m_idx != -1);
+            rx_assert(m_type_oid != NULL);
+            *m_type_oid = type;
         }
         //-------------------------------------------------
         //绑定信息复位
@@ -83,17 +171,6 @@ namespace pgsql
             m_values = NULL;
             m_buff[0] = 0;
             col_base_t::reset();
-        }
-        //-------------------------------------------------
-        //设置绑定值的类型
-        void m_set_type(int type) 
-        { 
-            rx_assert(m_values != NULL);
-            rx_assert(m_idx != -1);
-            rx_assert(m_type_oid != NULL);
-
-            m_values[m_idx] = m_buff;                       //设置绑定参数为非空
-            *m_type_oid = type;
         }
     public:
         //-------------------------------------------------

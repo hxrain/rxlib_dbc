@@ -162,8 +162,7 @@ namespace pgsql
             param_t &p = m_params[ParamIdx];                //得到参数对象
 
             //对参数对象进行必要的初始化
-            p.bind(m_mi_vals.array(),ParamIdx,&m_mi_oids.at(ParamIdx),name);
-            p.m_set_type(pg_data_type);
+            p.bind(m_mi_vals.array(),ParamIdx,&m_mi_oids.at(ParamIdx),name, pg_data_type);
 
             if (m_params.size() == m_sp.count)
                 m_raw_stmt.prepare();                       //绑定参数够了,顺带执行真正的预解析
@@ -372,7 +371,7 @@ namespace pgsql
             if (!m_executed)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is not executed!"));
             const char *msg = ::PQcmdTuples(m_raw_stmt.res());
-            return (uint32_t)rx::st::atoul(msg);
+            return (uint32_t)rx::st::atoi(msg);
         }
         //-------------------------------------------------
         //绑定过的参数数量

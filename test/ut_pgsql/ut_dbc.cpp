@@ -15,7 +15,7 @@ using namespace rx_dbc::pgsql;
 //---------------------------------------------------------
 void ut_pgsql_base_conn_0(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn_param)
 {
-    strcpy(conn_param.host, "10.110.38.208");
+    strcpy(conn_param.host, "10.110.38.201");
     strcpy(conn_param.user, "postgres");
     strcpy(conn_param.pwd, "postgres");
     strcpy(conn_param.db, "postgres");
@@ -30,7 +30,32 @@ void ut_pgsql_base_conn_0(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
         printf("\n");
     }
 }
-
+//---------------------------------------------------------
+//参数绑定插入示例(使用stmt_t)
+inline bool ut_conn_base_insert_2(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn_param)
+{
+    char cur_time_str[20];
+    rx_iso_datetime(cur_time_str);
+    try {
+        stmt_t q(conn);
+        //预处理解析
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)");
+        //绑定单条参数
+        q(":uvID", 21)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767);
+        //执行语句
+        q.exec();
+        //提交
+        conn.trans_commit();
+        rt.tdd_assert(q.rows() == 1);
+        return true;
+    }
+    catch (error_info_t &e)
+    {
+        printf(e.c_str(conn_param));
+        printf("\n");
+        return false;
+    }
+}
 //---------------------------------------------------------
 void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn_param)
 {
@@ -58,6 +83,7 @@ void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
     }
     catch (error_info_t &e)
     {
+        conn.trans_rollback();
         printf(e.c_str(conn_param));
         printf("\n"); 
     }
@@ -71,8 +97,10 @@ rx_tdd(ut_conn_base)
 
     ut_pgsql_base_conn_0(*this, conn, conn_param);
     ut_pgsql_base_conn_1(*this, conn, conn_param);
-}
 
+    ut_conn_base_insert_2(*this, conn, conn_param);
+}
+//---------------------------------------------------------
 
 int main()
 {

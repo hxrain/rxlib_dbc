@@ -65,7 +65,7 @@ inline bool ut_conn_base_insert_1(rx_tdd_t &rt, ut_conn &dbc)
         query_t q(dbc.conn);
 
         q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)");
-        q(":uvID", 20)(":iINT", -155905152)(":uUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32769);
+        q(":uvID", 20)(":iINT", -155905152)(":uUINT",(uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767);
         q.exec();
         dbc.conn.trans_commit();
         rt.tdd_assert(q.rows() == 1);
@@ -89,7 +89,7 @@ inline bool ut_conn_base_insert_2(rx_tdd_t &rt, ut_conn &dbc)
         //预处理解析
         q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)");
         //绑定单条参数
-        q(":uvID", 21)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32769);
+        q(":uvID", 21)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767);
         //执行语句
         q.exec();
         //提交
@@ -117,7 +117,7 @@ inline bool ut_conn_base_insert_2b(rx_tdd_t &rt, ut_conn &dbc)
         //绑定参数
         q(":uvID")(":iINT")(":uUINT")(":sSTR")(":dDATE")(":iSHORT");
         //绑定数据
-        q << 24 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q << 24 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
         //执行语句
         q.exec();
         //提交
@@ -149,11 +149,11 @@ inline bool ut_conn_base_insert_2c(rx_tdd_t &rt, ut_conn &dbc)
         //绑定参数
         q(":uvID")(":iINT")(":uUINT")(":sSTR")(":dDATE")(":iSHORT");
         //绑定数据
-        q << 22 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q << 22 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
         //执行语句
         q.exec();
 
-        q << 23 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q << 23 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
         //再次执行语句
         q.exec();
         //提交
@@ -182,8 +182,8 @@ inline bool ut_conn_base_insert_3(rx_tdd_t &rt, ut_conn &dbc)
         q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)").manual_bind(2);
 #if UT_DB==DB_ORA
         //给每个块深度对应的参数进行绑定与赋值
-        q.bulk(0)(":uvID", 25)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32769);
-        q.bulk(1)(":uvID", 35)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":iSHORT", 32769);
+        q.bulk(0)(":uvID", 25)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767);
+        q.bulk(1)(":uvID", 35)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":iSHORT", 32767);
         //执行本次批量操作
         q.exec();
         rt.tdd_assert(q.rows() == 2);
@@ -191,21 +191,21 @@ inline bool ut_conn_base_insert_3(rx_tdd_t &rt, ut_conn &dbc)
         dbc.conn.trans_commit();
 
         //继续进行批量数据的绑定
-        q.bulk(0)(":uvID", 45)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32769);
+        q.bulk(0)(":uvID", 45)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767);
         //告知真正绑定的数据深度并执行操作
         q.exec(1);
         rt.tdd_assert(q.rows() == 1);
 #else
-        q(":uvID", 25)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32769).exec();
+        q(":uvID", 25)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767).exec();
         rt.tdd_assert(q.rows() == 1);
 
-        q(":uvID", 35)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":iSHORT", 32769).exec();
+        q(":uvID", 35)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "3")(":dDATE", cur_time_str)(":iSHORT", 32767).exec();
         rt.tdd_assert(q.rows() == 1);
         //先对默认事务进行提交
         dbc.conn.trans_commit();
 
         //继续进行批量数据的绑定
-        q(":uvID", 45)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32769).exec();
+        q(":uvID", 45)(":iINT", -155905152)(":uUINT", (uint32_t)2155905152u)(":sSTR", "2")(":dDATE", cur_time_str)(":iSHORT", 32767).exec();
         rt.tdd_assert(q.rows() == 1);
 
 #endif
@@ -233,7 +233,7 @@ inline bool ut_conn_base_insert_4(rx_tdd_t &rt, ut_conn &dbc)
 
         //预处理解析并进行参数的自动绑定
         q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values(:uvID,:iINT,:uUINT,:sSTR,:dDATE,:iSHORT)").auto_bind();
-        q << 26 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;   //顺序给参数进行数据赋值
+        q << 26 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;   //顺序给参数进行数据赋值
         q.exec().conn().trans_commit();                     //执行语句并提交
 
         rt.tdd_assert(q.rows() == 1);
@@ -259,27 +259,27 @@ inline bool ut_conn_base_insert_5(rx_tdd_t &rt, ut_conn &dbc)
 #if UT_DB==DB_ORA
 
         //给每个块深度对应的参数进行赋值
-        q.bulk(0) << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
-        q.bulk(1) << 37 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32769;
+        q.bulk(0) << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
+        q.bulk(1) << 37 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32767;
         q.exec().conn().trans_commit();                     //执行本次批量操作,并进行提交
         rt.tdd_assert(q.rows() == 2);
 
         //继续进行批量数据的绑定
-        q.bulk(0) << 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q.bulk(0) << 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
         q.exec(1, true);                                    //告知真正绑定的数据深度,执行并提交
         rt.tdd_assert(q.rows() == 1);
 #else
         //给每个块深度对应的参数进行赋值
-        q << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q << 27 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
         q.exec().conn().trans_commit();                     //执行本次批量操作,并进行提交
         rt.tdd_assert(q.rows() == 1);
 
-        q << 37 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32769;
+        q << 37 << -155905152 << (uint32_t)2155905152u << "3" << cur_time_str << 32767;
         q.exec().conn().trans_commit();                     //执行本次批量操作,并进行提交
         rt.tdd_assert(q.rows() == 1);
 
         //继续进行批量数据的绑定
-        q<< 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32769;
+        q<< 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
         q.exec(true);                                    //告知真正绑定的数据深度,执行并提交
         rt.tdd_assert(q.rows() == 1);
 #endif

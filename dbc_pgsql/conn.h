@@ -195,6 +195,9 @@ namespace pgsql
         void trans_commit (void)
         {
             rx_assert(m_is_valid);
+            PGTransactionStatusType ts = ::PQtransactionStatus(m_handle);
+            if (ts == PQTRANS_IDLE)
+                return;
             m_exec("commit");
         }
         //-------------------------------------------------
