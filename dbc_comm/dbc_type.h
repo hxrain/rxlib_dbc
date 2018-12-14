@@ -58,6 +58,28 @@
         DT_TEXT     = 's'                                   //文本串类型
     }data_type_t;
 
+    inline data_type_t get_data_type_by_name(const char* name)
+    {
+        if (name == NULL)
+            return DT_UNKNOWN;
+        char c = name[0];
+        if (c!=':')
+            return DT_UNKNOWN;
+        c = name[1];
+        switch (c)
+        {
+            case DT_INT  :
+            case DT_UINT :
+            case DT_LONG :
+            case DT_FLOAT:
+            case DT_DATE :
+            case DT_TEXT :
+                return (data_type_t)c;
+            default:
+                return DT_UNKNOWN;
+        }
+    }
+
     //-----------------------------------------------------
     //sql语句类型
     typedef enum sql_type_t

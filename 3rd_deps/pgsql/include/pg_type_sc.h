@@ -48,6 +48,55 @@ const int PG_DATA_TYPE_TIMESTAMP         = 1114;            //2018-12-12 02:40:3
 //DESCR("date and time with time zone");
 const int PG_DATA_TYPE_TIMESTAMPTZ       = 1184;            //2018-12-12 02:40:37.388487+00
 
+//---------------------------------------------------------
+//尝试根据pgsql中的参数类型名称转换为对应的类型oid
+inline int pg_data_type_by_name(const char* name)
+{
+    if (!name)
+        return PG_DATA_TYPE_UNKNOW;
 
+    if (rx::st::stricmp(name, "int2") == 0)
+        return PG_DATA_TYPE_INT2;
+    else if (rx::st::stricmp(name, "int4") == 0)
+        return PG_DATA_TYPE_INT4;
+    else if (rx::st::stricmp(name, "int8") == 0)
+        return PG_DATA_TYPE_INT8;
+    else if (rx::st::stricmp(name, "float4") == 0)
+        return PG_DATA_TYPE_FLOAT4;
+    else if (rx::st::stricmp(name, "float8") == 0)
+        return PG_DATA_TYPE_FLOAT8;
+    else if (rx::st::stricmp(name, "numeric") == 0)
+        return PG_DATA_TYPE_NUMERIC;
+    else if (rx::st::stricmp(name, "text") == 0)
+        return PG_DATA_TYPE_TEXT;
+    else if (rx::st::stricmp(name, "varchar") == 0)
+        return PG_DATA_TYPE_VARCHAR;
+    else if (rx::st::stricmp(name, "date") == 0)
+        return PG_DATA_TYPE_DATE;
+    else if (rx::st::stricmp(name, "time") == 0)
+        return PG_DATA_TYPE_TIME;
+    else if (rx::st::stricmp(name, "timestamp") == 0)
+        return PG_DATA_TYPE_TIMESTAMP;
+    else if (rx::st::stricmp(name, "timestamptz") == 0)
+        return PG_DATA_TYPE_TIMESTAMPTZ;
+
+    return PG_DATA_TYPE_UNKNOW;
+}
+
+//---------------------------------------------------------
+//尝试根据dbc数据类型转换为pg数据类型
+inline int pg_data_type_by_dbc(rx_dbc::data_type_t t)
+{
+    switch (t)
+    {
+        case rx_dbc::DT_INT  :return PG_DATA_TYPE_INT4;
+        case rx_dbc::DT_UINT :return PG_DATA_TYPE_INT8;
+        case rx_dbc::DT_LONG :return PG_DATA_TYPE_INT8;
+        case rx_dbc::DT_FLOAT:return PG_DATA_TYPE_FLOAT8;
+        case rx_dbc::DT_DATE :return PG_DATA_TYPE_TIMESTAMP;
+        case rx_dbc::DT_TEXT: return PG_DATA_TYPE_TEXT;
+        default:      return PG_DATA_TYPE_TEXT;
+    }
+}
 
 #endif

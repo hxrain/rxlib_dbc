@@ -3,8 +3,9 @@
 
 //---------------------------------------------------------
 #include "libpq-fe.h"                                       //引入libpq接口,默认在"3rd_deps\pgsql\include"
-#include "pg_type_sc.h"                                     //引入pqsql数据类型OID
 #include "dbc_comm/dbc_comm.h"                              //引入基础设施
+#include "pg_type_sc.h"                                     //引入pqsql数据类型OID
+
 //---------------------------------------------------------
 namespace rx_dbc
 {

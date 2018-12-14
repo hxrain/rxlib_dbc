@@ -3,7 +3,7 @@
 
     //-----------------------------------------------------
     //SQL绑定参数名字解析器
-    template<uint16_t max_param_count = 128>
+    template<uint16_t max_param_count = 64>
     class sql_param_parse_t
     {
     public:
@@ -22,14 +22,20 @@
         uint16_t    count;
 
         //-------------------------------------------------
+        void reset()
+        {
+            str = NULL;
+            count = 0;
+        }
+        //-------------------------------------------------
         sql_param_parse_t():str(NULL),count(0) {}
         //-------------------------------------------------
         //解析oracle的sql语句.绑定参数的格式为":name"
         //返回值:NULL成功;其他为语句错误点
         const char* ora_sql(const char* sql)
         {
+            reset();
             str = sql;
-            count = 0;
             memset(segs,0,sizeof(segs));
 
             if (is_empty(sql)) return NULL;
@@ -98,7 +104,9 @@
                             ++count;
                         }
                         if (c == 0)
+                        {//真正结束了
                             return NULL;
+                        }
                         break;
                     }
                     default:
@@ -109,7 +117,6 @@
                 }
 
                 c=*(++sql);                 //取下一个字符
-
             } while (1);
             return NULL;
         }
@@ -147,7 +154,7 @@
         const char* pg_sql(const char* sql)
         {
             str = sql;
-            count = 0;
+            reset();
             memset(segs, 0, sizeof(segs));
 
             if (is_empty(sql)) return NULL;
@@ -167,70 +174,71 @@
                 param_seg_t &seg = segs[count];
                 switch (c)
                 {
-                case '\'':
-                case '\"':
-                {//碰到单引号或双引号了,需要进行深度的进出匹配
-                    if (quote_deep&&quotes[quote_deep - 1] == c)
-                        --quote_deep;   //遇到引号匹配的后一个则层级降低
-                    else if (quote_deep >= 2 && quotes[quote_deep - 2] == c)
-                        quote_deep -= 2;//遇到引号包裹了
-                    else
-                        quotes[quote_deep++] = c;
+                    case '\'':
+                    case '\"':
+                    {//碰到单引号或双引号了,需要进行深度的进出匹配
+                        if (quote_deep&&quotes[quote_deep - 1] == c)
+                            --quote_deep;   //遇到引号匹配的后一个则层级降低
+                        else if (quote_deep >= 2 && quotes[quote_deep - 2] == c)
+                            quote_deep -= 2;//遇到引号包裹了
+                        else
+                            quotes[quote_deep++] = c;
 
-                    if (in_seg)
-                        return sql;     //分段处理中遇到引号了,语法错误
+                        if (in_seg)
+                            return sql;     //分段处理中遇到引号了,语法错误
 
-                    break;
-                }
-                case '$':
-                {//碰到关键字符,$,需要判断是否在引号中
-                    if (!quote_deep)
-                    {
-                        if (strchr("+-*/< >,(=%", *(sql - 1)) == NULL)
-                            return sql; //$的前面不是一个有效字符,也认为是错误
-                        in_seg = true;  //不在引号中,遇到$了,认为进入了分段处理中
-                        seg.name = sql;
-                        seg.length = 1;
+                        break;
                     }
-                    break;
-                }
-                case ',':
-                case ';':
-                case ')':
-                case '+':
-                case '-':
-                case '*':
-                case '/':
-                case '<':
-                case '>':
-                case '%':
-                case ' ':
-                case '\0':
-                {//碰到结束字符了
-                    if (in_seg)
-                    {//如果是在分段处理中,则分段结束
-                        if (seg.length < 2)
-                            return sql; //如果分段只有一个$,或者名字太短,那么也是错误的
-
-                        in_seg = false;
-                        ++count;
-                        //尝试找到pg参数名字后面附带的类型串的位置
-                        uint32_t pos = rx::st::strnchr(seg.name, seg.length, ':');
-                        if (pos != seg.length)
+                    case '$':
+                    {//碰到关键字符,$,需要判断是否在引号中
+                        if (!quote_deep)
                         {
-                            if (seg.name[pos + 1] == ':')
-                                seg.offset = pos + 2;
+                            if (strchr("+-*/< >,(=%", *(sql - 1)) == NULL)
+                                return sql; //$的前面不是一个有效字符,也认为是错误
+                            in_seg = true;  //不在引号中,遇到$了,认为进入了分段处理中
+                            seg.name = sql;
+                            seg.length = 1;
                         }
+                        break;
                     }
-                    if (c == 0)
-                        return NULL;
-                    break;
-                }
-                default:
-                {
-                    if (in_seg)
-                        ++seg.length; //如果处于分段处理中,则增加分段长度
-                }
+                    case ',':
+                    case ';':
+                    case ')':
+                    case '+':
+                    case '-':
+                    case '*':
+                    case '/':
+                    case '<':
+                    case '>':
+                    case '%':
+                    case ' ':
+                    case '\0':
+                    {//碰到结束字符了
+                        if (in_seg)
+                        {//如果是在分段处理中,则分段结束
+                            if (seg.length < 2)
+                                return sql; //如果分段只有一个$,或者名字太短,那么也是错误的
+
+                            in_seg = false;
+                            ++count;
+                            //尝试找到pg参数名字后面附带的类型串的位置
+                            uint32_t pos = rx::st::strnchr(seg.name, seg.length, ':');
+                            if (pos != seg.length)
+                            {
+                                if (seg.name[pos + 1] == ':')
+                                    seg.offset = pos + 2;
+                            }
+                        }
+                        if (c == 0)
+                            return NULL;
+                       
+                        break;
+                    }
+                    default:
+                    {
+                        if (in_seg)
+                            ++seg.length; //如果处于分段处理中,则增加分段长度
+                    }
                 }
 
                 c = *(++sql);                 //取下一个字符

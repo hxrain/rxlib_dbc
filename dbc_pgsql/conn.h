@@ -46,7 +46,7 @@ namespace pgsql
         //-------------------------------------------------
         //根据给定的sql语句判断是否应自动开启事务;不给语句时则尝试直接启动事务
         //所有此连接上执行的语句动作,都应该在真正exec前调用此方法,进行正确的隐式自动事务的开启
-        void do_auto_begin(const char* SQL)
+        void try_auto_trans(const char* SQL)
         {
             if (!is_empty(SQL))
             {//给定sql的时候,判断是否需要开启自动事务
@@ -146,7 +146,7 @@ namespace pgsql
             SQL.fmt(sql, arg);
             va_end(arg);
 
-            do_auto_begin(SQL);
+            try_auto_trans(SQL);
             m_exec(SQL);
         }
         //-------------------------------------------------
@@ -189,7 +189,7 @@ namespace pgsql
         void schema_to(const char *schema) { exec("set search_path = '%s'", schema); }
         //-------------------------------------------------
         //当前连接明确地启动事务
-        void trans_begin() { do_auto_begin(NULL); }
+        void trans_begin() { try_auto_trans(NULL); }
         //-------------------------------------------------
         //提交当前事务
         void trans_commit (void)
