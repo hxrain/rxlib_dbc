@@ -284,8 +284,7 @@ namespace pgsql
             return *this;
         }
         //-------------------------------------------------
-        //在预解析完成后,如果不进行自动绑定则可以尝试进行手动参数绑定,告知的深度值.
-        //省去了再次调用(name,data)的时候带有名字的麻烦,可以直接使用<<data进行数据的绑定
+        //在预解析完成后,可以尝试进行手动参数绑定,调整参数个数.
         stmt_t& manual_bind(uint16_t dummy=0, uint16_t params = 0)
         {
             if (m_sql_type == ST_UNKNOWN)
