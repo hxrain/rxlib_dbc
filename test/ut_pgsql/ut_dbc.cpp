@@ -34,6 +34,21 @@ void ut_pgsql_base_conn_0(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
 //参数绑定插入示例(使用stmt_t)
 inline bool ut_conn_base_insert_2(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn_param)
 {
+    rt.tdd_assert(pg_data_type_by_name("int2") == PG_DATA_TYPE_INT2);
+    rt.tdd_assert(pg_data_type_by_name("int4") == PG_DATA_TYPE_INT4);
+    rt.tdd_assert(pg_data_type_by_name("int8") == PG_DATA_TYPE_INT8);
+    rt.tdd_assert(pg_data_type_by_name("int") == PG_DATA_TYPE_INT4);
+    rt.tdd_assert(pg_data_type_by_name("float4") == PG_DATA_TYPE_FLOAT4);
+    rt.tdd_assert(pg_data_type_by_name("float8") == PG_DATA_TYPE_FLOAT8);
+    rt.tdd_assert(pg_data_type_by_name("float") == PG_DATA_TYPE_FLOAT8);
+    rt.tdd_assert(pg_data_type_by_name("numeric") == PG_DATA_TYPE_NUMERIC);
+    rt.tdd_assert(pg_data_type_by_name("text") == PG_DATA_TYPE_TEXT);
+    rt.tdd_assert(pg_data_type_by_name("varchar") == PG_DATA_TYPE_VARCHAR);
+    rt.tdd_assert(pg_data_type_by_name("date") == PG_DATA_TYPE_DATE);
+    rt.tdd_assert(pg_data_type_by_name("time") == PG_DATA_TYPE_TIME);
+    rt.tdd_assert(pg_data_type_by_name("timestamp") == PG_DATA_TYPE_TIMESTAMP);
+    rt.tdd_assert(pg_data_type_by_name("timestamptz") == PG_DATA_TYPE_TIMESTAMPTZ);
+
     char cur_time_str[20];
     rx_iso_datetime(cur_time_str);
     try {
@@ -47,10 +62,20 @@ inline bool ut_conn_base_insert_2(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param
         //提交
         conn.trans_commit();
         rt.tdd_assert(q.rows() == 1);
+
+        q.prepare("insert into tmp_dbc(id,intn,uint,str,mdate,short) values($1::int,$2::int,$3::int8,$4::text,$5::timestamp,$6::int2)");
+        //绑定单条参数
+        q("$1::int", 22)("$2::int", -155905152)("$3::int8", (uint32_t)2155905152u)("$4::text", "2")("$5::timestamp", cur_time_str)("$6::int2", 32767);
+        //执行语句
+        q.exec();
+        //提交
+        conn.trans_commit();
+        rt.tdd_assert(q.rows() == 1);
         return true;
     }
     catch (error_info_t &e)
     {
+        conn.trans_rollback();
         printf(e.c_str(conn_param));
         printf("\n");
         return false;

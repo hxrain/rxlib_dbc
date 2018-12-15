@@ -55,32 +55,26 @@ inline int pg_data_type_by_name(const char* name)
     if (!name)
         return PG_DATA_TYPE_UNKNOW;
 
-    if (rx::st::stricmp(name, "int2") == 0)
-        return PG_DATA_TYPE_INT2;
-    else if (rx::st::stricmp(name, "int4") == 0)
-        return PG_DATA_TYPE_INT4;
-    else if (rx::st::stricmp(name, "int8") == 0)
-        return PG_DATA_TYPE_INT8;
-    else if (rx::st::stricmp(name, "float4") == 0)
-        return PG_DATA_TYPE_FLOAT4;
-    else if (rx::st::stricmp(name, "float8") == 0)
-        return PG_DATA_TYPE_FLOAT8;
-    else if (rx::st::stricmp(name, "numeric") == 0)
-        return PG_DATA_TYPE_NUMERIC;
-    else if (rx::st::stricmp(name, "text") == 0)
-        return PG_DATA_TYPE_TEXT;
-    else if (rx::st::stricmp(name, "varchar") == 0)
-        return PG_DATA_TYPE_VARCHAR;
-    else if (rx::st::stricmp(name, "date") == 0)
-        return PG_DATA_TYPE_DATE;
-    else if (rx::st::stricmp(name, "time") == 0)
-        return PG_DATA_TYPE_TIME;
-    else if (rx::st::stricmp(name, "timestamp") == 0)
-        return PG_DATA_TYPE_TIMESTAMP;
-    else if (rx::st::stricmp(name, "timestamptz") == 0)
-        return PG_DATA_TYPE_TIMESTAMPTZ;
-
-    return PG_DATA_TYPE_UNKNOW;
+    switch ((*(uint32_t*)name))
+    {
+        case 0x32746e69:return PG_DATA_TYPE_INT2;           //int2
+        case 0x00746e69:                         
+        case 0x34746e69:return PG_DATA_TYPE_INT4;           //int,int4
+        case 0x38746e69:return PG_DATA_TYPE_INT8;           //int8
+        case 0x616f6c66:return name[5] == '4' ? PG_DATA_TYPE_FLOAT4 : PG_DATA_TYPE_FLOAT8;//float4,float8,float
+        case 0x656d756e:return PG_DATA_TYPE_NUMERIC;        //numeric
+        case 0x74786574:return PG_DATA_TYPE_TEXT;           //text
+        case 0x63726176:return PG_DATA_TYPE_VARCHAR;        //varchar
+        case 0x65746164:return PG_DATA_TYPE_DATE;           //date
+        case 0x656d6974:
+            if (name[4] == 0) 
+                        return PG_DATA_TYPE_TIME;           //time
+            else if (name[9] == 0) 
+                        return PG_DATA_TYPE_TIMESTAMP;      //timestamp
+            else 
+                        return PG_DATA_TYPE_TIMESTAMPTZ;    //timestamptz
+        default:        return PG_DATA_TYPE_UNKNOW;
+    }
 }
 
 //---------------------------------------------------------
