@@ -15,7 +15,6 @@ namespace rx_dbc
     
     #include "dbc_pgsql/param.h"                            //实现语句段绑定参数
     #include "dbc_pgsql/stmt.h"                             //实现sql语句段
-    /*
     #include "dbc_pgsql/query.h"                            //实现记录查询访问对象
 
     namespace pgsql
@@ -36,7 +35,6 @@ namespace rx_dbc
             typedef query_t         query_t;
         };
     }
-    */
 }
 
 #endif

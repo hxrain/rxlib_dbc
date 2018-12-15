@@ -62,23 +62,23 @@ namespace pgsql
                 if (!parent.m_SQL.size())
                     throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is empty!"));
 
-                rx::string_alias4x8(parent.m_SQL.c_str(), m_pre_name);  //自动生成sql语句对应的别名
+                //rx::string_alias4x8(parent.m_SQL.c_str(), m_pre_name);  //自动生成sql语句对应的别名
 
                 //发送解析请求
                 m_res = ::PQprepare(parent.m_conn.m_handle, m_pre_name, parent.m_SQL.c_str(), parent.m_params.size(), (Oid*)parent.m_mi_oids.array());
-                m_check_error();
+                //m_check_error();
             }
             //----------------------------------------------
             //预解析后执行动作,将参数对应的数据发送给服务器,得到执行结果
             void prepare_exec(bool auto_commit)
             {
                 reset();
-                if (is_empty(m_pre_name))
-                    throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is not prepared!"));
-                if (auto_commit)                            //如果要求自动提交,就不要尝试进行自动事务
-                    parent.m_conn.try_auto_trans(parent.m_SQL.c_str());
+                //if (is_empty(m_pre_name))
+                //    throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is not prepared!"));
                 m_res = ::PQexecPrepared(parent.m_conn.m_handle, m_pre_name, parent.m_params.size(), parent.m_mi_vals.array(), NULL, NULL, 0);
                 m_check_error();
+                if (auto_commit)
+                    parent.m_conn.trans_commit();
             }
             //----------------------------------------------
             //不进行预解析,直接将参数数据和sql语句发送给服务器,得到执行结果
@@ -87,10 +87,10 @@ namespace pgsql
                 reset(true);
                 if (!parent.m_SQL.size())
                     throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is empty!"));
-                if (auto_commit)                            //如果要求自动提交,就不要尝试进行自动事务
-                    parent.m_conn.try_auto_trans(parent.m_SQL.c_str());
                 m_res = ::PQexecParams(parent.m_conn.m_handle, parent.m_SQL.c_str(), parent.m_params.size(), (Oid*)parent.m_mi_oids.array(), parent.m_mi_vals.array(), NULL, NULL, 0);
                 m_check_error();
+                if (auto_commit)
+                    parent.m_conn.trans_commit();
             }
             //----------------------------------------------
             //尝试释放之前执行的结果
@@ -188,10 +188,7 @@ namespace pgsql
         }
     public:
         //-------------------------------------------------
-        stmt_t(conn_t &conn):m_conn(conn), m_params(conn.m_mem), m_raw_stmt(this)
-        {
-            close();
-        }
+        stmt_t(conn_t &conn) :m_conn(conn), m_params(conn.m_mem), m_raw_stmt(this) { close(); }
         //-------------------------------------------------
         conn_t& conn()const { return m_conn; }
         //-------------------------------------------------
@@ -296,8 +293,11 @@ namespace pgsql
             if (params > m_sp.count)
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql manual bind params error!"));
 
-            m_param_make(params);                           //尝试进行参数数组的生成
-            m_sp.count = params;                            //修正参数数量
+            if (params)
+            {//与oci的批量模式兼容处理,如果确实给出了参数数量则进行调整
+                m_param_make(params);                           //尝试进行参数数组的生成
+                m_sp.count = params;                            //修正参数数量
+            }
 
             return *this;
         }
@@ -346,21 +346,28 @@ namespace pgsql
         stmt_t& exec (const char *sql,...)
         {
             rx_assert(!is_empty(sql));
-            //清理之前的状态
-            close(true);
 
             va_list	arg;
             va_start(arg, sql);
+            exec(sql,arg);
+            va_end(arg);
+            return *this;
+        }
+        stmt_t& exec(const char *sql, va_list arg)
+        {
+            rx_assert(!is_empty(sql));
+            //清理之前的状态
+            close(true);
+
             //将待执行语句放入备份缓冲区
             bool rc = m_SQL_BAK.fmt(sql, arg);
-            va_end(arg);
             if (!rc)
                 throw (error_info_t(DBEC_NO_BUFFER, __FILE__, __LINE__, sql));
 
             m_SQL = m_SQL_BAK;
 
             m_raw_stmt.params_exec(true);
-            
+
             return *this;
         }
         //-------------------------------------------------

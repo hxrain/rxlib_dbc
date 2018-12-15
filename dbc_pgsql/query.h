@@ -9,10 +9,10 @@ namespace pgsql
     class query_t:public stmt_t
     {
         friend class field_t;
-
+        const uint16_t NOT_BAT_FETCH = 0xFFFF;
         typedef rx::alias_array_t<field_t, FIELD_NAME_LENGTH> field_array_t;
         field_array_t           m_fields;                   //字段数组
-        uint16_t		        m_fetch_bat_size;	        //每批次获取的记录数量
+        uint16_t		        m_fetch_bat_size;	        //每批次获取的记录数量,-1时不分批获取全部结果集.
         uint32_t		        m_fetched_count;	        //已经获取过的记录数量
         uint32_t                m_cur_field_idx;            //提取字段的时候用于顺序处理的序号
         bool    	            m_is_eof;			        //当前记录集是否已经完全获取完成
@@ -38,83 +38,54 @@ namespace pgsql
         uint32_t m_make_fields ()
         {
             m_clear(true);                                  //状态归零,先不释放字段数组
-            rx_assert(m_stmt_handle != NULL);
+            rx_assert(m_raw_stmt.res() != NULL);
             
-            uint32_t count = pgsql_stmt_field_count(m_stmt_handle);
-            if (!count)
-                return 0;                                   //获取结果集字段数量
-
-            //生成字段对象数组与元信息数组
-            if (!m_fields.make(count,true)||!m_metainfos.make(count, true))
-                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
-
-            //获取字段信息
-            pgsql_RES *cols = pgsql_stmt_result_metadata(m_stmt_handle);
-            if (!cols)
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
-
-            //绑定字段对象与元信息
-            rx_assert(cols->field_count == count);
-            for (uint32_t i = 0; i < count; ++i)
+            uint32_t fields = ::PQnfields(m_raw_stmt.res());
+            uint32_t rows = ::PQntuples(m_raw_stmt.res());
+            if ( rows == 0|| fields == 0)                   //没有结果,直接返回
             {
-                pgsql_BIND  &mi = m_metainfos.at(i);        //字段绑定的元信息
-                pgsql_FIELD &mf = cols->fields[i];          //字段元信息
-                
-                char Tmp[200];
-                rx::st::strlwr(mf.name, Tmp);
-
-                m_fields.bind(i, Tmp);                      //进行字段对象的名字绑定
-
-                field_t &col = m_fields[i];                 //得到字段对象
-                col.make(mf.name, &m_metainfos.at(i));      //字段对象初始化
-                mi.is_unsigned = (mf.flags&NUM_FLAG) && (mf.flags&UNSIGNED_FLAG);
-                mi.buffer_type = mf.type;                   //修正字段绑定元信息中的字段类型
+                m_is_eof = true;
+                return 0;
             }
 
-            pgsql_free_result(cols);                        //释放pgsql_stmt_result_metadata返回的结果集元信息
+            //生成字段对象数组与元信息数组
+            if (!m_fields.make(fields,true))
+                throw (error_info_t(DBEC_NO_MEMORY, __FILE__, __LINE__, m_SQL));
 
-            //绑定元信息数组
-            if (pgsql_stmt_bind_result(m_stmt_handle, m_metainfos.array()))
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
+            //绑定字段对象与元信息
+            for (uint32_t i = 0; i < fields; ++i)
+            {
+                char Tmp[200];
+                rx::st::strlwr(::PQfname(m_raw_stmt.res(), i), Tmp);
+                m_fields.bind(i, Tmp);                      //给字段绑定别名
 
-            //设置预取数量
-            uint32_t v = m_fetch_bat_size;
-            if (pgsql_stmt_attr_set(m_stmt_handle, STMT_ATTR_PREFETCH_ROWS,&v))
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
+                field_t &col = m_fields[i];
+                col.bind(m_raw_stmt.res(), i, Tmp);         //给字段绑定结果集元信息
+            }
 
-            return count;
+            return fields;
         }
 
         //-------------------------------------------------
         //批量提取记录,等待访问
         void m_bat_fetch (void)
         {
-            rx_assert(m_stmt_handle != NULL);
-            int rc = pgsql_stmt_fetch(m_stmt_handle);
-            switch (rc)
-            {
-            case 0:
-                ++m_fetched_count; 
-                m_cur_field_idx = 0;
-                return;
-            case pgsql_NO_DATA:
-                m_is_eof = true; 
-                break;
-            case pgsql_DATA_TRUNCATED:
-                //需要处理,看哪个字段的数据被截断了
-                for (uint32_t i = 0; i < m_fields.size(); ++i)
+            rx_assert(m_raw_stmt.res() != NULL);
+            rx_assert(!m_is_eof);
+            if (m_fetch_bat_size == NOT_BAT_FETCH)
+            {//未分批提取模式
+                if ((int)m_fetched_count < ::PQntuples(m_raw_stmt.res()))
                 {
-                    pgsql_BIND &mi = m_metainfos.at(i);
-                    field_t &field = m_fields[i];
-                    rx_assert_msg(mi.error_value == 0, field.name());
+                    for (uint32_t i = 0; i < m_fields.size(); ++i)
+                        m_fields[i].adj_row_idx(m_fetched_count);
+                    ++m_fetched_count;
                 }
-                    
-                ++m_fetched_count;
-                m_cur_field_idx = 0;
-                return;
-            case 1:
-            default:
-                throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
+                else
+                    m_is_eof = true;
+            }
+            else
+            {//分批提取模式
+
             }
         }
         //-------------------------------------------------
@@ -140,7 +111,7 @@ namespace pgsql
 
     public:
         //-------------------------------------------------
-        query_t(conn_t &Conn) :stmt_t(Conn), m_fields(Conn.m_mem) { m_clear(); set_fetch_bats(); }
+        query_t(conn_t &Conn) :stmt_t(Conn), m_fields(Conn.m_mem) { m_clear(); set_fetch_bats(NOT_BAT_FETCH); }
         ~query_t (){close();}
         //-------------------------------------------------
         //设置结果集批量提取数
@@ -159,8 +130,10 @@ namespace pgsql
         //直接执行一条sql语句,中间没有绑定参数的机会了
         query_t& exec(const char *sql, va_list arg)
         {
-            prepare(sql,arg);
-            return exec();
+            stmt_t::exec(sql, arg);
+            if (m_make_fields())
+                m_bat_fetch();
+            return *this;
         }
         //-------------------------------------------------
         //直接执行一条sql语句,中间没有绑定参数的机会了

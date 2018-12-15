@@ -15,9 +15,8 @@ namespace pgsql
     {
         const char *charset;
         const char *language;
-        bool        disable_auto_commit;
 
-        env_option_t() { use_english(); disable_auto_commit = true; }
+        env_option_t() { use_english(); }
         void use_chinese()
         {//中文环境,字符串中可以是直接的gbk字符集
             charset = "GBK";
@@ -99,7 +98,7 @@ namespace pgsql
         {
             rx::tiny_string_t<> desc(sizeof(m_err_desc), m_err_desc);
             desc << "pgsql::" << msg;
-            m_dbc_ec = DBEC_DB;
+            m_dbc_ec = ec;                                  //pg的伪错误码与dbc保持一致
             m_pg_ec = ec;
             desc.repleace('\n', ';');
         }

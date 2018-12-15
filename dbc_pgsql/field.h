@@ -36,12 +36,13 @@ namespace pgsql
     protected:
         //-------------------------------------------------
         //绑定当前字段到一个确切的结果集上
-        void bind(PGresult *res, int idx)
+        void bind(PGresult *res, int idx,const char* name)
         {
             m_cur_row = 0;
             m_pg_res = res;
             m_type_oid = ::PQftype(m_pg_res, idx);
-            col_base_t::bind(idx, ::PQfname(m_pg_res, idx),&m_type_oid);
+
+            col_base_t::bind(idx, name,&m_type_oid);
         }
         //-------------------------------------------------
         //调整当前操作的结果集行索引

@@ -99,11 +99,27 @@
             strcpy(conn_param.db, "oradb");
             conn_param.port = 1521;
 #elif UT_DB==DB_PGSQL
-            strcpy(conn_param.host, "10.110.38.208");
-            strcpy(conn_param.user, "postgresql");
-            strcpy(conn_param.pwd, "postgresql");
-            strcpy(conn_param.db, "mydb");
+            strcpy(conn_param.host, "10.110.38.201");
+            strcpy(conn_param.user, "postgres");
+            strcpy(conn_param.pwd, "postgres");
+            strcpy(conn_param.db, "postgres");
             conn_param.port = 5432;
+
+            rx_assert(pg_data_type_by_name("int2") == PG_DATA_TYPE_INT2);
+            rx_assert(pg_data_type_by_name("int4") == PG_DATA_TYPE_INT4);
+            rx_assert(pg_data_type_by_name("int8") == PG_DATA_TYPE_INT8);
+            rx_assert(pg_data_type_by_name("int") == PG_DATA_TYPE_INT4);
+            rx_assert(pg_data_type_by_name("float4") == PG_DATA_TYPE_FLOAT4);
+            rx_assert(pg_data_type_by_name("float8") == PG_DATA_TYPE_FLOAT8);
+            rx_assert(pg_data_type_by_name("float") == PG_DATA_TYPE_FLOAT8);
+            rx_assert(pg_data_type_by_name("numeric") == PG_DATA_TYPE_NUMERIC);
+            rx_assert(pg_data_type_by_name("text") == PG_DATA_TYPE_TEXT);
+            rx_assert(pg_data_type_by_name("varchar") == PG_DATA_TYPE_VARCHAR);
+            rx_assert(pg_data_type_by_name("date") == PG_DATA_TYPE_DATE);
+            rx_assert(pg_data_type_by_name("time") == PG_DATA_TYPE_TIME);
+            rx_assert(pg_data_type_by_name("timestamp") == PG_DATA_TYPE_TIMESTAMP);
+            rx_assert(pg_data_type_by_name("timestamptz") == PG_DATA_TYPE_TIMESTAMPTZ);
+
 #elif UT_DB==DB_MYSQL
             strcpy(conn_param.host, "20.0.3.130");
             strcpy(conn_param.user, "root");

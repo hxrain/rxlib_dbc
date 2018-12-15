@@ -17,7 +17,6 @@ namespace pgsql
         rx::mem_allotter_i &m_mem;                          //内存分配器
         bool		        m_is_valid;
         PGconn             *m_handle;
-        bool                m_disable_auto_commit;          //是否需要手动发出begin指令,禁止自动提交(开启隐式自动事务)
         conn_t(const conn_t&);
         conn_t& operator = (const conn_t&);
 
@@ -46,15 +45,11 @@ namespace pgsql
         //-------------------------------------------------
         //根据给定的sql语句判断是否应自动开启事务;不给语句时则尝试直接启动事务
         //所有此连接上执行的语句动作,都应该在真正exec前调用此方法,进行正确的隐式自动事务的开启
-        void try_auto_trans(const char* SQL)
+        void m_tran_begin(const char* SQL)
         {
             if (!is_empty(SQL))
-            {//给定sql的时候
-                if (!m_disable_auto_commit)
-                    return;                                 //如果未禁用自动提交,则不需开启事务
-
-                sql_type_t st = get_sql_type(SQL);
-                switch (st)
+            {//给定sql的时候,可以判断类别
+                switch (get_sql_type(SQL))
                 {//根据sql类型,排除掉无需事务的语句
                     //case ST_DECLARE:
                     case ST_SELECT:
@@ -80,7 +75,6 @@ namespace pgsql
         conn_t(rx::mem_allotter_i& ma = rx_global_mem_allotter()):m_mem(ma), m_handle(NULL)
         {
             m_is_valid = false;
-            m_disable_auto_commit = false;
         }
         ~conn_t (){close();}
         //-------------------------------------------------
@@ -114,9 +108,6 @@ namespace pgsql
             //默认日期格式化函数的格式
             try { exec("SET DateStyle='ISO,YMD'"); } catch (...) {}
 
-            //记录是否禁用自动提交
-            m_disable_auto_commit = op.disable_auto_commit;
-
             m_is_valid = true;
             return 0;
         }
@@ -129,7 +120,6 @@ namespace pgsql
                 ::PQfinish(m_handle);
                 m_handle = NULL;
                 m_is_valid = false;
-                m_disable_auto_commit = false;
                 return true;
             }
             return false;
@@ -145,8 +135,6 @@ namespace pgsql
             va_start(arg,sql);
             SQL.fmt(sql, arg);
             va_end(arg);
-
-            try_auto_trans(SQL);
             m_exec(SQL);
         }
         //-------------------------------------------------
@@ -189,7 +177,7 @@ namespace pgsql
         void schema_to(const char *schema) { exec("set search_path = '%s'", schema); }
         //-------------------------------------------------
         //当前连接明确地启动事务
-        void trans_begin() { try_auto_trans(NULL); }
+        void trans_begin() { m_tran_begin(NULL); }
         //-------------------------------------------------
         //提交当前事务
         void trans_commit (void)
