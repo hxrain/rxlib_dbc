@@ -228,7 +228,7 @@ namespace pgsql
             m_sql_type = get_sql_type(m_SQL);
 
             if (m_sp.count)
-                m_param_make(m_sp.count);                   //有待绑定参数,进行参数对象数组的分配
+                m_param_make(m_sp.count);                   //有待绑定参数,进行参数对象数组的分配,之后在绑定参数类型的时候最终指向真正的预解析.
             else
                 m_raw_stmt.prepare();                       //没有待绑定参数,直接进行预解析
 
@@ -278,7 +278,7 @@ namespace pgsql
                     pg_data_type = pg_data_type_by_name(s.name+s.offset);
                 }
                     
-                m_param_bind(name, pg_data_type);           //绑定参数的方法内部会尝试进行自动预解析处理
+                m_param_bind(name, pg_data_type);           //绑定参数的类型,内部会尝试进行自动预解析处理
             }
 
             return *this;
@@ -297,12 +297,12 @@ namespace pgsql
                 throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql manual bind params error!"));
 
             m_param_make(params);                           //尝试进行参数数组的生成
-            m_sp.count = params;                            //记录真正手动告知的参数数量
+            m_sp.count = params;                            //修正参数数量
 
             return *this;
         }
         //-------------------------------------------------
-        //对指定参数的绑定与当前深度的数据赋值同时进行,便于应用层操作
+        //对指定参数的类型绑定与数据赋值同时进行,便于应用操作
         template<class DT>
         stmt_t& operator()(const char* name, const DT& data)
         {
@@ -318,7 +318,7 @@ namespace pgsql
             return *this;
         }
         //-------------------------------------------------
-        //手动或自动参数绑定之后,可以进行参数数据的设置
+        //手动或自动参数绑定之后,可以进行参数数据的赋值
         template<class DT>
         stmt_t& operator<<(const DT& data)
         {
@@ -359,7 +359,7 @@ namespace pgsql
 
             m_SQL = m_SQL_BAK;
 
-            m_raw_stmt.params_exec(false);
+            m_raw_stmt.params_exec(true);
             
             return *this;
         }

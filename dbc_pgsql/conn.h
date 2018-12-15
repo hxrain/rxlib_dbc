@@ -17,7 +17,7 @@ namespace pgsql
         rx::mem_allotter_i &m_mem;                          //内存分配器
         bool		        m_is_valid;
         PGconn             *m_handle;
-        bool                m_auto_trans;                   //是否需要手动发出begin指令,完成非自动提交(开启隐式自动事务)的模式(pg9.5之后需要)
+        bool                m_disable_auto_commit;          //是否需要手动发出begin指令,禁止自动提交(开启隐式自动事务)
         conn_t(const conn_t&);
         conn_t& operator = (const conn_t&);
 
@@ -49,20 +49,20 @@ namespace pgsql
         void try_auto_trans(const char* SQL)
         {
             if (!is_empty(SQL))
-            {//给定sql的时候,判断是否需要开启自动事务
-                if (!m_auto_trans)
-                    return;
+            {//给定sql的时候
+                if (!m_disable_auto_commit)
+                    return;                                 //如果未禁用自动提交,则不需开启事务
 
                 sql_type_t st = get_sql_type(SQL);
                 switch (st)
-                {
-                case ST_UNKNOWN:
-                case ST_DECLARE:
-                case ST_SELECT:
-                case ST_SET:
-                    return;
-                case ST_BEGIN:                              //执行顺序错误,外面不应再有其他启动事务的方法
-                    throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
+                {//根据sql类型,排除掉无需事务的语句
+                    //case ST_DECLARE:
+                    case ST_SELECT:
+                    case ST_UNKNOWN:
+                    case ST_SET:
+                    case ST_BEGIN:
+                    case ST_FETCH:
+                        return;
                 }
             }
 
@@ -80,7 +80,7 @@ namespace pgsql
         conn_t(rx::mem_allotter_i& ma = rx_global_mem_allotter()):m_mem(ma), m_handle(NULL)
         {
             m_is_valid = false;
-            m_auto_trans = false;
+            m_disable_auto_commit = false;
         }
         ~conn_t (){close();}
         //-------------------------------------------------
@@ -114,8 +114,8 @@ namespace pgsql
             //默认日期格式化函数的格式
             try { exec("SET DateStyle='ISO,YMD'"); } catch (...) {}
 
-            //与ora模式一致,默认不进行自动提交,需要明确的手动提交.(pgsql 9.5之后废弃了此特性)
-            try { exec("SET AUTOCOMMIT = OFF"); } catch (...) { m_auto_trans = true; }
+            //记录是否禁用自动提交
+            m_disable_auto_commit = op.disable_auto_commit;
 
             m_is_valid = true;
             return 0;
@@ -129,7 +129,7 @@ namespace pgsql
                 ::PQfinish(m_handle);
                 m_handle = NULL;
                 m_is_valid = false;
-                m_auto_trans = false;
+                m_disable_auto_commit = false;
                 return true;
             }
             return false;
@@ -195,8 +195,7 @@ namespace pgsql
         void trans_commit (void)
         {
             rx_assert(m_is_valid);
-            PGTransactionStatusType ts = ::PQtransactionStatus(m_handle);
-            if (ts == PQTRANS_IDLE)
+            if (::PQtransactionStatus(m_handle) == PQTRANS_IDLE)
                 return;
             m_exec("commit");
         }
@@ -205,20 +204,21 @@ namespace pgsql
         //返回值:操作结果(回滚本身出错时不再抛出异常)
         bool trans_rollback (int32_t *ec=NULL)
         {
-            bool rc;
-            try { m_exec("rollback"); rc=true; }
-            catch (error_info_t &e) { e.c_str(); rc=false; }
-            return rc;
+            if (::PQtransactionStatus(m_handle) == PQTRANS_IDLE)
+                return true;
+
+            try { m_exec("rollback"); return true; }
+            catch (error_info_t &e) { e.c_str(); return false; }
         }
         //-------------------------------------------------
         //进行服务器ping检查,真实的判断连接是否有效(不会抛出异常)
         bool ping()
         {
-            try { exec("set session tmp.rx_dbc_pgsql_ping_test = 1"); return true; }
+            try { exec("set session _tmp_._ping_ = 1"); return true; }
             catch (error_info_t &e) { e.c_str(); return false; }
         }
         //-------------------------------------------------
-        //获取最后的oci错误号ec,与对应的错误描述
+        //获取最后的dbc错误号ec,与对应的错误描述
         //返回值:操作结果(出错时不再抛出异常)
         bool get_last_error(int32_t &ec,char *buff,uint32_t max_size)
         {

@@ -73,6 +73,7 @@ inline bool ut_conn_base_insert_1(rx_tdd_t &rt, ut_conn &dbc)
     }
     catch (error_info_t &e)
     {
+        dbc.conn.trans_rollback();
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;
@@ -99,6 +100,7 @@ inline bool ut_conn_base_insert_2(rx_tdd_t &rt, ut_conn &dbc)
     }
     catch (error_info_t &e)
     {
+        dbc.conn.trans_rollback();
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;
@@ -127,6 +129,7 @@ inline bool ut_conn_base_insert_2b(rx_tdd_t &rt, ut_conn &dbc)
     }
     catch (error_info_t &e)
     {
+        dbc.conn.trans_rollback();
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;
@@ -215,6 +218,7 @@ inline bool ut_conn_base_insert_3(rx_tdd_t &rt, ut_conn &dbc)
     }
     catch (error_info_t &e)
     {
+        dbc.conn.trans_rollback();
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;
@@ -241,6 +245,7 @@ inline bool ut_conn_base_insert_4(rx_tdd_t &rt, ut_conn &dbc)
     }
     catch (error_info_t &e)
     {
+        dbc.conn.trans_rollback();
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;
@@ -287,6 +292,7 @@ inline bool ut_conn_base_insert_5(rx_tdd_t &rt, ut_conn &dbc)
     }
     catch (error_info_t &e)
     {
+        dbc.conn.trans_rollback();
         printf(e.c_str(dbc.conn_param));
         printf("\n");
         return false;

@@ -309,6 +309,7 @@
         case 0x45544c41:return ST_ALTER;
         case 0x49474542:return ST_BEGIN;
         case 0x20544553:return ST_SET;
+        case 0x43544546:return ST_FETCH;
         default:return ST_UNKNOWN;
         }
     }

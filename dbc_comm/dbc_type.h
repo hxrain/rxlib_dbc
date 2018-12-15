@@ -94,7 +94,8 @@
         ST_ALTER    ,
         ST_BEGIN    ,
         ST_DECLARE  ,
-        ST_SET
+        ST_SET      ,
+        ST_FETCH
     }sql_type_t;
     
     //-----------------------------------------------------
