@@ -66,7 +66,7 @@ namespace pgsql
 
                 //发送解析请求
                 m_res = ::PQprepare(parent.m_conn.m_handle, m_pre_name, parent.m_SQL.c_str(), parent.m_params.size(), (Oid*)parent.m_mi_oids.array());
-                //m_check_error();
+                m_check_error();
             }
             //----------------------------------------------
             //预解析后执行动作,将参数对应的数据发送给服务器,得到执行结果
