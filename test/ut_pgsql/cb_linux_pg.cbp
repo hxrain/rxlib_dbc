@@ -31,8 +31,12 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
+			<Add option="-DUT_DB=DB_PGSQL" />
+			<Add directory="../../3rd_deps/pgsql/include" />
+			<Add directory="../../../rxdbc" />
+			<Add directory="../../../rxlib" />
 		</Compiler>
-		<Unit filename="main.cpp" />
+		<Unit filename="ut_dbc.cpp" />
 		<Extensions>
 			<envvars />
 			<code_completion />
