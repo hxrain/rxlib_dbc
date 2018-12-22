@@ -58,6 +58,8 @@ namespace pgsql
                     case ST_BEGIN:
                     case ST_FETCH:
                         return;
+                    default:
+                        break;
                 }
             }
 
@@ -86,7 +88,7 @@ namespace pgsql
         {
             if (is_empty(dst.host) || is_empty(dst.user) || is_empty(dst.db))
                 throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
-                
+
             //每次连接前都先尝试关闭之前的连接
             close();
             char conn_uri[1024];
@@ -138,7 +140,7 @@ namespace pgsql
             m_exec(SQL);
         }
         //-------------------------------------------------
-        //执行一条语句
+        /*//执行一条语句
         void tmp_exec(const char *sql)
         {
             if (!m_handle)                                  //执行顺序错误,连接尚未建立
@@ -171,7 +173,7 @@ namespace pgsql
             }
 
             ::PQclear(res);                                 //正常执行完成后也必须清理执行结果对象
-        }        
+        }*/
         //-------------------------------------------------
         //切换到指定的用户专属库
         void schema_to(const char *schema) { exec("set search_path = '%s'", schema); }

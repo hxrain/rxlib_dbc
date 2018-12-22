@@ -132,7 +132,7 @@ namespace ora
             desc << "OCI::" << msg;
             m_dbc_ec = DBEC_DB;
             m_ora_ec = ec;
-            desc.repleace('\n','.');
+            desc.replace('\n','.');
             //进行OCI错误细分,映射到DBEC错误码
             switch (m_ora_ec)
             {
@@ -546,8 +546,8 @@ namespace ora
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_long(int64_t DefValue = 0) const 
-        { 
+        int64_t as_long(int64_t DefValue = 0) const
+        {
             ub2 idx = bulk_row_idx();
             if (m_is_null(idx)) return DefValue;
             return comm_as_int<int64_t>(get_data_buff(idx));

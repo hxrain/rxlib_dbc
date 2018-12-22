@@ -23,15 +23,15 @@ namespace rx_dbc
         class type_t
         {
         public:
-            typedef env_option_t    env_option_t;
-            typedef error_info_t    error_info_t;
-            typedef datetime_t      datetime_t;
+            typedef mysql::env_option_t    env_option_t;
+            typedef mysql::error_info_t    error_info_t;
+            typedef mysql::datetime_t       datetime_t;
 
-            typedef conn_t          conn_t;
-            typedef param_t         param_t;
-            typedef stmt_t          stmt_t;
-            typedef field_t         field_t;
-            typedef query_t         query_t;
+            typedef mysql::conn_t           conn_t;
+            typedef mysql::param_t          param_t;
+            typedef mysql::stmt_t           stmt_t;
+            typedef mysql::field_t          field_t;
+            typedef mysql::query_t          query_t;
         };
     }
 }

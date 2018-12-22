@@ -5,6 +5,7 @@
 
 #define DB_ORA      1
 #define DB_MYSQL    2
+#define DB_PGSQL    3
 
 #ifndef UT_DB
     #define UT_DB DB_ORA

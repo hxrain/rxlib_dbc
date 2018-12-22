@@ -71,7 +71,7 @@ inline bool ut_conn_base_insert_2(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param
 void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn_param)
 {
     try {
-        conn.tmp_exec("SELECT  NOW()::date,NOW()::time,NOW()::abstime,NOW()::timestamp,NOW()::timestamptz");
+        //conn.tmp_exec("SELECT  NOW()::date,NOW()::time,NOW()::abstime,NOW()::timestamp,NOW()::timestamptz");
         rt.tdd_assert(conn.ping());
         conn.exec("insert into tmp_dbc(id,intn) values(3,0)");
     }
@@ -96,7 +96,7 @@ void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
     {
         conn.trans_rollback();
         printf(e.c_str(conn_param));
-        printf("\n"); 
+        printf("\n");
     }
 }
 

@@ -2,12 +2,12 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="cb_win_pg" />
+		<Option title="cb_linux_ora" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="Debug">
-				<Option output="out/cb_win_pgsql" prefix_auto="1" extension_auto="1" />
+				<Option output="out/cb_linux_ora" prefix_auto="1" extension_auto="1" />
 				<Option object_output="out/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -16,7 +16,7 @@
 				</Compiler>
 			</Target>
 			<Target title="Release">
-				<Option output="out/cb_win_pgsql" prefix_auto="1" extension_auto="1" />
+				<Option output="out/cb_linux_ora" prefix_auto="1" extension_auto="1" />
 				<Option object_output="out/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -31,20 +31,14 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
-			<Add option="-DUT_DB=DB_PGSQL" />
-			<Add directory="../../3rd_deps/pgsql/include" />
-			<Add directory="../../../trunk" />
-			<Add directory="../../../../rxlib.git/trunk" />
+			<Add directory="../../../rxdbc" />
+			<Add directory="../../3rd_deps/ora/include" />
+			<Add directory="../../../rxlib" />
 		</Compiler>
-		<Linker>
-			<Add library="pq" />
-			<Add directory="../../3rd_deps/pgsql/lib_w64/gcc" />
-			<Add directory="../../3rd_deps/pgsql/lib_w64" />
-		</Linker>
-		<Unit filename="ut_dbc.cpp" />
+		<Unit filename="ut_dbc_ora.cpp" />
 		<Extensions>
-			<code_completion />
 			<envvars />
+			<code_completion />
 			<debugger />
 			<lib_finder disable_auto="1" />
 		</Extensions>

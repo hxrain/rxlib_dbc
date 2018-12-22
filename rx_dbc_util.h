@@ -294,7 +294,7 @@ namespace rx_dbc
         typedef typename TT::field_t         field_t;
         typedef typename TT::query_t         query_t;
 
-        typedef dbc_conn_t<TT> dbc_conn_t;
+        typedef rx_dbc::dbc_conn_t<TT> dbc_conn_t;
     protected:
         query_t                     m_query;                //实际语句的底层执行器
         dbc_conn_t                 &m_dbconn;               //连接器功能对象的引用

@@ -23,15 +23,15 @@ namespace rx_dbc
         class type_t
         {
         public:
-            typedef env_option_t    env_option_t;
-            typedef error_info_t    error_info_t;
-            typedef datetime_t      datetime_t;
+            typedef ora::env_option_t    env_option_t;
+            typedef ora::error_info_t    error_info_t;
+            typedef ora::datetime_t      datetime_t;
 
-            typedef conn_t          conn_t;
-            typedef param_t         param_t;
-            typedef stmt_t          stmt_t;
-            typedef field_t         field_t;
-            typedef query_t         query_t;
+            typedef ora::conn_t          conn_t;
+            typedef ora::param_t         param_t;
+            typedef ora::stmt_t          stmt_t;
+            typedef ora::field_t         field_t;
+            typedef ora::query_t         query_t;
         };
     }
 }

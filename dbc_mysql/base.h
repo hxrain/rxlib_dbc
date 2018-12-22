@@ -93,7 +93,7 @@ namespace mysql
             desc << "MYSQL::" << msg;
             m_dbc_ec = DBEC_DB;
             m_mysql_ec = ec;
-            desc.repleace('\n', '.');
+            desc.replace('\n', '.');
             //½øÐÐOCI´íÎóÏ¸·Ö,Ó³Éäµ½DBEC´íÎóÂë
             switch (m_mysql_ec)
             {

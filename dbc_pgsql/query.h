@@ -9,7 +9,7 @@ namespace pgsql
     class query_t:public stmt_t
     {
         friend class field_t;
-        const uint16_t NOT_BAT_FETCH = 0xFFFF;
+        static const uint16_t NOT_BAT_FETCH = 0xFFFF;
         typedef rx::alias_array_t<field_t, FIELD_NAME_LENGTH> field_array_t;
         field_array_t           m_fields;                   //字段数组
         uint16_t		        m_fetch_bat_size;	        //每批次获取的记录数量,-1时不分批获取全部结果集.
@@ -39,7 +39,7 @@ namespace pgsql
         {
             m_clear(true);                                  //状态归零,先不释放字段数组
             rx_assert(m_raw_stmt.res() != NULL);
-            
+
             uint32_t fields = ::PQnfields(m_raw_stmt.res());
             uint32_t rows = ::PQntuples(m_raw_stmt.res());
             if ( rows == 0|| fields == 0)                   //没有结果,直接返回
@@ -202,7 +202,7 @@ namespace pgsql
         query_t& operator >> (DT &value)
         {
             rx_assert(m_cur_field_idx<m_fields.size());
-            m_fields[field_idx].to(value);
+            m_fields[m_cur_field_idx].to(value);
             return *this;
         }
     };

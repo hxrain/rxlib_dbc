@@ -41,16 +41,15 @@ namespace pgsql
             return DBEC_DB_CONNFAIL;
         if (rx::st::strncmp(msg, "ERROR:  duplicate key value violates unique constraint", 54) == 0)
             return DBEC_DB_UNIQUECONST;
-            
+
         return DBEC_OTHER;
     }
     //-------------------------------------------------
     //获取db连接的错误信息
     inline bool get_last_error(int32_t &ec, char *buff, uint32_t max_size,PGconn *handle)
     {
-        bool get_details = false;
         rx::tiny_string_t<> desc(max_size, buff);
-        
+
         if (handle)
         {
             const char *err = ::PQerrorMessage(handle);
@@ -67,7 +66,6 @@ namespace pgsql
     //获取DB/STMT更详细的错误信息
     inline bool get_last_error(int32_t &ec, const char* msg,char *buff, uint32_t max_size)
     {
-        bool get_details = false;
         rx::tiny_string_t<> desc(max_size, buff);
 
         if (!is_empty(msg))
@@ -100,7 +98,7 @@ namespace pgsql
             desc << "pgsql::" << msg;
             m_dbc_ec = ec;                                  //pg的伪错误码与dbc保持一致
             m_pg_ec = ec;
-            desc.repleace('\n', ';');
+            desc.replace('\n', ';');
         }
 
         //-------------------------------------------------
@@ -158,7 +156,7 @@ namespace pgsql
             va_start(va, format);
             make_attached_msg(format, va, source_name, line_number);
             va_end(va);
-        }        
+        }
         //-------------------------------------------------
         //构造函数,记录库内部错误
         error_info_t(err_type_t dbc_err, const char *source_name = NULL, uint32_t line_number = -1, const char *format = NULL, ...)
@@ -475,10 +473,10 @@ namespace pgsql
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_long(int64_t def_val = 0) const 
-        { 
+        int64_t as_long(int64_t def_val = 0) const
+        {
             if (m_is_null()) return def_val;
-            return comm_as_intlong(); 
+            return comm_as_intlong();
         }
         col_base_t& to(int64_t &buff, int64_t def_val = 0)
         {
