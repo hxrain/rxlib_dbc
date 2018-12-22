@@ -38,7 +38,7 @@ namespace mysql
         {
             if (is_empty(dst.host) || is_empty(dst.user) || is_empty(dst.db))
                 throw (error_info_t (DBEC_BAD_PARAM, __FILE__, __LINE__));
-                
+
             //每次连接前都先尝试关闭之前的连接
             close();
 
@@ -61,7 +61,7 @@ namespace mysql
             //尝试设置会话交互提示语言
             if (!is_empty(op.language))
                 exec("SET SESSION lc_messages = '%s'", op.language);
-                
+
             m_is_valid = true;
             return 0;
         }
@@ -70,7 +70,12 @@ namespace mysql
         bool close (void)
         {
             bool ret = m_is_valid;
-            mysql_close(&m_handle);
+            if (m_handle.host)
+            {
+                mysql_close(&m_handle);
+                m_handle.host=NULL;
+            }
+
             m_is_valid = false;
             return ret;
         }

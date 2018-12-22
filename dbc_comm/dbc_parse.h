@@ -231,7 +231,7 @@
                         }
                         if (c == 0)
                             return NULL;
-                       
+
                         break;
                     }
                     default:
@@ -296,8 +296,8 @@
         char tmp[5]; tmp[4] = 0;
         rx::st::strncpy(tmp, SQL, 4);
         rx::st::strupr(tmp);
-
-        switch (*(uint32_t*)tmp)
+        void *ptr=(void*)tmp;
+        switch (*((uint32_t*)ptr))
         {
         case 0x454c4553:return ST_SELECT;
         case 0x41445055:return ST_UPDATE;

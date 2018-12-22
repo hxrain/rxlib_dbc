@@ -27,7 +27,7 @@ namespace mysql
             reset();
 
             m_name.assign(name);
-            
+
             m_metainfo=bind;
             memset(m_metainfo,0,sizeof(*m_metainfo));
             //绑定元信息结构的初始化
@@ -49,7 +49,7 @@ namespace mysql
         //统一功能函数:将指定的原始类型的数据转换为字符串:错误句柄;原始数据缓冲区;原始数据类型;临时字符串缓冲区;临时缓冲区尺寸;转换格式
         PStr comm_as_string(const char* ConvFmt = NULL) const
         {
-            #define NUM2STR(sfunc,ufunc,stype,utype) m_metainfo->is_unsigned? rx::st::ufunc(*(utype*)m_buff,(char*)m_working_buff) :rx::st::sfunc(*(stype*)m_buff,(char*)m_working_buff)
+            #define NUM2STR(sfunc,ufunc,stype,utype) m_metainfo->is_unsigned? rx::st::ufunc(*(utype*)((void*)m_buff),(char*)m_working_buff) :rx::st::sfunc(*(stype*)((void*)m_buff),(char*)m_working_buff)
 
             switch(m_metainfo->buffer_type)
             {
@@ -246,7 +246,7 @@ namespace mysql
         //-------------------------------------------------
         const char* name()const { return m_name.c_str(); }
         //-------------------------------------------------
-        data_type_t dbc_data_type() 
+        data_type_t dbc_data_type()
         {
             if (m_is_null()) return DT_UNKNOWN;
             switch (m_metainfo->buffer_type)
@@ -318,10 +318,10 @@ namespace mysql
         }
         //-------------------------------------------------
         //尝试获取内部数据为超大整数
-        int64_t as_long(int64_t def_val = 0) const 
-        { 
+        int64_t as_long(int64_t def_val = 0) const
+        {
             if (m_is_null()) return def_val;
-            return comm_as_intlong(); 
+            return comm_as_intlong();
         }
         field_t& to(int64_t &buff, int64_t def_val = 0)
         {
