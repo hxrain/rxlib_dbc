@@ -3,16 +3,50 @@
 
 /*
     对rx_dbc::ora,rx_dbc::mysql等底层功能进行功能封装.
-    如果不使用本工具框架中的功能而是直接使用底层功能封装,则需要进行完整的错误处理与捕捉与输出.
+    如果不使用本工具框架中的功能而是直接使用底层功能封装,则需要进行完整的错误处理/捕捉与输出.
     外面使用的时候,应该按照如下顺序进行头文件引入:
 
+使用ORACLE数据库：
     #include "../rx_dbc_ora.h"
     #include "../rx_dbc_util.h"
 
-    或
+    typedef rx_dbc::dbc_conn_t<rx_dbc::ora::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_ext_t<rx_dbc::ora::type_t> dbc_ext_t;
+    typedef rx_dbc::dbc_tiny_t<rx_dbc::ora::type_t> dbc_tiny_t;
+    using namespace rx_dbc::ora;
 
+或使用mysql数据库：
     #include "../rx_dbc_mysql.h"
     #include "../rx_dbc_util.h"
+    
+    typedef rx_dbc::dbc_conn_t<rx_dbc::mysql::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_ext_t<rx_dbc::mysql::type_t> dbc_ext_t;
+    typedef rx_dbc::dbc_tiny_t<rx_dbc::mysql::type_t> dbc_tiny_t;
+    using namespace rx_dbc::mysql;
+
+或使用postgresql数据库：
+    #include "../rx_dbc_pgsql.h"
+    #include "../rx_dbc_util.h"
+    
+    typedef rx_dbc::dbc_conn_t<rx_dbc::pgsql::type_t> dbc_conn_t;
+    typedef rx_dbc::dbc_ext_t<rx_dbc::pgsql::type_t> dbc_ext_t;
+    typedef rx_dbc::dbc_tiny_t<rx_dbc::pgsql::type_t> dbc_tiny_t;
+    using namespace rx_dbc::pgsql;
+
+举个栗子：
+    dbc_conn_t conn;                                            //定义链接工具实例
+    conn.set_conn_param("127.0.0.1","user","pwd","db",3306);    //设置数据库链接参数
+
+    //直接使用dbc_tiny_t进行非绑定参数的sql执行
+    const char* sql = "insert into tmp_dbc(id,str) values(123456789,'insert')";
+    if (dbc_tiny_t(conn).action(sql)<=0)
+        do_error;
+
+    //直接使用conn进行非绑定参数的sql执行
+    if (!conn.exec(sql))
+        do_error;
+
+使用绑定变量的栗子，可参考 test/ut_dbc_util.h 中的多种使用方式
 */
 
 namespace rx_dbc
