@@ -185,19 +185,29 @@ inline void ut_conn_ext_a(rx_tdd_t &rt)
 
     //Ö´ÐÐ²âÊÔ¹ý³Ì
     ut_conn_ext_a1(rt, conn, dat);
-    rt.tdd_assert(cp.records() == 3);
+    int rc=cp.records();
+    int rc1=conn.records("tmp_dbc");
+    rt.tdd_assert(rc == 3 && rc1==rc);
 
     ut_conn_ext_a2(rt, conn, dat);
-    rt.tdd_assert(cp.records() == 5);
+    rc=cp.records();
+    rc1=conn.records("tmp_dbc");
+    rt.tdd_assert(rc == 5 && rc1==rc);
 
     ut_conn_ext_a3(rt, conn, dat);
-    rt.tdd_assert(cp.records() == 5);
+    rc=cp.records();
+    rc1=conn.records("tmp_dbc");
+    rt.tdd_assert(rc == 5 && rc1==rc);
 
     ut_conn_ext_a4(rt, conn, dat);
-    rt.tdd_assert(cp.records() == 5);
+    rc=cp.records();
+    rc1=conn.records("tmp_dbc");
+    rt.tdd_assert(rc == 5 && rc1==rc);
 
     ut_conn_ext_a5(rt, conn, dat);
-    rt.tdd_assert(cp.records() == 6);
+    rc=cp.records();
+    rc1=conn.records("tmp_dbc");
+    rt.tdd_assert(rc == 6 && rc1==rc);
 }
 
 //---------------------------------------------------------

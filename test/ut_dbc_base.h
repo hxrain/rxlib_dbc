@@ -353,7 +353,7 @@ inline void ut_conn_base_1(rx_tdd_t &rt)
     if (utdb.check_conn())
     {
         rt.tdd_assert(ut_conn_base_query_1(rt, utdb));
-        
+
         //ÏÈÇå¿Õ²âÊÔ±í
         rt.tdd_assert(utdb.exec("delete from tmp_dbc")==1);
         rt.tdd_assert(utdb.records() == 0);

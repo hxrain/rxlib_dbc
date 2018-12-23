@@ -12,6 +12,7 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 				<Compiler>
+					<Add option="-march=nocona" />
 					<Add option="-g" />
 				</Compiler>
 			</Target>
@@ -36,6 +37,9 @@
 			<Add directory="../../../rxdbc" />
 			<Add directory="../../../rxlib" />
 		</Compiler>
+		<Linker>
+			<Add library="../../../../../usr/lib64/mysql/libmysqlclient.so" />
+		</Linker>
 		<Unit filename="ut_dbc.cpp" />
 		<Extensions>
 			<envvars />

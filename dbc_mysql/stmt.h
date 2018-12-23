@@ -31,10 +31,10 @@ namespace mysql
             rx_assert(!is_empty(m_SQL));
             
             close(true);                                    //语句可能都变了,复位后重来
-            m_stmt_handle = mysql_stmt_init(&m_conn.m_handle);
+            m_stmt_handle = mysql_stmt_init(m_conn.m_handle_);
 
             if (!m_stmt_handle)
-                throw (error_info_t(&m_conn.m_handle, __FILE__, __LINE__,m_SQL));
+                throw (error_info_t(m_conn.m_handle_, __FILE__, __LINE__,m_SQL));
 
             if (mysql_stmt_prepare(m_stmt_handle,m_SQL,m_SQL.size()))
                 throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
