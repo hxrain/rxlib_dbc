@@ -5,6 +5,13 @@
 #include "mysql.h"                                          //引入mysql接口,默认在"3rd_deps\mysql\include"
 #include "errmsg.h"                                         //引入mysql错误消息
 #include "mysqld_error.h"                                   //引入mysql扩展错误消息
+
+#if !defined(LIBMYSQL_VERSION_ID )|| LIBMYSQL_VERSION_ID<60111
+    #define MYSQL_TYPE_TIMESTAMP2   (enum_field_types)(MYSQL_TYPE_BIT+1)
+    #define MYSQL_TYPE_DATETIME2    (enum_field_types)(MYSQL_TYPE_BIT+2)
+    #define MYSQL_TYPE_TIME2        (enum_field_types)(MYSQL_TYPE_BIT+3)
+#endif
+
 #include "dbc_comm/dbc_comm.h"                              //引入基础设施
 //---------------------------------------------------------
 namespace rx_dbc

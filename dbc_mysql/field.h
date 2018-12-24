@@ -59,7 +59,7 @@ namespace mysql
         {
             #define NUM2STR(sfunc,ufunc,stype,utype) (m_metainfo->is_unsigned? rx::st::ufunc(*cast<utype*>(m_buff),(char*)m_working_buff) :rx::st::sfunc(*cast<stype*>(m_buff),(char*)m_working_buff))
 
-            switch(m_metainfo->buffer_type)
+            switch((uint8_t)m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_TINY:
                 return NUM2STR(itoa, ultoa, int8_t, uint8_t);
@@ -213,7 +213,7 @@ namespace mysql
         //统一功能函数:将指定的原始类型的数据转换为日期:错误句柄;原始数据缓冲区;原始数据类型;
         datetime_t comm_as_datetime() const
         {
-            switch (m_metainfo->buffer_type)
+            switch ((uint8_t)m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_DATE:
             case MYSQL_TYPE_NEWDATE:
@@ -257,7 +257,7 @@ namespace mysql
         data_type_t dbc_data_type()
         {
             if (m_is_null()) return DT_UNKNOWN;
-            switch (m_metainfo->buffer_type)
+            switch ((uint8_t)m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_TINY:
             case MYSQL_TYPE_SHORT:
