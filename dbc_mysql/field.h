@@ -46,10 +46,18 @@ namespace mysql
         }
 
         //-----------------------------------------------------
+        //用于去除GCC/-Wstrict-aliasing警告的语法糖
+        template<typename DT>
+        static inline DT cast(const uint8_t* src)
+        {
+            DT dst=(DT)((void*)src);
+            return dst;
+        }
+        //-----------------------------------------------------
         //统一功能函数:将指定的原始类型的数据转换为字符串:错误句柄;原始数据缓冲区;原始数据类型;临时字符串缓冲区;临时缓冲区尺寸;转换格式
         PStr comm_as_string(const char* ConvFmt = NULL) const
         {
-            #define NUM2STR(sfunc,ufunc,stype,utype) m_metainfo->is_unsigned? rx::st::ufunc(*(utype*)((void*)m_buff),(char*)m_working_buff) :rx::st::sfunc(*(stype*)((void*)m_buff),(char*)m_working_buff)
+            #define NUM2STR(sfunc,ufunc,stype,utype) (m_metainfo->is_unsigned? rx::st::ufunc(*cast<utype*>(m_buff),(char*)m_working_buff) :rx::st::sfunc(*cast<stype*>(m_buff),(char*)m_working_buff))
 
             switch(m_metainfo->buffer_type)
             {
@@ -63,9 +71,9 @@ namespace mysql
             case MYSQL_TYPE_LONGLONG:
                 return NUM2STR(itoa64, utoa64, int64_t, uint64_t);
             case MYSQL_TYPE_FLOAT:
-                return rx::st::ftoa(*(float*)m_buff,(char*)m_working_buff);
+                return rx::st::ftoa(*cast<float*>(m_buff),(char*)m_working_buff);
             case MYSQL_TYPE_DOUBLE:
-                return rx::st::ftoa(*(double*)m_buff,(char*)m_working_buff);
+                return rx::st::ftoa(*cast<double*>(m_buff),(char*)m_working_buff);
             case MYSQL_TYPE_DECIMAL:
             case MYSQL_TYPE_NEWDECIMAL:
                 return (char*)m_buff;
@@ -78,7 +86,7 @@ namespace mysql
             case MYSQL_TYPE_TIMESTAMP:
             case MYSQL_TYPE_TIMESTAMP2:
             {
-                datetime_t dt = *(MYSQL_TIME*)m_buff;
+                datetime_t dt = *cast<MYSQL_TIME*>(m_buff);
                 return dt.to((char*)m_working_buff);
             }
             case MYSQL_TYPE_VARCHAR:
@@ -98,7 +106,7 @@ namespace mysql
         //统一功能函数:将指定的原始类型的数据转换为浮点数:错误句柄;原始数据缓冲区;原始数据类型;
         double comm_as_double() const
         {
-            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
+            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*cast<utype*>(m_buff)) : (*cast<stype*>(m_buff))
             switch (m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_TINY:
@@ -111,9 +119,9 @@ namespace mysql
             case MYSQL_TYPE_LONGLONG:
                 return (double)(NUM2NUM(int64_t, uint64_t));
             case MYSQL_TYPE_FLOAT:
-                return *(float*)m_buff;
+                return *cast<float*>(m_buff);
             case MYSQL_TYPE_DOUBLE:
-                return *(double*)m_buff;
+                return *cast<double*>(m_buff);
             case MYSQL_TYPE_DECIMAL:
             case MYSQL_TYPE_NEWDECIMAL:
                 return rx::st::atof((char*)m_buff);
@@ -134,7 +142,7 @@ namespace mysql
         //统一功能函数:将指定的原始类型的数据转换为带符号整型数:错误句柄;原始数据缓冲区;原始数据类型;
         int32_t comm_as_int(bool is_signed = true) const
         {
-            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
+            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*cast<utype*>(m_buff)) : (*cast<stype*>(m_buff))
             switch (m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_TINY:
@@ -147,9 +155,9 @@ namespace mysql
             case MYSQL_TYPE_LONGLONG:
                 return int32_t(NUM2NUM(int64_t, uint64_t));
             case MYSQL_TYPE_FLOAT:
-                return int32_t(*(float*)m_buff);
+                return int32_t(*cast<float*>(m_buff));
             case MYSQL_TYPE_DOUBLE:
-                return int32_t(*(double*)m_buff);
+                return int32_t(*cast<double*>(m_buff));
             case MYSQL_TYPE_DECIMAL:
             case MYSQL_TYPE_NEWDECIMAL:
                 return int32_t(rx::st::atoi((char*)m_buff));
@@ -169,7 +177,7 @@ namespace mysql
         //-----------------------------------------------------
         int64_t comm_as_intlong() const
         {
-            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*(utype*)m_buff) : (*(stype*)m_buff)
+            #define NUM2NUM(stype,utype) m_metainfo->is_unsigned? (*cast<utype*>(m_buff)) : (*cast<stype*>(m_buff))
             switch (m_metainfo->buffer_type)
             {
             case MYSQL_TYPE_TINY:
@@ -182,9 +190,9 @@ namespace mysql
             case MYSQL_TYPE_LONGLONG:
                 return NUM2NUM(int64_t, uint64_t);
             case MYSQL_TYPE_FLOAT:
-                return int64_t(*(float*)m_buff);
+                return int64_t(*cast<float*>(m_buff));
             case MYSQL_TYPE_DOUBLE:
-                return int64_t(*(double*)m_buff);
+                return int64_t(*cast<double*>(m_buff));
             case MYSQL_TYPE_DECIMAL:
             case MYSQL_TYPE_NEWDECIMAL:
                 return rx::st::atoi64((char*)m_buff);
@@ -216,7 +224,7 @@ namespace mysql
             case MYSQL_TYPE_TIMESTAMP:
             case MYSQL_TYPE_TIMESTAMP2:
             {
-                datetime_t dt = *(MYSQL_TIME*)m_buff;
+                datetime_t dt = *cast<MYSQL_TIME*>(m_buff);
                 return dt;
             }
             case MYSQL_TYPE_VARCHAR:
