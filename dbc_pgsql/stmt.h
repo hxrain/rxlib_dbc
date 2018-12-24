@@ -70,27 +70,23 @@ namespace pgsql
             }
             //----------------------------------------------
             //预解析后执行动作,将参数对应的数据发送给服务器,得到执行结果
-            void prepare_exec(bool auto_commit)
+            void prepare_exec()
             {
                 reset();
                 //if (is_empty(m_pre_name))
                 //    throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is not prepared!"));
                 m_res = ::PQexecPrepared(parent.m_conn.m_handle, m_pre_name, parent.m_params.size(), parent.m_mi_vals.array(), NULL, NULL, 0);
                 m_check_error();
-                if (auto_commit)
-                    parent.m_conn.trans_commit();
             }
             //----------------------------------------------
             //不进行预解析,直接将参数数据和sql语句发送给服务器,得到执行结果
-            void params_exec(bool auto_commit)
+            void params_exec()
             {
                 reset(true);
                 if (!parent.m_SQL.size())
                     throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__, "sql is empty!"));
                 m_res = ::PQexecParams(parent.m_conn.m_handle, parent.m_SQL.c_str(), parent.m_params.size(), (Oid*)parent.m_mi_oids.array(), parent.m_mi_vals.array(), NULL, NULL, 0);
                 m_check_error();
-                if (auto_commit)
-                    parent.m_conn.trans_commit();
             }
             //----------------------------------------------
             //尝试释放之前执行的结果
@@ -333,11 +329,11 @@ namespace pgsql
         const char* sql_string() { return m_SQL; }
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
-        stmt_t& exec (bool auto_commit=false)
+        stmt_t& exec ()
         {
             m_executed = false;
             m_cur_param_idx = 0;
-            m_raw_stmt.prepare_exec(auto_commit);
+            m_raw_stmt.prepare_exec();
             m_executed = true;
             return *this;
         }
@@ -366,7 +362,7 @@ namespace pgsql
 
             m_SQL = m_SQL_BAK;
 
-            m_raw_stmt.params_exec(true);
+            m_raw_stmt.params_exec();
 
             return *this;
         }

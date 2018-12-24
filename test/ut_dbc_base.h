@@ -271,7 +271,7 @@ inline bool ut_conn_base_insert_5(rx_tdd_t &rt, ut_conn &dbc)
 
         //继续进行批量数据的绑定
         q.bulk(0) << 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
-        q.exec(1, true);                                    //告知真正绑定的数据深度,执行并提交
+        q.exec(1);                                          //告知真正绑定的数据深度
         rt.tdd_assert(q.rows() == 1);
 #else
         //给每个块深度对应的参数进行赋值
@@ -285,7 +285,7 @@ inline bool ut_conn_base_insert_5(rx_tdd_t &rt, ut_conn &dbc)
 
         //继续进行批量数据的绑定
         q<< 47 << -155905152 << (uint32_t)2155905152u << "2" << cur_time_str << 32767;
-        q.exec(true);                                    //告知真正绑定的数据深度,执行并提交
+        q.exec();                                           //告知真正绑定的数据深度,执行并提交
         rt.tdd_assert(q.rows() == 1);
 #endif
         return true;

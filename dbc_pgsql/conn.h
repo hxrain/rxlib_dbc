@@ -42,36 +42,6 @@ namespace pgsql
             }
             ::PQclear(res);                                 //正常执行完成后也必须清理执行结果对象
         }
-        //-------------------------------------------------
-        //根据给定的sql语句判断是否应自动开启事务;不给语句时则尝试直接启动事务
-        //所有此连接上执行的语句动作,都应该在真正exec前调用此方法,进行正确的隐式自动事务的开启
-        void m_tran_begin(const char* SQL)
-        {
-            if (!is_empty(SQL))
-            {//给定sql的时候,可以判断类别
-                switch (get_sql_type(SQL))
-                {//根据sql类型,排除掉无需事务的语句
-                    //case ST_DECLARE:
-                    case ST_SELECT:
-                    case ST_UNKNOWN:
-                    case ST_SET:
-                    case ST_BEGIN:
-                    case ST_FETCH:
-                        return;
-                    default:
-                        break;
-                }
-            }
-
-            if (!m_handle)                                  //执行顺序错误,连接尚未建立
-                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
-
-            PGTransactionStatusType ts = ::PQtransactionStatus(m_handle);
-            if (ts == PQTRANS_IDLE)                         //完全空闲的时候,才可以启动事务
-                m_exec("begin");
-            else if (ts == PQTRANS_INERROR)                 //有之前的执行错误未进行回滚处理
-                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
-        }
     public:
         //-------------------------------------------------
         conn_t(rx::mem_allotter_i& ma = rx_global_mem_allotter()):m_mem(ma), m_handle(NULL)
@@ -140,46 +110,21 @@ namespace pgsql
             m_exec(SQL);
         }
         //-------------------------------------------------
-        /*//执行一条语句
-        void tmp_exec(const char *sql)
-        {
-            if (!m_handle)                                  //执行顺序错误,连接尚未建立
-                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
-            //执行语句
-            PGresult *res = ::PQexecParams(m_handle,sql,0,NULL,NULL,NULL,NULL,0);//::PQexec(m_handle, sql);
-            if (!res)                                       //出现错误了
-                throw (error_info_t(DBEC_DB_CONNLOST, __FILE__, __LINE__));
-
-            //获取执行结果
-            ::ExecStatusType ec = ::PQresultStatus(res);
-            if (ec != PGRES_TUPLES_OK)
-            {//如果不是无结果集命令成功,就进行错误信息记录
-                rx::tiny_string_t<char, 1024> tmp;
-                tmp = ::PQresultErrorMessage(res);
-                ::PQclear(res);                             //必须清理执行结果对象后,再抛出错误异常
-                throw (error_info_t(tmp.c_str(), __FILE__, __LINE__));
-            }
-
-            int32_t rows = ::PQntuples(res);
-            int32_t fields = ::PQnfields(res);
-            for (int i = 0; i < fields; ++i)
-            {
-                const char* fname = ::PQfname(res, i);
-                int is_bin = ::PQfformat(res, i);
-                Oid ftype = ::PQftype(res, i);
-                int flen = ::PQgetlength(res,0,i);
-                const char* fval = ::PQgetvalue(res, 0, i);
-                flen++;
-            }
-
-            ::PQclear(res);                                 //正常执行完成后也必须清理执行结果对象
-        }*/
-        //-------------------------------------------------
         //切换到指定的用户专属库
         void schema_to(const char *schema) { exec("set search_path = '%s'", schema); }
         //-------------------------------------------------
         //当前连接明确地启动事务
-        void trans_begin() { m_tran_begin(NULL); }
+        void trans_begin() 
+        { 
+            if (!m_handle)                                  //执行顺序错误,连接尚未建立
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
+
+            PGTransactionStatusType ts = ::PQtransactionStatus(m_handle);
+            if (ts == PQTRANS_IDLE)                         //完全空闲的时候,才可以启动事务
+                m_exec("begin");
+            else if (ts == PQTRANS_INERROR)                 //有之前的执行错误未进行回滚处理
+                throw (error_info_t(DBEC_METHOD_CALL, __FILE__, __LINE__));
+        }
         //-------------------------------------------------
         //提交当前事务
         void trans_commit (void)

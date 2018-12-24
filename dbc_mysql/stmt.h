@@ -209,7 +209,7 @@ namespace mysql
         const char* sql_string() { return m_SQL; }
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
-        stmt_t& exec (bool auto_commit=false)
+        stmt_t& exec()
         {
             rx_assert(m_stmt_handle != NULL);
             m_executed = false;
@@ -221,9 +221,6 @@ namespace mysql
             if (mysql_stmt_execute(m_stmt_handle))
                 throw (error_info_t(m_stmt_handle, __FILE__, __LINE__, m_SQL));
             
-            if (auto_commit)
-                m_conn.trans_commit();
-
             m_executed = true;
             return *this;
         }

@@ -223,7 +223,7 @@ namespace ora
         //-------------------------------------------------
         //执行当前预解析过的语句,不进行返回记录集的处理
         //入口:当前实际绑定参数的批量深度.
-        stmt_t& exec (ub2 BulkCount=0,bool auto_commit=false)
+        stmt_t& exec (ub2 BulkCount=0)
         {
             m_executed = false;
             rx_assert_if(m_cur_param_idx, m_cur_param_idx == m_params.size());//要求自动调整参数列序号的时候,必须与参数数量相同,避免<<的时候漏掉数据
@@ -247,7 +247,6 @@ namespace ora
                 BulkCount = m_max_bulk_deep;
                 m_last_bulk_deep = m_max_bulk_deep;
             }
-                
 
             sword result = OCIStmtExecute (
                          m_conn.m_handle_svc,
@@ -257,7 +256,7 @@ namespace ora
                          0,		// starting index from which the data in an array bind is relevant
                          NULL,	// input snapshot descriptor
                          NULL,	// output snapshot descriptor
-                        auto_commit? OCI_COMMIT_ON_SUCCESS :OCI_DEFAULT);
+                         m_conn.m_handle_trans ==NULL? OCI_COMMIT_ON_SUCCESS :OCI_DEFAULT);//如果没有明确启动事物，则进行自动提交
 
             if (result == OCI_SUCCESS)
                 m_executed = true;

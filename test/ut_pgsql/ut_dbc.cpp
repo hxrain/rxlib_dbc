@@ -103,8 +103,6 @@ void ut_pgsql_base_conn_1(rx_tdd_t &rt, conn_t &conn, rx_dbc::conn_param_t &conn
 //---------------------------------------------------------
 rx_tdd(ut_conn_base)
 {
-    return;
-
     rx_dbc::conn_param_t conn_param;
     conn_t conn;
 
