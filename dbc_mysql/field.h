@@ -325,7 +325,7 @@ namespace mysql
             return *this;
         }
         //-------------------------------------------------
-        //尝试获取内部数据为超大整数
+        //尝试获取内部数据为超大整数(带符号)
         int64_t as_long(int64_t def_val = 0) const
         {
             if (m_is_null()) return def_val;
@@ -334,6 +334,18 @@ namespace mysql
         field_t& to(int64_t &buff, int64_t def_val = 0)
         {
             buff = as_long(def_val);
+            return *this;
+        }
+        //-------------------------------------------------
+        //尝试获取内部数据为超大整数(无符号)
+        uint64_t as_ulong(uint64_t def_val = 0) const
+        {
+            if (m_is_null()) return def_val;
+            return comm_as_intlong();
+        }
+        field_t& to(uint64_t &buff, uint64_t def_val = 0)
+        {
+            buff = as_ulong(def_val);
             return *this;
         }
         //-------------------------------------------------

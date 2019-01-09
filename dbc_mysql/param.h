@@ -36,10 +36,10 @@ namespace mysql
         }
 
         //-------------------------------------------------
-        param_t& set_longlong(int64_t value)
+        param_t& set_longlong(int64_t value, bool is_signed)
         {
             m_metainfo->buffer_type = MYSQL_TYPE_LONGLONG;
-            m_metainfo->is_unsigned = 1;
+            m_metainfo->is_unsigned = !is_signed;
             m_metainfo->length_value = sizeof(value);
             *((int64_t*)m_metainfo->buffer) = value;
             return *this;
@@ -77,11 +77,12 @@ namespace mysql
         param_t& operator = (double value) { return set_double(value); }
         //-------------------------------------------------
         //设置参数为大整数值(带符号)
-        param_t& operator = (int64_t value) { return set_longlong(value); }
+        param_t& operator = (int64_t value) { return set_longlong(value,true); }
+        //设置参数为大整数值(无符号)
+        param_t& operator = (uint64_t value) { return set_longlong(value, false); }
         //-------------------------------------------------
         //设置参数为整数值(带符号)
         param_t& operator = (int32_t value) { return set_long(value, true); }
-        //-------------------------------------------------
         //设置参数为整数值(无符号)
         param_t& operator = (uint32_t value) { return set_long(value, false); }
         //-------------------------------------------------
